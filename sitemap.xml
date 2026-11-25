@@ -11,7 +11,17 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://voidvec.github.io/link/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://voidvec.github.io/categories/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/tags/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -19,16 +29,6 @@
     <loc>https://voidvec.github.io/projects/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/link/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/tags/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
   </url>
   <url>
     <loc>https://voidvec.github.io/posts/9b28b992/</loc>
@@ -61,6 +61,12 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://voidvec.github.io/posts/7ef87112/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://voidvec.github.io/posts/4f30aaf4/</loc>
     <lastmod>2026-11-25</lastmod>
     <changefreq>monthly</changefreq>
@@ -73,19 +79,13 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/7ef87112/</loc>
+    <loc>https://voidvec.github.io/posts/38ea5a46/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://voidvec.github.io/posts/35f89acf/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/38ea5a46/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -103,25 +103,25 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/ee94e619/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/posts/2d1c3806/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/5d5b09a4/</loc>
+    <loc>https://voidvec.github.io/posts/df73c2a8/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/df73c2a8/</loc>
+    <loc>https://voidvec.github.io/posts/ee94e619/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/5d5b09a4/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -139,12 +139,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/d0dcdb61/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/posts/f0a1549f/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
@@ -152,6 +146,12 @@
   </url>
   <url>
     <loc>https://voidvec.github.io/posts/4996968/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/d0dcdb61/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -283,12 +283,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/eed6fb04/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/posts/cb45c274/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
@@ -296,6 +290,12 @@
   </url>
   <url>
     <loc>https://voidvec.github.io/posts/33eb4929/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/eed6fb04/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -373,13 +373,13 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/windows-github-mcp/</loc>
+    <loc>https://voidvec.github.io/posts/gemini-cli-proxy/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/gemini-cli-proxy/</loc>
+    <loc>https://voidvec.github.io/posts/windows-github-mcp/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -427,24 +427,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/7d0c78d8/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/5abd78c8/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/e248e336/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/posts/ab54f5ad/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
@@ -457,7 +439,19 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/cbc03d19/</loc>
+    <loc>https://voidvec.github.io/posts/7d0c78d8/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/e248e336/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/5abd78c8/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -475,7 +469,7 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/978cdeb3/</loc>
+    <loc>https://voidvec.github.io/posts/cbc03d19/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -487,43 +481,7 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/9c458f0f/</loc>
-    <lastmod>2026-11-25</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/368cb679/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/1062394a/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/5f4e9957/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/72319614/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/Infinity/</loc>
-    <lastmod>2026-11-25</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/9fd5cea0/</loc>
+    <loc>https://voidvec.github.io/posts/978cdeb3/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -535,13 +493,13 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/8ca57176/</loc>
-    <lastmod>2026-08-14</lastmod>
+    <loc>https://voidvec.github.io/posts/Infinity/</loc>
+    <lastmod>2026-11-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/45ce4685/</loc>
+    <loc>https://voidvec.github.io/posts/8ca57176/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -553,19 +511,67 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/0f550b72/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/posts/a5cc39c8/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://voidvec.github.io/posts/45ce4685/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/0f550b72/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/9c458f0f/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/1062394a/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/368cb679/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/72319614/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/5f4e9957/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/9fd5cea0/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://voidvec.github.io/posts/4f27a319/</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/posts/e1da8eeb/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -583,7 +589,7 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/e1da8eeb/</loc>
+    <loc>https://voidvec.github.io/posts/de2f159c/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -595,7 +601,7 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/a3949388/</loc>
+    <loc>https://voidvec.github.io/posts/9709efdc/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -613,13 +619,7 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/posts/de2f159c/</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/posts/9709efdc/</loc>
+    <loc>https://voidvec.github.io/posts/a3949388/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -1285,6 +1285,202 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://voidvec.github.io/categories/开发工具/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/数据库系统/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/云原生运维/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/Web架构安全/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/软件架构/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/AI辅助开发/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/参考手册速查/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/系统级编程/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/C-核心开发/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/构建系统/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/调试分析/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/版本控制/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/IDE编辑器/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/CLI/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/系统级编程/Linux系统/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/开发工具/其他工具/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/系统级编程/Windows系统/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/数据库系统/关系型数据库/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/C-核心开发/构建环境/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/云原生运维/容器化/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/数据库系统/NoSQL缓存/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/系统级编程/网络编程/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/Web架构安全/Web服务器反向代理/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/Web架构安全/认证安全/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/云原生运维/监控日志/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/云原生运维/云平台/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/Web架构安全/API设计/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/软件架构/项目需求/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/软件架构/系统设计/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/Qt框架/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/参考手册速查/命令行/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/Web生成器/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/AI辅助开发/智能体应用/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/通用工具/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/JSON-XML/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/框架库/RPC和序列化/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/categories/AI辅助开发/知识库工程/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
     <loc>https://voidvec.github.io/archives/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
@@ -1338,202 +1534,6 @@
     <loc>https://voidvec.github.io/archives/2026/11/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/数据库系统/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/Web架构安全/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/云原生运维/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/软件架构/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/AI辅助开发/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/参考手册速查/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/系统级编程/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/构建系统/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/C-核心开发/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/调试分析/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/版本控制/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/系统级编程/网络编程/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/系统级编程/Windows系统/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/系统级编程/Linux系统/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/IDE编辑器/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/CLI/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/C-核心开发/构建环境/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/开发工具/其他工具/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/数据库系统/关系型数据库/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/Web架构安全/Web服务器反向代理/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/数据库系统/NoSQL缓存/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/Web架构安全/认证安全/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/Web架构安全/API设计/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/Qt框架/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/云原生运维/云平台/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/软件架构/系统设计/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/云原生运维/容器化/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/云原生运维/监控日志/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/软件架构/项目需求/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/参考手册速查/命令行/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/Web生成器/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/通用工具/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/AI辅助开发/智能体应用/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/RPC和序列化/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/框架库/JSON-XML/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/categories/AI辅助开发/知识库工程/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://voidvec.github.io/</loc>
-    <lastmod>2026-11-25</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
   </url>
   <url>
     <loc>https://voidvec.github.io/projects/fulla/</loc>
