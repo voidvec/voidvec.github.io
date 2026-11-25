@@ -1340,12 +1340,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://voidvec.github.io/</loc>
-    <lastmod>2026-11-25</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
     <loc>https://voidvec.github.io/categories/开发工具/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
@@ -1534,6 +1528,12 @@
     <loc>https://voidvec.github.io/categories/AI辅助开发/知识库工程/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://voidvec.github.io/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
   <url>
     <loc>https://voidvec.github.io/projects/fulla/</loc>
