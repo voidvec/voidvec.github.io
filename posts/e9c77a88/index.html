@@ -1,0 +1,608 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>微信支付与 API Key 配置指南 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PayPlugin 需要的两类配置：微信支付凭据与 API Key，以及各自的加载与校验规则。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="微信支付与 API Key 配置指南">
+<meta property="og:url" content="https://voidvec.github.io/posts/e9c77a88/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="PayPlugin 需要的两类配置：微信支付凭据与 API Key，以及各自的加载与校验规则。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-09-27T00:50:00.000Z">
+<meta property="article:modified_time" content="2026-09-27T00:50:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="api-design">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="drogon">
+<meta property="article:tag" content="pay-plugin">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "微信支付与 API Key 配置指南",
+  "url": "https://voidvec.github.io/posts/e9c77a88/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-09-27T00:50:00.000Z",
+  "dateModified": "2026-09-27T00:50:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/e9c77a88/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '微信支付与 API Key 配置指南',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">微信支付与 API Key 配置指南</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">微信支付与 API Key 配置指南</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-09-27T00:50:00.000Z" title="发表于 2026-09-27 08:50:00">2026-09-27</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-09-27T00:50:00.000Z" title="更新于 2026-09-27 08:50:00">2026-09-27</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/API%E8%AE%BE%E8%AE%A1/">API设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/pay-plugin/">drogon-pay</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与集成</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#2ea44f">drogon-pay</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p><strong>创建时间：</strong> 2026-04-13<br><strong>目的：</strong> 配置PayPlugin的微信支付和内部API认证</p>
+<hr>
+<h2 id="📋-配置概述"><a href="#📋-配置概述" class="headerlink" title="📋 配置概述"></a>📋 配置概述</h2><p>PayPlugin需要<strong>两类</strong>配置：</p>
+<h3 id="1️⃣-微信支付商户配置"><a href="#1️⃣-微信支付商户配置" class="headerlink" title="1️⃣ 微信支付商户配置"></a>1️⃣ 微信支付商户配置</h3><p><strong>用途：</strong> 调用微信支付API<br><strong>位置：</strong> <code>config.json</code> → <code>plugins</code> → <code>PayPlugin</code> → <code>config</code> → <code>channels</code> → <code>wechat</code></p>
+<h3 id="2️⃣-内部API密钥配置"><a href="#2️⃣-内部API密钥配置" class="headerlink" title="2️⃣ 内部API密钥配置"></a>2️⃣ 内部API密钥配置</h3><p><strong>用途：</strong> 认证内部API调用（如 &#x2F;api&#x2F;pay&#x2F;query）<br><strong>位置：</strong> <code>config.json</code> → <code>custom_config</code> → <code>pay</code> → <code>api_keys</code></p>
+<hr>
+<h2 id="🔑-第一部分：微信支付商户配置"><a href="#🔑-第一部分：微信支付商户配置" class="headerlink" title="🔑 第一部分：微信支付商户配置"></a>🔑 第一部分：微信支付商户配置</h2><h3 id="必需的配置项"><a href="#必需的配置项" class="headerlink" title="必需的配置项"></a>必需的配置项</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PayPlugin&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;channels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;wechat&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;app_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;wx8888888888888888&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;mch_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1234567890&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;serial_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ABCDEFGHIJKLMNOPQRST&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_v3_key&quot;</span><span class="punctuation">:</span> <span class="string">&quot;your32characterbase64encodedkey==&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;private_key_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/apiclient_key.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;platform_cert_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/wechatpay_platform.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_base&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://api.mch.weixin.qq.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;timeout_ms&quot;</span><span class="punctuation">:</span> <span class="number">5000</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="配置项说明"><a href="#配置项说明" class="headerlink" title="配置项说明"></a>配置项说明</h3><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>说明</th>
+<th>获取方式</th>
+<th>示例值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>app_id</strong></td>
+<td>微信公众号&#x2F;小程序AppID</td>
+<td>微信公众平台</td>
+<td><code>wx8888888888888888</code></td>
+</tr>
+<tr>
+<td><strong>mch_id</strong></td>
+<td>微信支付商户号</td>
+<td>微信商户平台</td>
+<td><code>1234567890</code></td>
+</tr>
+<tr>
+<td><strong>serial_no</strong></td>
+<td><strong>商户API证书</strong>序列号，只用于出站请求的 <code>Authorization</code> 签名；回调验签不使用它</td>
+<td>证书文件或商户平台</td>
+<td><code>ABCDEFGHIJKLMNOPQRST</code></td>
+</tr>
+<tr>
+<td><strong>api_v3_key</strong></td>
+<td>APIv3密钥（必须正好32字节，否则回调解密失败）</td>
+<td>商户平台设置</td>
+<td><code>your32characterbase64encodedkey==</code></td>
+</tr>
+<tr>
+<td><strong>private_key_path</strong></td>
+<td>商户私钥路径</td>
+<td>下载证书</td>
+<td><code>./certs/apiclient_key.pem</code></td>
+</tr>
+<tr>
+<td><strong>platform_cert_path</strong></td>
+<td>平台证书静态兜底路径（可选）：仅当证书缓存未命中、且该证书自身的序列号与通知头 <code>Wechatpay-Serial</code> 一致时才使用</td>
+<td>自动下载或手动</td>
+<td><code>./certs/wechatpay_platform.pem</code></td>
+</tr>
+<tr>
+<td><strong>platform_ca_cert_path</strong></td>
+<td>平台证书校验的根证书（CA）bundle（可选）：配置后每张下载到的平台证书必须先通过链路校验才会入缓存</td>
+<td>微信支付根证书</td>
+<td><code>./certs/wechatpay_root_ca.pem</code></td>
+</tr>
+<tr>
+<td><strong>cert_download_min_interval_seconds</strong></td>
+<td>触发 <code>/v3/certificates</code> 下载的最小间隔（秒），默认 300</td>
+<td>-</td>
+<td><code>300</code></td>
+</tr>
+<tr>
+<td><strong>api_base</strong></td>
+<td>微信支付API地址</td>
+<td>固定值</td>
+<td><code>https://api.mch.weixin.qq.com</code></td>
+</tr>
+<tr>
+<td><strong>timeout_ms</strong></td>
+<td>每一个出站请求的超时时间（毫秒，填 0 表示不限时），默认 5000</td>
+<td>可选</td>
+<td><code>5000</code></td>
+</tr>
+</tbody></table>
+<p><strong>平台证书与轮换</strong>：回调签名用的是通知头 <code>Wechatpay-Serial</code> 指名的<strong>平台证书</strong>，与商户证书（<code>serial_no</code>）不是一回事。<br>通道在进程启动时通过 <code>/v3/certificates</code> 预热，并拒绝任何解析失败、不在有效期内、序列号与所登记的号码不符、<br>或未通过 <code>platform_ca_cert_path</code> 链路校验的证书。收到缓存里没有的序列号时，说明微信已完成轮换：通道会触发一次<br>受节流保护的下载，并把该条通知按失败返回，微信按自身策略重投时新证书已在缓存中。除此之外，<code>PayPlugin</code> 还有一个定时刷新，<br>周期由 <code>cert_refresh_interval_seconds</code> 决定（默认 43200 秒，小于 300 会告警并回落到默认值），所以空闲进程也不会一直抱着旧缓存。</p>
+<h3 id="如何获取微信支付配置"><a href="#如何获取微信支付配置" class="headerlink" title="如何获取微信支付配置"></a>如何获取微信支付配置</h3><h4 id="步骤1：注册微信支付商户号"><a href="#步骤1：注册微信支付商户号" class="headerlink" title="步骤1：注册微信支付商户号"></a>步骤1：注册微信支付商户号</h4><ol>
+<li>访问 <a target="_blank" rel="noopener" href="https://pay.weixin.qq.com/">微信支付商户平台</a></li>
+<li>使用微信扫码登录</li>
+<li>完成商户注册和认证</li>
+<li>获取商户号（mch_id）</li>
+</ol>
+<h4 id="步骤2：获取AppID"><a href="#步骤2：获取AppID" class="headerlink" title="步骤2：获取AppID"></a>步骤2：获取AppID</h4><ol>
+<li>登录 <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/">微信公众平台</a></li>
+<li>开发 → 基本配置 → AppID</li>
+<li>复制你的AppID</li>
+</ol>
+<h4 id="步骤3：申请商户API证书"><a href="#步骤3：申请商户API证书" class="headerlink" title="步骤3：申请商户API证书"></a>步骤3：申请商户API证书</h4><ol>
+<li>登录微信支付商户平台</li>
+<li>账户中心 → API安全 → API证书</li>
+<li>申请证书（需要使用证书工具生成）</li>
+<li>下载证书文件（apiclient_cert.pem, apiclient_key.pem）</li>
+</ol>
+<h4 id="步骤4：查看证书序列号"><a href="#步骤4：查看证书序列号" class="headerlink" title="步骤4：查看证书序列号"></a>步骤4：查看证书序列号</h4><p><strong>方法1：从商户平台查看</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">商户平台 → 账户中心 → API安全 → API证书 → 查看证书</span><br></pre></td></tr></table></figure>
+
+<p><strong>方法2：从证书文件提取</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl x509 -<span class="keyword">in</span> apiclient_cert.pem -noout -serial</span><br></pre></td></tr></table></figure>
+
+<h4 id="步骤5：设置APIv3密钥"><a href="#步骤5：设置APIv3密钥" class="headerlink" title="步骤5：设置APIv3密钥"></a>步骤5：设置APIv3密钥</h4><ol>
+<li>商户平台 → 账户中心 → API安全 → APIv3密钥</li>
+<li>设置密钥（32个字符，支持数字+大小写字母）</li>
+<li>保存密钥（重要：无法再次查看）</li>
+</ol>
+<h4 id="步骤6：放置证书文件"><a href="#步骤6：放置证书文件" class="headerlink" title="步骤6：放置证书文件"></a>步骤6：放置证书文件</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">examples/pay-server/</span><br><span class="line">├── certs/</span><br><span class="line">│   ├── apiclient_cert.pem      <span class="comment"># 商户证书</span></span><br><span class="line">│   ├── apiclient_key.pem       <span class="comment"># 商户私钥（保密！）</span></span><br><span class="line">│   └── wechatpay_platform.pem  <span class="comment"># 平台证书（自动下载）</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🔐-第二部分：内部API密钥配置"><a href="#🔐-第二部分：内部API密钥配置" class="headerlink" title="🔐 第二部分：内部API密钥配置"></a>🔐 第二部分：内部API密钥配置</h2><h3 id="为什么需要API-Keys？"><a href="#为什么需要API-Keys？" class="headerlink" title="为什么需要API Keys？"></a>为什么需要API Keys？</h3><p>PayPlugin的某些API端点（如 <code>/api/pay/query</code>, <code>/api/pay/refund/query</code>）需要API密钥认证，防止未授权访问。</p>
+<h3 id="配置方式"><a href="#配置方式" class="headerlink" title="配置方式"></a>配置方式</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;test-api-key&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;prod-api-key-123&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;admin-key-456&quot;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;test-api-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;prod-api-key-123&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;admin-key-456&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_default_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;read&quot;</span><span class="punctuation">,</span> <span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="配置项说明-1"><a href="#配置项说明-1" class="headerlink" title="配置项说明"></a>配置项说明</h3><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>说明</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>api_keys</strong></td>
+<td>允许的API密钥列表</td>
+<td><code>[&quot;test-api-key&quot;, &quot;prod-key&quot;]</code></td>
+</tr>
+<tr>
+<td><strong>api_key_scopes</strong></td>
+<td>每个密钥的权限范围</td>
+<td><code>{&quot;key&quot;: [&quot;order_query&quot;, &quot;refund&quot;]}</code></td>
+</tr>
+<tr>
+<td><strong>api_key_default_scopes</strong></td>
+<td>密钥未显式配置 scope 时的默认权限</td>
+<td><code>[&quot;read&quot;, &quot;order_query&quot;, &quot;refund&quot;, &quot;refund_query&quot;, &quot;reconcile&quot;]</code></td>
+</tr>
+</tbody></table>
+<h3 id="权限范围（Scopes）"><a href="#权限范围（Scopes）" class="headerlink" title="权限范围（Scopes）"></a>权限范围（Scopes）</h3><p>Scope 按请求路径相对配置的 <code>base_path</code>（默认 <code>/api/pay</code>）解析。实际生效的 scope：</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>说明</th>
+<th>守护的端点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>order_query</strong></td>
+<td>查询订单</td>
+<td>GET {base}&#x2F;query</td>
+</tr>
+<tr>
+<td><strong>refund</strong></td>
+<td>发起退款</td>
+<td>POST {base}&#x2F;refund</td>
+</tr>
+<tr>
+<td><strong>refund_query</strong></td>
+<td>查询退款</td>
+<td>GET {base}&#x2F;refund&#x2F;query</td>
+</tr>
+<tr>
+<td><strong>reconcile</strong></td>
+<td>对账摘要</td>
+<td>GET {base}&#x2F;reconcile&#x2F;summary</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>其余路由（创建支付 &#x2F; 扫码支付 &#x2F; metrics）不按 scope 守护，仅需有效 API Key。</p>
+</blockquote>
+<h3 id="如何使用API-Keys"><a href="#如何使用API-Keys" class="headerlink" title="如何使用API Keys"></a>如何使用API Keys</h3><p><strong>客户端请求示例：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=xxx&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>如果没有API Key：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=xxx&quot;</span></span><br><span class="line"><span class="comment"># 返回：HTTP 503 Service Unavailable</span></span><br><span class="line"><span class="comment"># Body（纯文本）: api key not configured</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🧪-第三部分：测试环境配置"><a href="#🧪-第三部分：测试环境配置" class="headerlink" title="🧪 第三部分：测试环境配置"></a>🧪 第三部分：测试环境配置</h2><h3 id="选项A：使用真实微信支付环境（需要真实商户号）"><a href="#选项A：使用真实微信支付环境（需要真实商户号）" class="headerlink" title="选项A：使用真实微信支付环境（需要真实商户号）"></a>选项A：使用真实微信支付环境（需要真实商户号）</h3><p><strong>适用场景：</strong> 集成测试、预发布验证</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PayPlugin&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;channels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;wechat&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;app_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;wx8888888888888888&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;mch_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1234567890&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;serial_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ABCDEFGHIJKLMNOPQRST&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_v3_key&quot;</span><span class="punctuation">:</span> <span class="string">&quot;your32characterbase64encodedkey==&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;private_key_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/apiclient_key.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;platform_cert_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/wechatpay_platform.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_base&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://api.mch.weixin.qq.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;timeout_ms&quot;</span><span class="punctuation">:</span> <span class="number">5000</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;notify_url&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com/api/pay/notify/wechat&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;test-integration-key&quot;</span><span class="punctuation">,</span> <span class="string">&quot;test-qa-key&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;test-integration-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;test-qa-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li>✅ 真实的支付流程</li>
+<li>✅ 可以测试完整场景</li>
+<li>✅ 接近生产环境</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>❌ 需要真实的微信支付商户号</li>
+<li>❌ 需要真实的证书</li>
+<li>❌ 可能产生真实交易</li>
+</ul>
+<h3 id="选项B：使用Mock服务（推荐用于开发-测试）"><a href="#选项B：使用Mock服务（推荐用于开发-测试）" class="headerlink" title="选项B：使用Mock服务（推荐用于开发&#x2F;测试）"></a>选项B：使用Mock服务（推荐用于开发&#x2F;测试）</h3><p><strong>适用场景：</strong> 开发、单元测试、本地调试</p>
+<p><strong>步骤1：安装Mock服务</strong></p>
+<p>使用 <a target="_blank" rel="noopener" href="https://github.com/wechatpay-apiv3/wechatpay-mock-server">wechat-pay-mock-server</a> 或类似工具。</p>
+<p><strong>步骤2：配置Mock服务</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PayPlugin&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;channels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;wechat&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;app_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;wx_mock_8888888888&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;mch_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1230000109&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;serial_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;MOCK_SERIAL_NO_123&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_v3_key&quot;</span><span class="punctuation">:</span> <span class="string">&quot;mock32characterbase64encodedkey==&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;private_key_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/mock_apiclient_key.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;platform_cert_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/mock_wechatpay_platform.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_base&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://localhost:8080&quot;</span><span class="punctuation">,</span>  <span class="comment">// Mock服务地址</span></span><br><span class="line">            <span class="attr">&quot;timeout_ms&quot;</span><span class="punctuation">:</span> <span class="number">5000</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;notify_url&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://localhost:5566/api/pay/notify/wechat&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;dev-test-key&quot;</span><span class="punctuation">,</span> <span class="string">&quot;mock-test-key&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;dev-test-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;mock-test-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li>✅ 不需要真实商户号</li>
+<li>✅ 快速测试</li>
+<li>✅ 可控的测试场景</li>
+<li>✅ 无交易费用</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>❌ 无法测试真实支付流程</li>
+<li>❌ 需要额外搭建Mock服务</li>
+</ul>
+<h3 id="选项C：仅启用内部API-Key认证（最小配置）"><a href="#选项C：仅启用内部API-Key认证（最小配置）" class="headerlink" title="选项C：仅启用内部API Key认证（最小配置）"></a>选项C：仅启用内部API Key认证（最小配置）</h3><p><strong>适用场景：</strong> 仅测试内部API性能</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PayPlugin&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;channels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;wechat&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;app_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PLACEHOLDER&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;mch_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PLACEHOLDER&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;serial_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PLACEHOLDER&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_v3_key&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PLACEHOLDER_32_CHARACTER_KEY==&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;private_key_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/placeholder.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;platform_cert_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./certs/placeholder.pem&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;api_base&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://api.mch.weixin.qq.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;timeout_ms&quot;</span><span class="punctuation">:</span> <span class="number">5000</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;perf-test-key-1&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;perf-test-key-2&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;perf-test-key-3&quot;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;perf-test-key-1&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;perf-test-key-2&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;perf-test-key-3&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>说明：</strong></p>
+<ul>
+<li>微信支付配置使用占位符（因为不会真正调用）</li>
+<li>内部API Key配置真实值（用于测试认证）</li>
+<li><strong>适合：</strong> 性能测试、功能验证</li>
+</ul>
+<hr>
+<h2 id="🚀-快速配置指南（5分钟）"><a href="#🚀-快速配置指南（5分钟）" class="headerlink" title="🚀 快速配置指南（5分钟）"></a>🚀 快速配置指南（5分钟）</h2><h3 id="场景：本地开发-性能测试"><a href="#场景：本地开发-性能测试" class="headerlink" title="场景：本地开发&#x2F;性能测试"></a>场景：本地开发&#x2F;性能测试</h3><h4 id="步骤1：修改-config-json"><a href="#步骤1：修改-config-json" class="headerlink" title="步骤1：修改 config.json"></a>步骤1：修改 config.json</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples/pay-server</span><br><span class="line"><span class="built_in">cp</span> config.json config.json.backup</span><br></pre></td></tr></table></figure>
+
+<h4 id="步骤2：添加API-Keys"><a href="#步骤2：添加API-Keys" class="headerlink" title="步骤2：添加API Keys"></a>步骤2：添加API Keys</h4><p>编辑 <code>config.json</code>，找到 <code>custom_config.pay</code> 部分：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;test-dev-key&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;performance-test-key&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;admin-key&quot;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;test-dev-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;performance-test-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;admin-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_default_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;read&quot;</span><span class="punctuation">,</span> <span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="步骤3：创建占位符证书（如果文件不存在）"><a href="#步骤3：创建占位符证书（如果文件不存在）" class="headerlink" title="步骤3：创建占位符证书（如果文件不存在）"></a>步骤3：创建占位符证书（如果文件不存在）</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> -p certs</span><br><span class="line">openssl genrsa -out certs/apiclient_key.pem 2048</span><br><span class="line">openssl req -new -x509 -key certs/apiclient_key.pem -out certs/apiclient_cert.pem -days 365 -subj <span class="string">&quot;/CN=Placeholder&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="步骤4：重启PayServer"><a href="#步骤4：重启PayServer" class="headerlink" title="步骤4：重启PayServer"></a>步骤4：重启PayServer</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 停止旧进程</span></span><br><span class="line">taskkill /F /IM PayServer.exe</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动新进程</span></span><br><span class="line"><span class="built_in">cd</span> examples/pay-server</span><br><span class="line">build/windows-msvc/examples/pay-server/Release/PayServer.exe</span><br></pre></td></tr></table></figure>
+
+<h4 id="步骤5：验证配置"><a href="#步骤5：验证配置" class="headerlink" title="步骤5：验证配置"></a>步骤5：验证配置</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 测试有API Key</span></span><br><span class="line">curl -H <span class="string">&quot;X-Api-Key: test-dev-key&quot;</span> \</span><br><span class="line">  <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=test_123&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 应该返回：HTTP 200 + JSON响应（即使订单不存在）</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 测试无API Key</span></span><br><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=test_123&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 应该返回：HTTP 503 + 纯文本 &quot;api key not configured&quot;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🔍-配置验证"><a href="#🔍-配置验证" class="headerlink" title="🔍 配置验证"></a>🔍 配置验证</h2><h3 id="验证清单"><a href="#验证清单" class="headerlink" title="验证清单"></a>验证清单</h3><ul>
+<li><input disabled="" type="checkbox"> 证书文件存在且可读</li>
+<li><input disabled="" type="checkbox"> API keys已配置在 <code>custom_config.pay.api_keys</code></li>
+<li><input disabled="" type="checkbox"> API key scopes已配置</li>
+<li><input disabled="" type="checkbox"> PayServer启动无错误</li>
+<li><input disabled="" type="checkbox"> 查询API（<code>/api/pay/query</code>）返回预期响应（需要API key）</li>
+<li><input disabled="" type="checkbox"> Prometheus metrics端点（<code>/metrics</code>）可访问（不需要API key）</li>
+</ul>
+<h3 id="常见配置错误"><a href="#常见配置错误" class="headerlink" title="常见配置错误"></a>常见配置错误</h3><h4 id="错误1：API-key未配置"><a href="#错误1：API-key未配置" class="headerlink" title="错误1：API key未配置"></a>错误1：API key未配置</h4><p><strong>现象：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=test&quot;</span></span><br><span class="line">HTTP 503: api key not configured</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;your-api-key&quot;</span><span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+<p>或设置环境变量 <code>PAY_API_KEY</code> &#x2F; <code>PAY_API_KEYS</code>。</p>
+<h4 id="错误2：证书文件不存在"><a href="#错误2：证书文件不存在" class="headerlink" title="错误2：证书文件不存在"></a>错误2：证书文件不存在</h4><p><strong>现象：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ERROR: Failed to load private key from ./certs/apiclient_key.pem</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 检查文件是否存在</span></span><br><span class="line"><span class="built_in">ls</span> -la certs/apiclient_key.pem</span><br><span class="line"></span><br><span class="line"><span class="comment"># 或创建占位符证书（用于测试）</span></span><br><span class="line">openssl genrsa -out certs/apiclient_key.pem 2048</span><br></pre></td></tr></table></figure>
+
+<h4 id="错误3：APIv3密钥格式错误"><a href="#错误3：APIv3密钥格式错误" class="headerlink" title="错误3：APIv3密钥格式错误"></a>错误3：APIv3密钥格式错误</h4><p><strong>现象：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ERROR: Invalid API v3 key format</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决：</strong></p>
+<ul>
+<li>确保是32字节的base64编码</li>
+<li>示例：<code>your32characterbase64encodedkey==</code></li>
+</ul>
+<h4 id="错误4：权限不足"><a href="#错误4：权限不足" class="headerlink" title="错误4：权限不足"></a>错误4：权限不足</h4><p><strong>现象：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl -H <span class="string">&quot;X-Api-Key: query-only-key&quot;</span> \</span><br><span class="line">  -X POST http://localhost:5566/api/pay/refund \</span><br><span class="line">  -d <span class="string">&#x27;&#123;&quot;order_no&quot;:&quot;xxx&quot;,&quot;amount&quot;:&quot;9.99&quot;&#125;&#x27;</span></span><br><span class="line"></span><br><span class="line">HTTP 403: api key scope not allowed</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;query-only-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">]</span>  <span class="comment">// 添加 &quot;refund&quot; 权限</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="📝-配置模板"><a href="#📝-配置模板" class="headerlink" title="📝 配置模板"></a>📝 配置模板</h2><h3 id="开发环境配置"><a href="#开发环境配置" class="headerlink" title="开发环境配置"></a>开发环境配置</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;dev-key-1&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;dev-key-2&quot;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;dev-key-1&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;dev-key-2&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="测试环境配置"><a href="#测试环境配置" class="headerlink" title="测试环境配置"></a>测试环境配置</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;test-query-key&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;test-refund-key&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;test-admin-key&quot;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;test-query-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;test-refund-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;test-admin-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="生产环境配置"><a href="#生产环境配置" class="headerlink" title="生产环境配置"></a>生产环境配置</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="comment">// 不要在配置文件中硬编码生产密钥！</span></span><br><span class="line">        <span class="comment">// 使用环境变量或密钥管理服务</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="comment">// 从环境变量加载</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>生产环境最佳实践：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用环境变量</span></span><br><span class="line"><span class="built_in">export</span> PAY_API_KEY_READ=<span class="string">&quot;prod-read-key-xxx&quot;</span></span><br><span class="line"><span class="built_in">export</span> PAY_API_KEY_WRITE=<span class="string">&quot;prod-write-key-yyy&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 或使用密钥管理服务（如Vault）</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🎯-总结"><a href="#🎯-总结" class="headerlink" title="🎯 总结"></a>🎯 总结</h2><h3 id="配置优先级"><a href="#配置优先级" class="headerlink" title="配置优先级"></a>配置优先级</h3><ol>
+<li><p><strong>立即配置（P0）</strong>：</p>
+<ul>
+<li>✅ <code>api_keys</code> 数组</li>
+<li>✅ <code>api_key_scopes</code> 对象</li>
+<li><strong>用途：</strong> 解锁被阻塞的API端点</li>
+</ul>
+</li>
+<li><p><strong>按需配置（P1）</strong>：</p>
+<ul>
+<li>⏸️ 微信支付商户配置</li>
+<li>⏸️ 证书文件</li>
+<li><strong>用途：</strong> 真实支付场景</li>
+</ul>
+</li>
+<li><p><strong>生产配置（P2）</strong>：</p>
+<ul>
+<li>⏸️ 密钥轮换机制</li>
+<li>⏸️ 环境变量集成</li>
+<li><strong>用途：</strong> 生产环境部署</li>
+</ul>
+</li>
+</ol>
+<h3 id="快速开始（性能测试）"><a href="#快速开始（性能测试）" class="headerlink" title="快速开始（性能测试）"></a>快速开始（性能测试）</h3><p><strong>最小配置（5分钟）：</strong></p>
+<ol>
+<li><p>编辑 <code>config.json</code>：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;custom_config&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;pay&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;api_keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;perf-test-key&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;api_key_scopes&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;perf-test-key&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund&quot;</span><span class="punctuation">,</span> <span class="string">&quot;refund_query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;reconcile&quot;</span><span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>重启PayServer</p>
+</li>
+<li><p>运行性能测试：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -H <span class="string">&quot;X-Api-Key: perf-test-key&quot;</span> \</span><br><span class="line">  <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=test_123&quot;</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<hr>
+<p><strong>文档位置：</strong> <code>docs/api/api_configuration_guide.md</code><br><strong>配置文件：</strong> <code>examples/pay-server/config.json</code><br><strong>证书目录：</strong> <code>examples/pay-server/certs/</code></p>
+<p><strong>下一步：</strong> 配置完成后，重新运行性能测试脚本！</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/e9c77a88/">https://voidvec.github.io/posts/e9c77a88/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/drogon/">drogon</a><a class="post-meta__tags" href="/tags/api-design/">api-design</a><a class="post-meta__tags" href="/tags/pay-plugin/">pay-plugin</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/pay-plugin/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/cfc49da8/"><span class="pj-related__name">支付 HTTP 契约与安全</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/99f095fc/"><span class="pj-related__name">drogon-pay 支付 API 调用示例</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/b6bb384a/"><span class="pj-related__name">pay-admin 管理控制台</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/47d52966/"><span class="pj-related__name">支付数据模型与状态机</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/6a59e7db/"><span class="pj-related__name">支付创建与查询</span><span class="pj-related__type">模块参考</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/99f095fc/" title="drogon-pay 支付 API 调用示例"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">drogon-pay 支付 API 调用示例</div></div><div class="info-2"><div class="info-item-1">drogon-pay 对外 HTTP 接口的完整调用示例：下单、查询、退款与回调。</div></div></div></a><a class="pagination-related" href="/posts/262a0e88/" title="Claude Code 技能作者手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Claude Code 技能作者手册</div></div><div class="info-2"><div class="info-item-1">面向本仓库的维护者与贡献者。目标：新增或修改一个技能时，不需要凭记忆同步任何东西——所有约束都有对应的校验，改错会立刻被门禁拦住。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/99f095fc/" title="drogon-pay 支付 API 调用示例"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-27</div><div class="info-item-2">drogon-pay 支付 API 调用示例</div></div><div class="info-2"><div class="info-item-1">drogon-pay 对外 HTTP 接口的完整调用示例：下单、查询、退款与回调。</div></div></div></a><a class="pagination-related" href="/posts/cfc49da8/" title="支付 HTTP 契约与安全"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">支付 HTTP 契约与安全</div></div><div class="info-2"><div class="info-item-1">examples/pay-server/openapi.yaml 是 HTTP 表面的唯一契约来源；scripts/checkopenapiroutes.py 双向比对代码与契约，任一侧缺失即 FAST 门禁失败。</div></div></div></a><a class="pagination-related" href="/posts/a44d70d6/" title="环境变量配置指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">环境变量配置指南</div></div><div class="info-2"><div class="info-item-1">本项目使用环境变量来管理敏感配置信息，确保 config.json 可以安全提交到 Git 仓库，而敏感数据保留在本地。</div></div></div></a><a class="pagination-related" href="/posts/5377dd34/" title="drogon-pay 项目概览"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">drogon-pay 项目概览</div></div><div class="info-2"><div class="info-item-1">drogon-pay 是 Drogon C++ 框架的可复用支付插件库：把完整支付能力封装为标准 drogon::Plugin，以 Conan 静态库包发布，CMake 目标 DrogonPay::DrogonPay。</div></div></div></a><a class="pagination-related" href="/posts/6a59e7db/" title="支付创建与查询"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">支付创建与查询</div></div><div class="info-2"><div class="info-item-1">关键时序（PaymentService.cc:837-903）：订单与支付行同一事务插入，显式 COMMIT 后才调渠道。</div></div></div></a><a class="pagination-related" href="/posts/02c50edb/" title="分层架构与依赖守卫"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">分层架构与依赖守卫</div></div><div class="info-2"><div class="info-item-1">支付宝回调不经 CallbackService，handlers 需要具体客户端验签，因此 PayPlugin::alipayClient() 是 SPI 白名单的唯一例外（守卫脚本显式放行）。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%8B-%E9%85%8D%E7%BD%AE%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">📋 配置概述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%EF%B8%8F%E2%83%A3-%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E5%95%86%E6%88%B7%E9%85%8D%E7%BD%AE"><span class="toc-number">1.1.</span> <span class="toc-text">1️⃣ 微信支付商户配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%EF%B8%8F%E2%83%A3-%E5%86%85%E9%83%A8API%E5%AF%86%E9%92%A5%E9%85%8D%E7%BD%AE"><span class="toc-number">1.2.</span> <span class="toc-text">2️⃣ 内部API密钥配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%91-%E7%AC%AC%E4%B8%80%E9%83%A8%E5%88%86%EF%BC%9A%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E5%95%86%E6%88%B7%E9%85%8D%E7%BD%AE"><span class="toc-number">2.</span> <span class="toc-text">🔑 第一部分：微信支付商户配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BF%85%E9%9C%80%E7%9A%84%E9%85%8D%E7%BD%AE%E9%A1%B9"><span class="toc-number">2.1.</span> <span class="toc-text">必需的配置项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E9%A1%B9%E8%AF%B4%E6%98%8E"><span class="toc-number">2.2.</span> <span class="toc-text">配置项说明</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E4%BD%95%E8%8E%B7%E5%8F%96%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E9%85%8D%E7%BD%AE"><span class="toc-number">2.3.</span> <span class="toc-text">如何获取微信支付配置</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A41%EF%BC%9A%E6%B3%A8%E5%86%8C%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E5%95%86%E6%88%B7%E5%8F%B7"><span class="toc-number">2.3.1.</span> <span class="toc-text">步骤1：注册微信支付商户号</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A42%EF%BC%9A%E8%8E%B7%E5%8F%96AppID"><span class="toc-number">2.3.2.</span> <span class="toc-text">步骤2：获取AppID</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A43%EF%BC%9A%E7%94%B3%E8%AF%B7%E5%95%86%E6%88%B7API%E8%AF%81%E4%B9%A6"><span class="toc-number">2.3.3.</span> <span class="toc-text">步骤3：申请商户API证书</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A44%EF%BC%9A%E6%9F%A5%E7%9C%8B%E8%AF%81%E4%B9%A6%E5%BA%8F%E5%88%97%E5%8F%B7"><span class="toc-number">2.3.4.</span> <span class="toc-text">步骤4：查看证书序列号</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A45%EF%BC%9A%E8%AE%BE%E7%BD%AEAPIv3%E5%AF%86%E9%92%A5"><span class="toc-number">2.3.5.</span> <span class="toc-text">步骤5：设置APIv3密钥</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A46%EF%BC%9A%E6%94%BE%E7%BD%AE%E8%AF%81%E4%B9%A6%E6%96%87%E4%BB%B6"><span class="toc-number">2.3.6.</span> <span class="toc-text">步骤6：放置证书文件</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%90-%E7%AC%AC%E4%BA%8C%E9%83%A8%E5%88%86%EF%BC%9A%E5%86%85%E9%83%A8API%E5%AF%86%E9%92%A5%E9%85%8D%E7%BD%AE"><span class="toc-number">3.</span> <span class="toc-text">🔐 第二部分：内部API密钥配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81API-Keys%EF%BC%9F"><span class="toc-number">3.1.</span> <span class="toc-text">为什么需要API Keys？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%96%B9%E5%BC%8F"><span class="toc-number">3.2.</span> <span class="toc-text">配置方式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E9%A1%B9%E8%AF%B4%E6%98%8E-1"><span class="toc-number">3.3.</span> <span class="toc-text">配置项说明</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9D%83%E9%99%90%E8%8C%83%E5%9B%B4%EF%BC%88Scopes%EF%BC%89"><span class="toc-number">3.4.</span> <span class="toc-text">权限范围（Scopes）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8API-Keys"><span class="toc-number">3.5.</span> <span class="toc-text">如何使用API Keys</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%A7%AA-%E7%AC%AC%E4%B8%89%E9%83%A8%E5%88%86%EF%BC%9A%E6%B5%8B%E8%AF%95%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE"><span class="toc-number">4.</span> <span class="toc-text">🧪 第三部分：测试环境配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%89%E9%A1%B9A%EF%BC%9A%E4%BD%BF%E7%94%A8%E7%9C%9F%E5%AE%9E%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%8E%AF%E5%A2%83%EF%BC%88%E9%9C%80%E8%A6%81%E7%9C%9F%E5%AE%9E%E5%95%86%E6%88%B7%E5%8F%B7%EF%BC%89"><span class="toc-number">4.1.</span> <span class="toc-text">选项A：使用真实微信支付环境（需要真实商户号）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%89%E9%A1%B9B%EF%BC%9A%E4%BD%BF%E7%94%A8Mock%E6%9C%8D%E5%8A%A1%EF%BC%88%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E%E5%BC%80%E5%8F%91-%E6%B5%8B%E8%AF%95%EF%BC%89"><span class="toc-number">4.2.</span> <span class="toc-text">选项B：使用Mock服务（推荐用于开发&#x2F;测试）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%89%E9%A1%B9C%EF%BC%9A%E4%BB%85%E5%90%AF%E7%94%A8%E5%86%85%E9%83%A8API-Key%E8%AE%A4%E8%AF%81%EF%BC%88%E6%9C%80%E5%B0%8F%E9%85%8D%E7%BD%AE%EF%BC%89"><span class="toc-number">4.3.</span> <span class="toc-text">选项C：仅启用内部API Key认证（最小配置）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E9%85%8D%E7%BD%AE%E6%8C%87%E5%8D%97%EF%BC%885%E5%88%86%E9%92%9F%EF%BC%89"><span class="toc-number">5.</span> <span class="toc-text">🚀 快速配置指南（5分钟）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%BA%E6%99%AF%EF%BC%9A%E6%9C%AC%E5%9C%B0%E5%BC%80%E5%8F%91-%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95"><span class="toc-number">5.1.</span> <span class="toc-text">场景：本地开发&#x2F;性能测试</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A41%EF%BC%9A%E4%BF%AE%E6%94%B9-config-json"><span class="toc-number">5.1.1.</span> <span class="toc-text">步骤1：修改 config.json</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A42%EF%BC%9A%E6%B7%BB%E5%8A%A0API-Keys"><span class="toc-number">5.1.2.</span> <span class="toc-text">步骤2：添加API Keys</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A43%EF%BC%9A%E5%88%9B%E5%BB%BA%E5%8D%A0%E4%BD%8D%E7%AC%A6%E8%AF%81%E4%B9%A6%EF%BC%88%E5%A6%82%E6%9E%9C%E6%96%87%E4%BB%B6%E4%B8%8D%E5%AD%98%E5%9C%A8%EF%BC%89"><span class="toc-number">5.1.3.</span> <span class="toc-text">步骤3：创建占位符证书（如果文件不存在）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A44%EF%BC%9A%E9%87%8D%E5%90%AFPayServer"><span class="toc-number">5.1.4.</span> <span class="toc-text">步骤4：重启PayServer</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A45%EF%BC%9A%E9%AA%8C%E8%AF%81%E9%85%8D%E7%BD%AE"><span class="toc-number">5.1.5.</span> <span class="toc-text">步骤5：验证配置</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%8D-%E9%85%8D%E7%BD%AE%E9%AA%8C%E8%AF%81"><span class="toc-number">6.</span> <span class="toc-text">🔍 配置验证</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AA%8C%E8%AF%81%E6%B8%85%E5%8D%95"><span class="toc-number">6.1.</span> <span class="toc-text">验证清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF"><span class="toc-number">6.2.</span> <span class="toc-text">常见配置错误</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%94%99%E8%AF%AF1%EF%BC%9AAPI-key%E6%9C%AA%E9%85%8D%E7%BD%AE"><span class="toc-number">6.2.1.</span> <span class="toc-text">错误1：API key未配置</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%94%99%E8%AF%AF2%EF%BC%9A%E8%AF%81%E4%B9%A6%E6%96%87%E4%BB%B6%E4%B8%8D%E5%AD%98%E5%9C%A8"><span class="toc-number">6.2.2.</span> <span class="toc-text">错误2：证书文件不存在</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%94%99%E8%AF%AF3%EF%BC%9AAPIv3%E5%AF%86%E9%92%A5%E6%A0%BC%E5%BC%8F%E9%94%99%E8%AF%AF"><span class="toc-number">6.2.3.</span> <span class="toc-text">错误3：APIv3密钥格式错误</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%94%99%E8%AF%AF4%EF%BC%9A%E6%9D%83%E9%99%90%E4%B8%8D%E8%B6%B3"><span class="toc-number">6.2.4.</span> <span class="toc-text">错误4：权限不足</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9D-%E9%85%8D%E7%BD%AE%E6%A8%A1%E6%9D%BF"><span class="toc-number">7.</span> <span class="toc-text">📝 配置模板</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE"><span class="toc-number">7.1.</span> <span class="toc-text">开发环境配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE"><span class="toc-number">7.2.</span> <span class="toc-text">测试环境配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE"><span class="toc-number">7.3.</span> <span class="toc-text">生产环境配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%8E%AF-%E6%80%BB%E7%BB%93"><span class="toc-number">8.</span> <span class="toc-text">🎯 总结</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%BC%98%E5%85%88%E7%BA%A7"><span class="toc-number">8.1.</span> <span class="toc-text">配置优先级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B%EF%BC%88%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%EF%BC%89"><span class="toc-number">8.2.</span> <span class="toc-text">快速开始（性能测试）</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

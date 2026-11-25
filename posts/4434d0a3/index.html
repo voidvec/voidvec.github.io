@@ -1,0 +1,404 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>OIDC 集成指南：从 id_token 到用户信息 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OIDC 集成指南：从 id_token 到用户信息">
+<meta property="og:url" content="https://voidvec.github.io/posts/4434d0a3/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-08T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-11-08T04:00:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "OIDC 集成指南：从 id_token 到用户信息",
+  "url": "https://voidvec.github.io/posts/4434d0a3/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-08T04:00:00.000Z",
+  "dateModified": "2026-11-08T04:00:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/4434d0a3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'OIDC 集成指南：从 id_token 到用户信息',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">OIDC 集成指南：从 id_token 到用户信息</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">OIDC 集成指南：从 id_token 到用户信息</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-08T04:00:00.000Z" title="发表于 2026-11-08 12:00:00">2026-11-08</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-08T04:00:00.000Z" title="更新于 2026-11-08 12:00:00">2026-11-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。</p>
+<h2 id="1-Discovery-端点"><a href="#1-Discovery-端点" class="headerlink" title="1. Discovery 端点"></a>1. Discovery 端点</h2><p>OIDC Discovery 端点提供 Provider 的所有配置信息：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET /.well-known/openid-configuration</span><br></pre></td></tr></table></figure>
+
+<p>返回示例：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;issuer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;authorization_endpoint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com/oauth2/authorize&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;token_endpoint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com/oauth2/token&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;userinfo_endpoint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com/oauth2/userinfo&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;jwks_uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://your-domain.com/.well-known/jwks.json&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;response_types_supported&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;code&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;subject_types_supported&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;public&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id_token_signing_alg_values_supported&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;RS256&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;scopes_supported&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;openid&quot;</span><span class="punctuation">,</span> <span class="string">&quot;profile&quot;</span><span class="punctuation">,</span> <span class="string">&quot;email&quot;</span><span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-JWKS-端点"><a href="#2-JWKS-端点" class="headerlink" title="2. JWKS 端点"></a>2. JWKS 端点</h2><p>JSON Web Key Set 端点提供用于验证 <code>id_token</code> 签名的公钥：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET /.well-known/jwks.json</span><br></pre></td></tr></table></figure>
+
+<p>返回示例：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;keys&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;kty&quot;</span><span class="punctuation">:</span> <span class="string">&quot;RSA&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;use&quot;</span><span class="punctuation">:</span> <span class="string">&quot;sig&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;alg&quot;</span><span class="punctuation">:</span> <span class="string">&quot;RS256&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;kid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;default-key-id&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;n&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;base64url-encoded modulus&gt;&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;e&quot;</span><span class="punctuation">:</span> <span class="string">&quot;AQAB&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="3-id-token-格式"><a href="#3-id-token-格式" class="headerlink" title="3. id_token 格式"></a>3. id_token 格式</h2><p><code>id_token</code> 是一个 RS256 签名的 JWT，包含以下标准 claims：</p>
+<table>
+<thead>
+<tr>
+<th>Claim</th>
+<th>描述</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>iss</code></td>
+<td>签发者 (Issuer)</td>
+<td><code>https://your-domain.com</code></td>
+</tr>
+<tr>
+<td><code>sub</code></td>
+<td>用户唯一标识 (UUID public_sub)</td>
+<td><code>550e8400-e29b-41d4-a716-446655440000</code></td>
+</tr>
+<tr>
+<td><code>aud</code></td>
+<td>受众 (Client ID)</td>
+<td><code>your-client-id</code></td>
+</tr>
+<tr>
+<td><code>exp</code></td>
+<td>过期时间 (Unix timestamp)</td>
+<td><code>1700000000</code></td>
+</tr>
+<tr>
+<td><code>iat</code></td>
+<td>签发时间 (Unix timestamp)</td>
+<td><code>1699996400</code></td>
+</tr>
+<tr>
+<td><code>nonce</code></td>
+<td>请求中传入的 nonce 值</td>
+<td><code>abc123</code></td>
+</tr>
+</tbody></table>
+<p>根据请求内容，还可能包含：</p>
+<ul>
+<li><strong>认证上下文</strong>: <code>auth_time</code>（可用时始终携带）、<code>amr</code>（如 <code>[&quot;pwd&quot;, &quot;mfa&quot;]</code>）、<code>acr</code>（<code>&quot;1&quot;</code> 仅密码 &#x2F; <code>&quot;2&quot;</code> MFA）</li>
+<li><strong>org scope 且携带组织上下文</strong>（v1.4.0）：<code>org_ctx</code> —— 表示本次授权绑定的活跃组织与调用者当前成员角色的对象 <code>{ org_id, org_name, roles[] }</code>；仅在授权请求携带有效 <code>org_id</code> 且 client 申请了 <code>org</code> scope 时出现，签发时实时复查成员资格。</li>
+</ul>
+<p>profile 与 email 类 claims（<code>name</code>、<code>preferred_username</code>、<code>email</code>、<code>email_verified</code>）<strong>不会</strong>放入 id_token——请通过 userinfo 端点并携带对应 <code>profile</code> &#x2F; <code>email</code> scope 获取（见 §5）。</p>
+<h2 id="4-验证-id-token"><a href="#4-验证-id-token" class="headerlink" title="4. 验证 id_token"></a>4. 验证 id_token</h2><h3 id="4-1-验证步骤"><a href="#4-1-验证步骤" class="headerlink" title="4.1 验证步骤"></a>4.1 验证步骤</h3><ol>
+<li><strong>解码 JWT Header</strong>：提取 <code>kid</code>（Key ID）和 <code>alg</code>（应为 RS256）</li>
+<li><strong>获取公钥</strong>：从 JWKS 端点获取对应 <code>kid</code> 的公钥</li>
+<li><strong>验证签名</strong>：使用 RSA 公钥验证 JWT 签名</li>
+<li><strong>验证 Claims</strong>：<ul>
+<li><code>iss</code> 必须匹配你配置的 Issuer URL</li>
+<li><code>aud</code> 必须包含你的 Client ID</li>
+<li><code>exp</code> 必须大于当前时间</li>
+<li><code>nonce</code> 必须匹配你在授权请求中发送的值</li>
+</ul>
+</li>
+</ol>
+<h3 id="4-2-安全注意事项"><a href="#4-2-安全注意事项" class="headerlink" title="4.2 安全注意事项"></a>4.2 安全注意事项</h3><ul>
+<li><strong>始终验证签名</strong>，不要信任未验证的 JWT</li>
+<li><strong>缓存 JWKS</strong> 但设置合理的刷新间隔（建议 24 小时或按 Cache-Control 头）</li>
+<li><strong>检查 <code>alg</code> 头</strong>，拒绝 <code>none</code> 算法（防止算法降级攻击）</li>
+</ul>
+<h2 id="5-支持的-Scopes-与-Claims"><a href="#5-支持的-Scopes-与-Claims" class="headerlink" title="5. 支持的 Scopes 与 Claims"></a>5. 支持的 Scopes 与 Claims</h2><table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>返回的 Claims</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>openid</code></td>
+<td><code>sub</code> (必需 scope，启用 OIDC)</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td><code>name</code>, <code>preferred_username</code>（经 userinfo 端点返回；非标准旧 <code>username</code> key 已于 v1.6.0 移除）</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td><code>email</code>, <code>email_verified</code>（经 userinfo 端点返回）</td>
+</tr>
+<tr>
+<td><code>org</code></td>
+<td><code>org_ctx</code>（<code>{org_id, org_name, roles[]}</code>）—— id_token 与 userinfo；仅当授权携带有效组织上下文（v1.4.0）</td>
+</tr>
+</tbody></table>
+<p>按用户的<strong>自定义声明</strong>（v1.6.0）：管理员可将用户的 <code>custom_attributes.&lt;key&gt;</code><br>（或 <code>display_name</code>）映射为按任意触发 scope 门控的已发布声明——并进入<br><code>claims_supported</code> 广告。见<a href="/posts/9518940e/">自定义声明（Claims Mapping）</a>。</p>
+<h2 id="6-集成示例"><a href="#6-集成示例" class="headerlink" title="6. 集成示例"></a>6. 集成示例</h2><h3 id="6-1-使用标准-OIDC-客户端库-Node-js"><a href="#6-1-使用标准-OIDC-客户端库-Node-js" class="headerlink" title="6.1 使用标准 OIDC 客户端库 (Node.js)"></a>6.1 使用标准 OIDC 客户端库 (Node.js)</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; <span class="title class_">Issuer</span> &#125; = <span class="built_in">require</span>(<span class="string">&#x27;openid-client&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 自动发现 Provider 配置</span></span><br><span class="line"><span class="keyword">const</span> issuer = <span class="keyword">await</span> <span class="title class_">Issuer</span>.<span class="title function_">discover</span>(<span class="string">&#x27;https://your-domain.com&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> client = <span class="keyword">new</span> issuer.<span class="title class_">Client</span>(&#123;</span><br><span class="line">  <span class="attr">client_id</span>: <span class="string">&#x27;your-client-id&#x27;</span>,</span><br><span class="line">  <span class="attr">client_secret</span>: <span class="string">&#x27;your-client-secret&#x27;</span>,</span><br><span class="line">  <span class="attr">redirect_uris</span>: [<span class="string">&#x27;http://localhost:3000/callback&#x27;</span>],</span><br><span class="line">  <span class="attr">response_types</span>: [<span class="string">&#x27;code&#x27;</span>],</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 生成授权 URL</span></span><br><span class="line"><span class="keyword">const</span> authUrl = client.<span class="title function_">authorizationUrl</span>(&#123;</span><br><span class="line">  <span class="attr">scope</span>: <span class="string">&#x27;openid profile email&#x27;</span>,</span><br><span class="line">  <span class="attr">state</span>: <span class="string">&#x27;random-state-value&#x27;</span>,</span><br><span class="line">  <span class="attr">nonce</span>: <span class="string">&#x27;random-nonce-value&#x27;</span>,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 处理回调</span></span><br><span class="line"><span class="keyword">const</span> params = client.<span class="title function_">callbackParams</span>(req);</span><br><span class="line"><span class="keyword">const</span> tokenSet = <span class="keyword">await</span> client.<span class="title function_">callback</span>(<span class="string">&#x27;http://localhost:3000/callback&#x27;</span>, params, &#123;</span><br><span class="line">  <span class="attr">state</span>: <span class="string">&#x27;random-state-value&#x27;</span>,</span><br><span class="line">  <span class="attr">nonce</span>: <span class="string">&#x27;random-nonce-value&#x27;</span>,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;ID Token claims:&#x27;</span>, tokenSet.<span class="title function_">claims</span>());</span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Access Token:&#x27;</span>, tokenSet.<span class="property">access_token</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-使用-Python-authlib"><a href="#6-2-使用-Python-authlib" class="headerlink" title="6.2 使用 Python (authlib)"></a>6.2 使用 Python (authlib)</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> authlib.integrations.requests_client <span class="keyword">import</span> OAuth2Session</span><br><span class="line"></span><br><span class="line">client = OAuth2Session(</span><br><span class="line">    client_id=<span class="string">&#x27;your-client-id&#x27;</span>,</span><br><span class="line">    client_secret=<span class="string">&#x27;your-client-secret&#x27;</span>,</span><br><span class="line">    redirect_uri=<span class="string">&#x27;http://localhost:8000/callback&#x27;</span>,</span><br><span class="line">    scope=<span class="string">&#x27;openid profile email&#x27;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取授权 URL</span></span><br><span class="line">uri, state = client.create_authorization_url(</span><br><span class="line">    <span class="string">&#x27;https://your-domain.com/oauth2/authorize&#x27;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 处理回调，换取 Token</span></span><br><span class="line">token = client.fetch_token(</span><br><span class="line">    <span class="string">&#x27;https://your-domain.com/oauth2/token&#x27;</span>,</span><br><span class="line">    authorization_response=callback_url</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取用户信息</span></span><br><span class="line">userinfo = client.get(<span class="string">&#x27;https://your-domain.com/oauth2/userinfo&#x27;</span>).json()</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-3-使用-Go-coreos-go-oidc"><a href="#6-3-使用-Go-coreos-go-oidc" class="headerlink" title="6.3 使用 Go (coreos&#x2F;go-oidc)"></a>6.3 使用 Go (coreos&#x2F;go-oidc)</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">provider, err := oidc.NewProvider(ctx, <span class="string">&quot;https://your-domain.com&quot;</span>)</span><br><span class="line"></span><br><span class="line">oauth2Config := oauth2.Config&#123;</span><br><span class="line">    ClientID:     <span class="string">&quot;your-client-id&quot;</span>,</span><br><span class="line">    ClientSecret: <span class="string">&quot;your-client-secret&quot;</span>,</span><br><span class="line">    RedirectURL:  <span class="string">&quot;http://localhost:8080/callback&quot;</span>,</span><br><span class="line">    Endpoint:     provider.Endpoint(),</span><br><span class="line">    Scopes:       []<span class="type">string</span>&#123;oidc.ScopeOpenID, <span class="string">&quot;profile&quot;</span>, <span class="string">&quot;email&quot;</span>&#125;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 验证 id_token</span></span><br><span class="line">verifier := provider.Verifier(&amp;oidc.Config&#123;ClientID: <span class="string">&quot;your-client-id&quot;</span>&#125;)</span><br><span class="line">idToken, err := verifier.Verify(ctx, rawIDToken)</span><br></pre></td></tr></table></figure>
+
+<h2 id="7-常见问题"><a href="#7-常见问题" class="headerlink" title="7. 常见问题"></a>7. 常见问题</h2><p><strong>Q: id_token 的有效期是多久？</strong><br>A: 与 Access Token 一致，默认 1 小时。</p>
+<p><strong>Q: 如何处理密钥轮转？</strong><br>A: 定期从 JWKS 端点刷新公钥。当验证失败时，先尝试刷新 JWKS 再重试验证。</p>
+<p><strong>Q: 是否支持 PKCE？</strong><br>A: 支持。PKCE (RFC 7636) 已实现并默认对所有 authorization_code 客户端强制启用（仅支持 <code>S256</code>，<code>plain</code> 被拒绝）。SPA 和移动端客户端必须使用 <code>S256</code>。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/4434d0a3/">https://voidvec.github.io/posts/4434d0a3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pj-snav"><div class="pj-snav__head"><i class="fas fa-layer-group"></i><span class="pj-snav__series">Fulla 架构与协议</span><b class="pj-snav__pos">6 / 6</b></div><div class="pj-snav__links"><a class="pj-snav__item pj-snav__item--prev" href="/posts/4916bf40/"><span class="pj-snav__label"><i class="fas fa-angle-left"></i> 上一篇</span><span class="pj-snav__title">刷新令牌与撤销的生效边界</span></a></div></nav><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4916bf40/"><span class="pj-related__name">刷新令牌与撤销的生效边界</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9808bae6/"><span class="pj-related__name">多租户组织模型设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/5cd14a42/"><span class="pj-related__name">RBAC 权限控制模型</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/f607c499/" title="SDK 集成：消费发布产物"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">SDK 集成：消费发布产物</div></div><div class="info-2"><div class="info-item-1">如何获取并集成 Fulla 的发布产物：SDK 二进制包（库 + 头 +</div></div></div></a><a class="pagination-related" href="/posts/4916bf40/" title="刷新令牌与撤销的生效边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">刷新令牌与撤销的生效边界</div></div><div class="info-2"><div class="info-item-1">S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a><a class="pagination-related" href="/posts/9808bae6/" title="多租户组织模型设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">多租户组织模型设计</div></div><div class="info-2"><div class="info-item-1">组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。</div></div></div></a><a class="pagination-related" href="/posts/fc70949e/" title="数据库性能优化"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库性能优化</div></div><div class="info-2"><div class="info-item-1">本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。</div></div></div></a><a class="pagination-related" href="/posts/03144bb1/" title="把 Fulla 作为 OIDC 提供方接入（RP 指南）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">把 Fulla 作为 OIDC 提供方接入（RP 指南）</div></div><div class="info-2"><div class="info-item-1">面向把外部依赖方（RP）——WeKnora、Nextcloud、内部 SSO 应用——接入 Fulla</div></div></div></a><a class="pagination-related" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 数据持久化：存储选型与一致性</div></div><div class="info-2"><div class="info-item-1">OAuth2 插件的持久化层：PostgreSQL Schema、Redis 键值结构与存储侧安全加固。</div></div></div></a><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-Discovery-%E7%AB%AF%E7%82%B9"><span class="toc-number">1.</span> <span class="toc-text">1. Discovery 端点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-JWKS-%E7%AB%AF%E7%82%B9"><span class="toc-number">2.</span> <span class="toc-text">2. JWKS 端点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-id-token-%E6%A0%BC%E5%BC%8F"><span class="toc-number">3.</span> <span class="toc-text">3. id_token 格式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E9%AA%8C%E8%AF%81-id-token"><span class="toc-number">4.</span> <span class="toc-text">4. 验证 id_token</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%AA%8C%E8%AF%81%E6%AD%A5%E9%AA%A4"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 验证步骤</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 安全注意事项</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E6%94%AF%E6%8C%81%E7%9A%84-Scopes-%E4%B8%8E-Claims"><span class="toc-number">5.</span> <span class="toc-text">5. 支持的 Scopes 与 Claims</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E9%9B%86%E6%88%90%E7%A4%BA%E4%BE%8B"><span class="toc-number">6.</span> <span class="toc-text">6. 集成示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BD%BF%E7%94%A8%E6%A0%87%E5%87%86-OIDC-%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%BA%93-Node-js"><span class="toc-number">6.1.</span> <span class="toc-text">6.1 使用标准 OIDC 客户端库 (Node.js)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E4%BD%BF%E7%94%A8-Python-authlib"><span class="toc-number">6.2.</span> <span class="toc-text">6.2 使用 Python (authlib)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E4%BD%BF%E7%94%A8-Go-coreos-go-oidc"><span class="toc-number">6.3.</span> <span class="toc-text">6.3 使用 Go (coreos&#x2F;go-oidc)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98"><span class="toc-number">7.</span> <span class="toc-text">7. 常见问题</span></a></li></ol></div></div><div class="card-widget card-post-series"><div class="item-headline"><i class="fa-solid fa-layer-group"></i><span>系列文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/47d52779/" title="Fulla 架构总览：技术栈、模块布局与授权码流程">Fulla 架构总览：技术栈、模块布局与授权码流程</a><time datetime="2026-11-07T01:00:00.000Z" title="发表于 2026-11-07 09:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性">OAuth2 数据持久化：存储选型与一致性</a><time datetime="2026-11-07T04:00:00.000Z" title="发表于 2026-11-07 12:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/6db0e595/" title="OAuth2 安全架构：威胁模型与密钥管理">OAuth2 安全架构：威胁模型与密钥管理</a><time datetime="2026-11-07T07:00:00.000Z" title="发表于 2026-11-07 15:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/edf54557/" title="令牌全生命周期设计">令牌全生命周期设计</a><time datetime="2026-11-07T10:00:00.000Z" title="发表于 2026-11-07 18:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/4916bf40/" title="刷新令牌与撤销的生效边界">刷新令牌与撤销的生效边界</a><time datetime="2026-11-08T01:00:00.000Z" title="发表于 2026-11-08 09:00:00">2026-11-08</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/4434d0a3/" title="OIDC 集成指南：从 id_token 到用户信息">OIDC 集成指南：从 id_token 到用户信息</a><time datetime="2026-11-08T04:00:00.000Z" title="发表于 2026-11-08 12:00:00">2026-11-08</time></div></div></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

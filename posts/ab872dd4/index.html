@@ -1,0 +1,535 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>网络安全边界 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本章节面向Fulla的网络安全配置与加固，覆盖HTTPS&#x2F;TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网络安全边界">
+<meta property="og:url" content="https://voidvec.github.io/posts/ab872dd4/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本章节面向Fulla的网络安全配置与加固，覆盖HTTPS&#x2F;TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:18:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:18:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "网络安全边界",
+  "url": "https://voidvec.github.io/posts/ab872dd4/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:18:00.000Z",
+  "dateModified": "2026-11-03T00:18:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/ab872dd4/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '网络安全边界',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">网络安全边界</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">网络安全边界</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:18:00.000Z" title="发表于 2026-11-03 08:18:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:18:00.000Z" title="更新于 2026-11-03 08:18:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/Web%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86/">Web服务器反向代理</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">安全设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><cite>
+**本文引用的文件**
+- [SecurityHeaders.cc](https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc)
+- [CorsSetup.cc](https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc)
+- [nginx.conf](https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf)
+- [config.json](https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json)
+- [config.prod.json](https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json)
+- [docker-compose.prod.yml](https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml)
+- [generate-certs.sh](https://github.com/voidvec/fulla/blob/master/scripts/generate-certs.sh)
+- [security-architecture.md](https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md)
+- [security-check.sh](https://github.com/voidvec/fulla/blob/master/scripts/security-check.sh)
+- [SecurityTest.cc](https://github.com/voidvec/fulla/blob/master/tests/security/injection/SecurityTest.cc)
+- [CHANGELOG.md](https://github.com/voidvec/fulla/blob/master/CHANGELOG.md)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E4%B8%8E%E5%AE%89%E5%85%A8%E8%80%83%E9%87%8F">性能与安全考量</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本章节面向Fulla的网络安全配置与加固，覆盖HTTPS&#x2F;TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</p>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p>本项目在应用层通过Drogon中间件注入安全响应头与CORS策略；在网关层使用Nginx统一处理TLS终止、HSTS、访问控制与请求限流；在生产编排中通过Docker Compose将Nginx作为入口，后端服务仅暴露内部端口。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">Client[&quot;客户端&quot;] --&gt; Nginx[&quot;Nginx 反向代理&lt;br/&gt;TLS终止/HSTS/限流&quot;]</span><br><span class="line">Nginx --&gt; Backend[&quot;OAuth2 后端服务(Drogon)&lt;br/&gt;CORS/安全头/速率限制插件&quot;]</span><br><span class="line">Backend --&gt; DB[&quot;PostgreSQL&quot;]</span><br><span class="line">Backend --&gt; Cache[&quot;Redis&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L40-L114">nginx.conf:40-114</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L8-L79">CorsSetup.cc:8-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L13-L31">docker-compose.prod.yml:13-31</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L40-L114">nginx.conf:40-114</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L13-L31">docker-compose.prod.yml:13-31</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>HTTPS&#x2F;TLS：由Nginx负责证书加载、协议版本与加密套件控制，并强制HTTP到HTTPS重定向。</li>
+<li>CORS：后端按白名单精确匹配Origin，拒绝未授权预检请求，并在响应中附加必要的CORS头。</li>
+<li>安全响应头：全局后置处理器为所有响应添加X-Content-Type-Options、X-Frame-Options，并按页面类型设置CSP；仅在 <code>X-Forwarded-Proto</code> 精确为 <code>https</code> 时附加HSTS。</li>
+<li>HSTS：随附Nginx配置设置Strict-Transport-Security；应用层只检查上述转发头，不检测直接TLS连接。</li>
+<li>反向代理：Nginx集中转发API&#x2F;OAuth2&#x2F;健康检查等路径，并传递真实IP与协议信息给后端。</li>
+<li>DDoS防护与限流：Nginx层按IP进行请求速率限制；应用层通过Hodor插件实现令牌桶算法的多级限流（全局&#x2F;IP&#x2F;用户）。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L8-L79">CorsSetup.cc:8-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L142-L188">config.prod.json:142-188</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>下图展示了从客户端到后端的完整安全链路：Nginx终止TLS、设置HSTS与基础安全头、执行请求限流；随后将请求转发至后端，后端再根据CORS与安全头策略处理响应。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant C as &quot;客户端&quot;</span><br><span class="line">participant N as &quot;Nginx&quot;</span><br><span class="line">participant B as &quot;后端(Drogon)&quot;</span><br><span class="line">participant R as &quot;存储(数据库/缓存)&quot;</span><br><span class="line">C-&gt;&gt;N : &quot;HTTPS 请求&quot;</span><br><span class="line">N-&gt;&gt;N : &quot;TLS握手/协议与套件校验&quot;</span><br><span class="line">N-&gt;&gt;N : &quot;HSTS/安全头/限流&quot;</span><br><span class="line">N-&gt;&gt;B : &quot;转发请求(携带X-Forwarded-Proto等)&quot;</span><br><span class="line">B-&gt;&gt;B : &quot;CORS校验/安全头注入&quot;</span><br><span class="line">B-&gt;&gt;R : &quot;读取/写入数据&quot;</span><br><span class="line">R--&gt;&gt;B : &quot;结果&quot;</span><br><span class="line">B--&gt;&gt;N : &quot;响应(含安全头/CORS)&quot;</span><br><span class="line">N--&gt;&gt;C : &quot;返回响应&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L40-L114">nginx.conf:40-114</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L8-L79">CorsSetup.cc:8-79</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="HTTPS-TLS配置与证书管理"><a href="#HTTPS-TLS配置与证书管理" class="headerlink" title="HTTPS&#x2F;TLS配置与证书管理"></a>HTTPS&#x2F;TLS配置与证书管理</h3><ul>
+<li>证书位置与挂载：Nginx容器以只读方式挂载SSL目录，包含fullchain.pem与privkey.pem。</li>
+<li>协议与套件：仅启用TLSv1.2与TLSv1.3，选择高强度加密套件并禁用弱算法，服务器优先选择套件。</li>
+<li>会话优化：启用共享SSL会话缓存与超时控制，提升握手性能。</li>
+<li>HTTP到HTTPS：监听80端口并301重定向到HTTPS。</li>
+<li>开发证书生成：提供脚本生成自签名证书用于本地测试，生产环境建议使用权威CA（如Let’s Encrypt）。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;启动Nginx&quot;]) --&gt; LoadCert[&quot;加载证书与私钥&quot;]</span><br><span class="line">LoadCert --&gt; SetProtocols[&quot;设置TLS协议版本(TLSv1.2/1.3)&quot;]</span><br><span class="line">SetProtocols --&gt; SetCiphers[&quot;配置加密套件(高强度/禁用弱算法)&quot;]</span><br><span class="line">SetCiphers --&gt; EnableSession[&quot;启用SSL会话缓存与超时&quot;]</span><br><span class="line">EnableSession --&gt; RedirectHTTP[&quot;HTTP:80 -&gt; HTTPS:443 重定向&quot;]</span><br><span class="line">RedirectHTTP --&gt; ServeHTTPS[&quot;处理HTTPS请求&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L33-L55">nginx.conf:33-55</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/generate-certs.sh#L1-L24">generate-certs.sh:1-24</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L13-L23">docker-compose.prod.yml:13-23</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L33-L55">nginx.conf:33-55</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/generate-certs.sh#L1-L24">generate-certs.sh:1-24</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L13-L23">docker-compose.prod.yml:13-23</a></li>
+</ul>
+<h3 id="CORS跨域资源共享安全配置"><a href="#CORS跨域资源共享安全配置" class="headerlink" title="CORS跨域资源共享安全配置"></a>CORS跨域资源共享安全配置</h3><ul>
+<li>白名单机制：严格模式，仅允许配置的精确Origin，禁止通配符，防止CSRF。</li>
+<li>预检请求处理：OPTIONS请求若Origin不在白名单则直接返回403。</li>
+<li>响应头设置：对允许的Origin返回Access-Control-Allow-Origin、Methods、Headers与Credentials。</li>
+<li>配置来源：通过自定义配置项cors.allow_origins指定，支持环境变量覆盖。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Req[&quot;收到请求&quot;] --&gt; CheckOrigin&#123;&quot;Origin在白名单?&quot;&#125;</span><br><span class="line">CheckOrigin -- &quot;是&quot; --&gt; Preflight&#123;&quot;是否为OPTIONS?&quot;&#125;</span><br><span class="line">Preflight -- &quot;是&quot; --&gt; AllowPreflight[&quot;返回允许的头与方法&quot;]</span><br><span class="line">Preflight -- &quot;否&quot; --&gt; AddCORS[&quot;响应中添加CORS头&quot;]</span><br><span class="line">CheckOrigin -- &quot;否&quot; --&gt; Reject[&quot;返回403 Forbidden&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L10-L79">CorsSetup.cc:10-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L172-L190">config.json:172-190</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L220-L242">config.prod.json:220-242</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L10-L79">CorsSetup.cc:10-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L172-L190">config.json:172-190</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L220-L242">config.prod.json:220-242</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/security/injection/SecurityTest.cc#L173-L197">SecurityTest.cc:173-197</a></li>
+</ul>
+<h3 id="安全响应头配置"><a href="#安全响应头配置" class="headerlink" title="安全响应头配置"></a>安全响应头配置</h3><ul>
+<li>X-Content-Type-Options：设置为nosniff，阻止MIME嗅探。</li>
+<li>X-Frame-Options：设置为SAMEORIGIN，防止点击劫持。</li>
+<li>Content-Security-Policy：对HTML页面设置严格CSP；对Swagger UI路径放宽以支持第三方资源。</li>
+<li>HSTS：仅在 <code>X-Forwarded-Proto</code> 精确为 <code>https</code> 时添加Strict-Transport-Security，并包含includeSubDomains；不根据直接TLS判断。</li>
+<li><strong>登录页 CSP 改用 OAuth broker 画像（v1.6.0）</strong>：<code>/login</code> 页面的 CSP 为 <code>form-action &#39;self&#39; https: http://localhost:* http://127.0.0.1:*</code>，其余 fulla 自托管 HTML 仍用严格的 <code>form-action &#39;self&#39;</code>。原因：现代 Chrome&#x2F;Edge 跨登录表单 POST 后的 302 强制执行 <code>form-action</code>，旧的 <code>form-action &#39;self&#39;</code> 会取消 RP 登录成功后向 redirect_uri 的 302 回跳（<code>ERR_ABORTED</code>），静默破坏<strong>所有</strong>浏览器 RP 登录——由 nextjs-demo 浏览器 e2e 发现（三个 json 模式互操作驱动结构性看不见该问题）。<code>https:</code> 允许任意 https 回跳目标，两个回环条目覆盖 http 开发 RP，明文 http 外传仍被阻断；由 <code>Integration_Bootstrap_SecurityHeaders_LoginPageIsOauthBroker</code> 测试锁定。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Resp[&quot;构建响应&quot;] --&gt; IsHTML&#123;&quot;是否HTML页面?&quot;&#125;</span><br><span class="line">IsHTML -- &quot;是&quot; --&gt; SetCSP[&quot;设置CSP(严格或Swagger放宽)&quot;]</span><br><span class="line">IsHTML -- &quot;否&quot; --&gt; SkipCSP[&quot;不设置CSP&quot;]</span><br><span class="line">SetCSP --&gt; Common[&quot;添加通用安全头(X-Content-Type-Options, X-Frame-Options)&quot;]</span><br><span class="line">SkipCSP --&gt; Common</span><br><span class="line">Common --&gt; CheckProto&#123;&quot;X-Forwarded-Proto == https?&quot;&#125;</span><br><span class="line">CheckProto -- &quot;是&quot; --&gt; AddHSTS[&quot;添加HSTS&quot;]</span><br><span class="line">CheckProto -- &quot;否&quot; --&gt; End[&quot;结束（不检测直接TLS）&quot;]</span><br><span class="line">AddHSTS --&gt; End</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md#L36-L63">security-architecture.md:36-63</a></li>
+</ul>
+<h3 id="HSTS-HTTP严格传输安全"><a href="#HSTS-HTTP严格传输安全" class="headerlink" title="HSTS(HTTP严格传输安全)"></a>HSTS(HTTP严格传输安全)</h3><ul>
+<li>Nginx层：对所有HTTPS响应添加HSTS，max-age&#x3D;31536000并包含子域名。</li>
+<li>应用层：当检测到X-Forwarded-Proto为https时，同样添加HSTS，保证在反向代理场景下也能生效。</li>
+<li>部署建议：生产环境先以较短max-age验证，逐步增加；确认所有子域名均已启用HTTPS后再开启includeSubDomains。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L54-L55">nginx.conf:54-55</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L52-L58">SecurityHeaders.cc:52-58</a></li>
+</ul>
+<h3 id="反向代理的安全配置（Nginx）"><a href="#反向代理的安全配置（Nginx）" class="headerlink" title="反向代理的安全配置（Nginx）"></a>反向代理的安全配置（Nginx）</h3><ul>
+<li>TLS终止与重定向：统一在Nginx处理HTTPS，并将HTTP重定向到HTTPS。</li>
+<li>安全头：在http块中全局添加X-Content-Type-Options、X-Frame-Options、Referrer-Policy。</li>
+<li>请求限流：定义不同zone（login&#x2F;api），按IP限制请求速率，并对敏感路径（登录）更严格的限制。</li>
+<li>代理头：正确传递Host、X-Real-IP、X-Forwarded-For、X-Forwarded-Proto，使后端能识别真实客户端与协议。</li>
+<li>访问控制：metrics端点仅允许内网地址访问，避免监控接口泄露。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">A[&quot;客户端&quot;] --&gt; |HTTPS| N[&quot;Nginx&quot;]</span><br><span class="line">N --&gt; |limit_req| B[&quot;后端服务&quot;]</span><br><span class="line">N --&gt; |proxy_set_header| B</span><br><span class="line">N --&gt; |allow/deny| M[&quot;/metrics(内网)&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L8-L12">nginx.conf:8-12</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L91-L101">nginx.conf:91-101</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L8-L12">nginx.conf:8-12</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L91-L101">nginx.conf:91-101</a></li>
+</ul>
+<h3 id="DDoS防护与请求限流机制"><a href="#DDoS防护与请求限流机制" class="headerlink" title="DDoS防护与请求限流机制"></a>DDoS防护与请求限流机制</h3><ul>
+<li>Nginx层限流：<ul>
+<li>login zone：针对登录路径严格限速，burst较小，防止暴力破解。</li>
+<li>api zone：对API与OAuth2路径设定较高吞吐，burst适度，平衡性能与安全。</li>
+</ul>
+</li>
+<li>应用层限流（Hodor插件）：<ul>
+<li>算法：令牌桶，平滑限流。</li>
+<li>层级：全局、每IP、每用户三级限制，敏感接口（登录、令牌、注册）有更严格的IP&#x2F;用户限制。</li>
+<li>白名单：信任IP段跳过限制，便于内部调用与测试。</li>
+<li>配置：通过config.json动态调整，无需重新编译。</li>
+<li>（v1.2.0）生产配置的 Hodor <code>sub_limits</code> 现亦覆盖 <code>/oauth2/mfa/verify</code> 与 <code>/api/verify-email/resend-by-email</code>（新增的未认证验证邮件重发端点）。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Ingress[&quot;进入Nginx&quot;] --&gt; L1&#123;&quot;路径匹配&quot;&#125;</span><br><span class="line">L1 --&gt; |/oauth2/login| RL1[&quot;login zone限流&quot;]</span><br><span class="line">L1 --&gt; |/api/*| RL2[&quot;api zone限流&quot;]</span><br><span class="line">RL1 --&gt; App[&quot;后端(Hodor插件)&quot;]</span><br><span class="line">RL2 --&gt; App</span><br><span class="line">App --&gt; Global[&quot;全局限流&quot;]</span><br><span class="line">App --&gt; IP[&quot;每IP限流&quot;]</span><br><span class="line">App --&gt; User[&quot;每用户限流&quot;]</span><br><span class="line">Global --&gt; Decision&#123;&quot;通过?&quot;&#125;</span><br><span class="line">IP --&gt; Decision</span><br><span class="line">User --&gt; Decision</span><br><span class="line">Decision -- &quot;是&quot; --&gt; Handle[&quot;业务处理&quot;]</span><br><span class="line">Decision -- &quot;否&quot; --&gt; Return429[&quot;返回429 Too Many Requests&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L142-L188">config.prod.json:142-188</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md#L5-L33">security-architecture.md:5-33</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L142-L188">config.prod.json:142-188</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md#L5-L33">security-architecture.md:5-33</a></li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>Nginx与后端：Nginx作为入口，负责TLS、限流与安全头；后端专注业务逻辑与CORS、安全头注入。</li>
+<li>后端与存储：后端依赖PostgreSQL与Redis，生产环境中通过环境变量注入敏感配置。</li>
+<li>配置与环境：生产配置通过config.prod.json与docker-compose.prod.yml的环境变量组合，实现敏感信息与运行参数解耦。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">N[&quot;Nginx&quot;] --&gt; S[&quot;后端服务&quot;]</span><br><span class="line">S --&gt; P[&quot;PostgreSQL&quot;]</span><br><span class="line">S --&gt; R[&quot;Redis&quot;]</span><br><span class="line">E[&quot;环境变量/配置文件&quot;] --&gt; S</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L74-L139">docker-compose.prod.yml:74-139</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L39">config.prod.json:9-39</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L74-L139">docker-compose.prod.yml:74-139</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L39">config.prod.json:9-39</a></li>
+</ul>
+<h2 id="性能与安全考量"><a href="#性能与安全考量" class="headerlink" title="性能与安全考量"></a>性能与安全考量</h2><ul>
+<li>TLS性能：启用会话缓存与超时控制，减少握手开销；在高并发场景下评估CPU与内存占用。</li>
+<li>压缩与静态资源：Nginx启用gzip，后端可选brotli，注意对敏感内容谨慎压缩。</li>
+<li>限流调优：根据业务峰值与恶意流量特征调整burst与rate，避免误伤正常用户。</li>
+<li>CSP策略：对主应用采用严格CSP，对Swagger等第三方UI按需放宽，避免功能受限。</li>
+<li>HSTS部署：分阶段启用，确保所有子域名与资源已迁移至HTTPS。</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>安全头缺失：检查Nginx全局头与后端后置处理器是否正确注册；确认响应类型判断逻辑。</li>
+<li>CORS被拒：核对custom_config.cors.allow_origins列表，确保Origin完全匹配；检查预检请求是否返回403。</li>
+<li>HSTS未生效：确认Nginx已配置HSTS，且后端收到的 <code>X-Forwarded-Proto</code> 精确为 <code>https</code>；直接HTTPS连接不会自动获得应用层HSTS。</li>
+<li>限流过严：查看Nginx limit_req日志与后端Hodor统计，适当调整rate与burst；确认信任IP段配置。</li>
+<li>证书问题：验证fullchain.pem与privkey.pem路径与权限；生产环境确认证书链完整性与有效期。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc#L8-L61">SecurityHeaders.cc:8-61</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc#L10-L79">CorsSetup.cc:10-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L8-L12">nginx.conf:8-12</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf#L24-L83">nginx.conf:24-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/security-check.sh#L26-L148">security-check.sh:26-148</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Fulla在反向代理与应用层协同实现了全面的网络安全能力：Nginx负责TLS终止、HSTS与请求限流；后端通过CORS白名单、安全响应头与Hodor插件完成细粒度的跨域控制与防暴力破解。生产部署通过Docker Compose与环境变量实现敏感信息隔离与可运维性。建议在上线前结合漏洞扫描与渗透测试，持续验证安全配置的有效性。</p>
+<p>[本节为总结，不直接分析具体文件]</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><ul>
+<li>安全加固文档参考：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md">security-architecture.md</a></li>
+<li>安全扫描脚本：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/security-check.sh">security-check.sh</a></li>
+<li>证书生成脚本：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/generate-certs.sh">generate-certs.sh</a></li>
+<li>生产编排：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml">docker-compose.prod.yml</a></li>
+<li>后端配置（生产）：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json">config.prod.json</a></li>
+<li>后端配置（开发）：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json">config.json</a></li>
+<li>Nginx配置：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/nginx/nginx.conf">nginx.conf</a></li>
+<li>安全头实现：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/SecurityHeaders.cc">SecurityHeaders.cc</a></li>
+<li>CORS实现：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/CorsSetup.cc">CorsSetup.cc</a></li>
+<li>CORS测试用例：<a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/security/injection/SecurityTest.cc">SecurityTest.cc</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/ab872dd4/">https://voidvec.github.io/posts/ab872dd4/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/34f6f1ca/"><span class="pj-related__name">OAuth2/OIDC 协议层安全</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f69881e8/"><span class="pj-related__name">授权模型安全：从 scope 到 RBAC</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/712a4a7b/"><span class="pj-related__name">上线前的安全加固清单</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f73c3341/"><span class="pj-related__name">密码存储与校验</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/c9545167/"><span class="pj-related__name">会话管理机制与安全约束</span><span class="pj-related__type">深度设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/ae985cd0/" title="数据库迁移管理"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">数据库迁移管理</div></div><div class="info-2"><div class="info-item-1">本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及</div></div></div></a><a class="pagination-related" href="/posts/c9545167/" title="会话管理机制与安全约束"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">会话管理机制与安全约束</div></div><div class="info-2"><div class="info-item-1">本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/fc70949e/" title="数据库性能优化"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库性能优化</div></div><div class="info-2"><div class="info-item-1">本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。</div></div></div></a><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a><a class="pagination-related" href="/posts/4916bf40/" title="刷新令牌与撤销的生效边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-08</div><div class="info-item-2">刷新令牌与撤销的生效边界</div></div><div class="info-2"><div class="info-item-1">S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。</div></div></div></a><a class="pagination-related" href="/posts/c9545167/" title="会话管理机制与安全约束"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">会话管理机制与安全约束</div></div><div class="info-2"><div class="info-item-1">本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及</div></div></div></a><a class="pagination-related" href="/posts/ae985cd0/" title="数据库迁移管理"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库迁移管理</div></div><div class="info-2"><div class="info-item-1">本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#HTTPS-TLS%E9%85%8D%E7%BD%AE%E4%B8%8E%E8%AF%81%E4%B9%A6%E7%AE%A1%E7%90%86"><span class="toc-number">6.1.</span> <span class="toc-text">HTTPS&#x2F;TLS配置与证书管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CORS%E8%B7%A8%E5%9F%9F%E8%B5%84%E6%BA%90%E5%85%B1%E4%BA%AB%E5%AE%89%E5%85%A8%E9%85%8D%E7%BD%AE"><span class="toc-number">6.2.</span> <span class="toc-text">CORS跨域资源共享安全配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E5%85%A8%E5%93%8D%E5%BA%94%E5%A4%B4%E9%85%8D%E7%BD%AE"><span class="toc-number">6.3.</span> <span class="toc-text">安全响应头配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#HSTS-HTTP%E4%B8%A5%E6%A0%BC%E4%BC%A0%E8%BE%93%E5%AE%89%E5%85%A8"><span class="toc-number">6.4.</span> <span class="toc-text">HSTS(HTTP严格传输安全)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E7%9A%84%E5%AE%89%E5%85%A8%E9%85%8D%E7%BD%AE%EF%BC%88Nginx%EF%BC%89"><span class="toc-number">6.5.</span> <span class="toc-text">反向代理的安全配置（Nginx）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DDoS%E9%98%B2%E6%8A%A4%E4%B8%8E%E8%AF%B7%E6%B1%82%E9%99%90%E6%B5%81%E6%9C%BA%E5%88%B6"><span class="toc-number">6.6.</span> <span class="toc-text">DDoS防护与请求限流机制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%B8%8E%E5%AE%89%E5%85%A8%E8%80%83%E9%87%8F"><span class="toc-number">8.</span> <span class="toc-text">性能与安全考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

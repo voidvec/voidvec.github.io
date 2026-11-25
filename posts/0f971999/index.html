@@ -1,0 +1,431 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>llmwiki 架构梳理：分层与微信通道 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="重新梳理本地知识库服务的完整架构：索引&#x2F;召回&#x2F;应答编排&#x2F;通道&#x2F;传输五层，并把腾讯 iLink Bot API 定为个人微信首选通道（替代 Wechaty 商业 puppet）。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="llmwiki 架构梳理：分层与微信通道">
+<meta property="og:url" content="https://voidvec.github.io/posts/0f971999/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="重新梳理本地知识库服务的完整架构：索引&#x2F;召回&#x2F;应答编排&#x2F;通道&#x2F;传输五层，并把腾讯 iLink Bot API 定为个人微信首选通道（替代 Wechaty 商业 puppet）。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-08-18T01:29:00.000Z">
+<meta property="article:modified_time" content="2026-08-18T01:29:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="ilink">
+<meta property="article:tag" content="llmwiki">
+<meta property="article:tag" content="rag">
+<meta property="article:tag" content="wechat">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "llmwiki 架构梳理：分层与微信通道",
+  "url": "https://voidvec.github.io/posts/0f971999/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-18T01:29:00.000Z",
+  "dateModified": "2026-08-18T01:29:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/0f971999/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'llmwiki 架构梳理：分层与微信通道',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">llmwiki 架构梳理：分层与微信通道</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">llmwiki 架构梳理：分层与微信通道</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-18T01:29:00.000Z" title="发表于 2026-08-18 09:29:00">2026-08-18</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-18T01:29:00.000Z" title="更新于 2026-08-18 09:29:00">2026-08-18</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">架构设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">架构设计</span><span class="pj-badge pj-badge--muted">深入</span></div><article class="container post-content" id="article-container"><blockquote>
+<p>角色：Software Architect。本文把 llmwiki-suite 套件的<strong>已实现</strong>架构完整梳理一遍，<br>重点：<strong>应答编排 + 通道层</strong>与传输解耦的清晰分层，<br>并把<strong>腾讯 iLink Bot API</strong> 落地为个人微信通道（替代原方案里需 ¥299&#x2F;年 Wechaty puppet 的路线）。</p>
+</blockquote>
+<hr>
+<h2 id="1-顶层分层"><a href="#1-顶层分层" class="headerlink" title="1. 顶层分层"></a>1. 顶层分层</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">flowchart TB</span><br><span class="line">    subgraph CH[通道层 ChannelAdapter]</span><br><span class="line">      WECOM[WeComAdapter&lt;br/&gt;Webhook 驱动]</span><br><span class="line">      ILINK[IlinkAdapter&lt;br/&gt;轮询驱动]</span><br><span class="line">    end</span><br><span class="line">    CH --&gt;|on_message(text,user)| ASSIST[KbAssistant&lt;br/&gt;应答编排层]</span><br><span class="line">    ASSIST --&gt;|recall| RETRIEVE[KbRetriever&lt;br/&gt;召回层]</span><br><span class="line">    RETRIEVE --&gt;|读源 .md| CORE[kb_core&lt;br/&gt;铁律/FM/词表]</span><br><span class="line">    RETRIEVE --&gt;|启动加载| IDX[(kb-index.json&lt;br/&gt;单一事实源)]</span><br><span class="line">    ASSIST --&gt;|拼 prompt + 调 LLM| LLM[(OpenAI 兼容&lt;br/&gt;/chat/completions)]</span><br><span class="line">    IDX -. 由 llmwiki index (gen_index.py) 生成 .-&gt; RETRIEVE</span><br><span class="line">    subgraph BG[后台自动化]</span><br><span class="line">      LINT[lint.py]</span><br><span class="line">      INGEST[ingest.py]</span><br><span class="line">    end</span><br><span class="line">    BG -. 写入/校验 .-&gt; IDX</span><br></pre></td></tr></table></figure>
+
+<p>六层职责（自下而上）：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>模块</th>
+<th>职责</th>
+<th>三方依赖</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>存储&#x2F;索引</td>
+<td><code>kb-index.json</code>（生成器 <code>llmwiki index</code>）</td>
+<td>单一事实源：20 字段文档（含正文 <code>body_text</code> &#x2F; <code>body_text_clean</code> 双变体）+ 分类&#x2F;标签倒排表</td>
+<td>无</td>
+</tr>
+<tr>
+<td>召回</td>
+<td><code>recall.py</code> → <code>KbRetriever</code></td>
+<td>BM25 召回（K1&#x3D;1.5&#x2F;B&#x3D;0.75，正文索引 + Wikilink 图扩展补位，<code>min_score=0.15</code> + 每词阈值 1.0 查询长度感知门槛）+ 章节级取数 + 索引过期检测（P3：<code>check_freshness()</code> 磁盘指纹三向比对，~11 ms&#x2F;188 篇）</td>
+<td>无（标准库）</td>
+</tr>
+<tr>
+<td>共享核心</td>
+<td><code>kb_core.py</code></td>
+<td>链接判死铁律、frontmatter 解析、受控词表（唯一事实源）</td>
+<td>无</td>
+</tr>
+<tr>
+<td>应答编排</td>
+<td><code>assistant.py</code> → <code>KbAssistant</code></td>
+<td>召回 → 拼 prompt → 调 LLM → 附来源（与传输解耦）；<code>answer_stream()</code> &#x2F; <code>call_llm_stream()</code> 提供流式生成（P3：<code>stream=True</code> 逐 chunk）</td>
+<td>无（urllib 调 LLM）</td>
+</tr>
+<tr>
+<td>通道</td>
+<td><code>channel_base.py</code> + <code>wecom_adapter.py</code> + <code>ilink_adapter.py</code></td>
+<td>把外部消息翻译成 <code>assistant.answer()</code> 调用，再把回答送回</td>
+<td>WeCom 需 fastapi&#x2F;pycryptodome；iLink 仅标准库</td>
+</tr>
+<tr>
+<td>传输&#x2F;编排</td>
+<td><code>channels/wechat_bridge.py</code>（FastAPI）</td>
+<td>装配 KbAssistant + 通道；生命周期；对外 HTTP 端点（<code>/api/chat</code> <code>/api/recall</code> JSON 接口（<code>/api/chat</code> 支持 SSE 流式）、<code>/chat</code> <code>/recall</code> 兼容别名、<code>/healthz</code>，<code>/webui/chat</code> 网页问答，<code>/dashboard</code> 工作台）</td>
+<td>fastapi&#x2F;uvicorn</td>
+</tr>
+</tbody></table>
+<p><strong>关键原则</strong>：索引是单一事实源，<code>llmwiki index</code> 是所有写入路径的最后一环；<br>链接铁律与受控词表只在 <code>kb_core.py</code> 实现一次，召回&#x2F;lint&#x2F;ingest 共用，避免三处各写一套再各自踩坑。</p>
+<hr>
+<h2 id="2-通道层：ChannelAdapter-为什么要抽象两类驱动"><a href="#2-通道层：ChannelAdapter-为什么要抽象两类驱动" class="headerlink" title="2. 通道层：ChannelAdapter 为什么要抽象两类驱动"></a>2. 通道层：<code>ChannelAdapter</code> 为什么要抽象两类驱动</h2><p>微信类通道本质有两种驱动模型，必须收口成统一接口，否则桥接服务会充斥 <code>if channel==</code> 分支：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    subgraph W[Webhook 驱动 · 企业微信]</span><br><span class="line">      EXT1[平台 POST /wechat/callback] --&gt; H[路由处理函数]</span><br><span class="line">      H --&gt; A1[assistant.answer] --&gt; R1[加密被动回复 XML]</span><br><span class="line">    end</span><br><span class="line">    subgraph P[轮询驱动 · iLink]</span><br><span class="line">      LOOP[后台线程 长轮询 getupdates] --&gt; M[收到文本]</span><br><span class="line">      M --&gt; A2[assistant.answer] --&gt; S[sendmessage 推送]</span><br><span class="line">    end</span><br></pre></td></tr></table></figure>
+
+<p><code>ChannelAdapter</code>（抽象基类）据此定义：</p>
+<ul>
+<li><code>register_routes(app)</code> —— <strong>Webhook 驱动</strong>适配器在此挂 FastAPI 路由（如 <code>WeComAdapter</code>）。</li>
+<li><code>start()</code> &#x2F; <code>stop()</code> —— <strong>轮询驱动</strong>适配器据此管理后台线程（如 <code>IlinkAdapter</code>）。</li>
+<li><code>health()</code> —— 状态上报，供 <code>/healthz</code> 聚合。</li>
+<li>构造函数统一注入 <code>KbAssistant</code>，通道差异被完全封装。</li>
+</ul>
+<p>桥接服务只做：<code>实例化已配置的适配器 → 调 register_routes → startup 调 start → 端点委托</code>。</p>
+<hr>
+<h2 id="3-个人微信路线：为什么选-iLink（替代-Wechaty-puppet）"><a href="#3-个人微信路线：为什么选-iLink（替代-Wechaty-puppet）" class="headerlink" title="3. 个人微信路线：为什么选 iLink（替代 Wechaty puppet）"></a>3. 个人微信路线：为什么选 iLink（替代 Wechaty puppet）</h2><p>接「个人微信」三条路对比（来自对 cc-go 项目的逆向分析）：</p>
+<table>
+<thead>
+<tr>
+<th>路线</th>
+<th>成本</th>
+<th>稳定性</th>
+<th>跨平台</th>
+<th>机制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>本地 hook（wcferry &#x2F; gewechat）</td>
+<td>免费</td>
+<td>有封号风险，mac&#x2F;Linux 难跑</td>
+<td>仅 Windows 桌面微信</td>
+<td>注入客户端内存 hook</td>
+</tr>
+<tr>
+<td>Wechaty + 商业 puppet（PadLocal）</td>
+<td>≈¥299&#x2F;年</td>
+<td>较稳</td>
+<td>跨平台</td>
+<td>模拟 iPad 协议</td>
+</tr>
+<tr>
+<td><strong>腾讯 iLink Bot API（本仓库默认）</strong></td>
+<td><strong>免费·官方</strong></td>
+<td>受平台开放度摆布</td>
+<td><strong>无头跨平台</strong></td>
+<td>个人号扫码注册成 bot，经官方网关</td>
+</tr>
+</tbody></table>
+<p><strong>决策</strong>：个人微信默认走 <strong>iLink</strong>。理由——</p>
+<ul>
+<li>cc-go 证明：iLink 是腾讯官方 bot 网关（<code>ilinkai.weixin.qq.com</code>，<code>bot_type=3</code> 个人号），<br>扫码绑定即获 <code>bot_token</code>，收发都走官方 HTTP，<strong>不是逆向协议、不驱动客户端</strong>，<br>因此无 puppet 费用、无头跨平台（mac&#x2F;Linux 服务器也能跑）。</li>
+<li>企业客服&#x2F;需稳定 SLA 的场景仍用<strong>企业微信</strong>（<code>WeComAdapter</code>）。</li>
+<li>Wechaty 仅作后备（若 iLink 平台权限收紧）。</li>
+</ul>
+<blockquote>
+<p>诚实边界：iLink 需先有平台开放权限；消息经腾讯云而非 P2P；历史上有过网页微信 bot 等被关的先例，<br>受平台开放度摆布。v1 适配器仅做文本问答（图片&#x2F;文件走官方 CDN AES-ECB，复杂度高，本期未实现）。</p>
+</blockquote>
+<h3 id="iLink-契约（与-cc-go-逐字段对齐）"><a href="#iLink-契约（与-cc-go-逐字段对齐）" class="headerlink" title="iLink 契约（与 cc-go 逐字段对齐）"></a>iLink 契约（与 cc-go 逐字段对齐）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant U as 个人微信用户</span><br><span class="line">    participant B as IlinkAdapter(本服务)</span><br><span class="line">    participant API as ilinkai.weixin.qq.com</span><br><span class="line">    B-&gt;&gt;API: GET ilink/bot/get_bot_qrcode?bot_type=3</span><br><span class="line">    API--&gt;&gt;B: &#123;qrcode, qrcode_img_content&#125;</span><br><span class="line">    Note over U,B: 用户扫描二维码</span><br><span class="line">    B-&gt;&gt;API: GET ilink/bot/get_qrcode_status?qrcode=...</span><br><span class="line">    API--&gt;&gt;B: &#123;status:confirmed, bot_token, baseurl&#125;</span><br><span class="line">    loop 后台长轮询</span><br><span class="line">        B-&gt;&gt;API: POST ilink/bot/getupdates &#123;get_updates_buf&#125;</span><br><span class="line">        API--&gt;&gt;B: &#123;msgs:[&#123;text&#125;], get_updates_buf&#125;</span><br><span class="line">        B-&gt;&gt;B: assistant.answer(text)</span><br><span class="line">        B-&gt;&gt;API: POST ilink/bot/sendmessage &#123;item_list:[&#123;type:1,text&#125;]&#125;</span><br><span class="line">    end</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>鉴权头：<code>AuthorizationType: ilink_bot_token</code> + <code>Authorization: Bearer &lt;bot_token&gt;</code> + <code>X-WECHAT-UIN: base64(rand)</code>。</li>
+<li><code>bot_token</code> 持久化到 <code>.ilink_session.json</code>（<strong>已加 <code>.gitignore</code>，绝不入库</strong>）；&lt;24h 有效，过期自动给最近联系人推重激活链接。</li>
+</ul>
+<hr>
+<h2 id="4-安全与部署边界"><a href="#4-安全与部署边界" class="headerlink" title="4. 安全与部署边界"></a>4. 安全与部署边界</h2><ul>
+<li><strong>暴露形态（两种，不做第三种）</strong>：A 仅自己（Tailscale &#x2F; ZeroTier，设备级认证）+ B 团队内网（反向代理 + 网关 Basic Auth）。**套件永远只监听 <code>127.0.0.1</code>**，不直连公网，认证收口在网关层。</li>
+<li><strong>网页端点信任模型</strong>：<code>/webui/chat</code>、<code>/dashboard</code> 等页面继承「能访问到 127.0.0.1:8000 即已过身份」的信任<br>（网关层决定），套件内部<strong>不做登录态&#x2F;会话保护</strong>；路由收敛后 <code>/api/*</code> 归机器接口、<code>/webui/*</code> 归人用页面，若网关暴露公网，网关必须挡 <code>/api/*</code> 放行 <code>/webui/*</code>。</li>
+<li><strong>网关令牌</strong>：<code>/api/chat</code>、<code>/api/recall</code>（含历史别名 <code>/chat</code>、<code>/recall</code>）受 <code>LLM_WIKI_BRIDGE_TOKEN</code> 保护；服务默认绑 <code>127.0.0.1</code>，仅企业微信回调经内网穿透面向公网（沿用第二次评审 R3）。</li>
+<li><strong>凭证全部走环境变量</strong>，绝不硬编码（<code>LLM_WIKI_*</code> 前缀下：<code>API_KEY</code> &#x2F; <code>BRIDGE_TOKEN</code> &#x2F; <code>WECOM_*</code> &#x2F; <code>ILINK_*</code>）。</li>
+<li><strong>iLink 无需公网</strong>：客户端主动出网长轮询，家庭宽带即可；企业微信回调才需公网&#x2F;穿透。</li>
+<li><strong>离线可跑</strong>：LLM 未配置时 <code>/api/chat</code> 降级返回检索片段预览；iLink 无 token 时后台空闲不触网。</li>
+</ul>
+<hr>
+<h2 id="5-与个人知识库（个人库-scripts-）的关系"><a href="#5-与个人知识库（个人库-scripts-）的关系" class="headerlink" title="5. 与个人知识库（个人库 scripts&#x2F;）的关系"></a>5. 与个人知识库（个人库 scripts&#x2F;）的关系</h2><ul>
+<li>本套件由个人库的 <code>scripts/</code> 引擎 pip 化而来：模块一一对应（<code>recall.py</code>⇄<code>kb_recall.py</code>、<code>assistant.py</code>⇄<code>kb_assistant.py</code>、<code>ingest.py</code>⇄<code>_ingest_normalize.py</code>、<code>lint.py</code>⇄<code>lint_kb.py</code>、<code>gen_index.py</code>⇄<code>_gen_query_index.py</code>）。</li>
+<li>核心改造：<strong>去掉 <code>.git</code> 锚定仓库根</strong>（<code>REPO_DEFAULT</code>），改为 D3 解析链（<code>--repo</code> → CWD 向上找 <code>.git</code> → CWD 含 .md）；受控词表 &#x2F; 排除目录从硬编码抽到 <code>llmwiki.toml</code> 三层配置。</li>
+<li>个人库以 <strong>S3 自举</strong>方式切为套件消费者：<code>pip install -e ../llmwiki-suite</code>（已落地，2026-08-24）。<ul>
+<li>验收①召回等价：个人库 57 条评估集跑套件 <code>llmwiki eval</code>，<strong>recall@4&#x3D;100%、MRR@4&#x3D;0.9605</strong>，与迁移前 <code>kb_recall</code> 基线逐位一致（含 avg_rank 1.11、missed 空）。</li>
+<li>验收②lint 等价：套件 <code>llmwiki lint</code>（191 文件）与本地 <code>lint_kb.py</code> 同为 0 errors &#x2F; 199 warnings，逐项一致。</li>
+<li>消费入口：个人库日常 <code>llmwiki query / ingest / index / lint / eval / serve</code> 全部由套件 CLI 提供；个人库 <code>scripts/</code> 保留为历史实现与桥接编排，不再需要双源同步（新增能力只在套件侧演化，个人库通过 <code>-e</code> 直接消费）。</li>
+</ul>
+</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/0f971999/">https://voidvec.github.io/posts/0f971999/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/architecture/">architecture</a><a class="post-meta__tags" href="/tags/llmwiki/">llmwiki</a><a class="post-meta__tags" href="/tags/rag/">rag</a><a class="post-meta__tags" href="/tags/wechat/">wechat</a><a class="post-meta__tags" href="/tags/ilink/">ilink</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/44f2733a/"><span class="pj-related__name">llmwiki 系统架构、模块与依赖关系</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/cb4d0cb4/"><span class="pj-related__name">llmwiki 核心业务流程与数据流</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/e57cb7cd/"><span class="pj-related__name">llmwiki 关键概念与术语词典</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ff9b1cc7/"><span class="pj-related__name">llmwiki 配置三层模型与运行入口</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3552fcbc/"><span class="pj-related__name">llmwiki 检索与召回算法口径</span><span class="pj-related__type">架构设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/cde0a889/" title="LLMWiki 渠道接入：把知识库接到微信等聊天渠道"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">LLMWiki 渠道接入：把知识库接到微信等聊天渠道</div></div><div class="info-2"><div class="info-item-1">把本地 LLMWiki 知识库接入微信做问答：装 serve extras → 起桥接服务 → 个人微信(iLink 官方 Bot API)扫码授权 → 企业微信(可选) → 微信端直接查知识库。</div></div></div></a><a class="pagination-related" href="/posts/9431c497/" title="LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库</div></div><div class="info-2"><div class="info-item-1">从零开始用 llmwiki-suite 工具链（Karpathy incremental wiki 方法论），打造可检索、可问答、可自维护的个人知识库。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/cde0a889/" title="LLMWiki 渠道接入：把知识库接到微信等聊天渠道"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 渠道接入：把知识库接到微信等聊天渠道</div></div><div class="info-2"><div class="info-item-1">把本地 LLMWiki 知识库接入微信做问答：装 serve extras → 起桥接服务 → 个人微信(iLink 官方 Bot API)扫码授权 → 企业微信(可选) → 微信端直接查知识库。</div></div></div></a><a class="pagination-related" href="/posts/3abaf54f/" title="LLMWiki 检索质量调优：评估、诊断与调参"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 检索质量调优：评估、诊断与调参</div></div><div class="info-2"><div class="info-item-1">当知识库问答检索质量不满足时（答非所问、明明有却查不到、命中一堆无关文档），如何用评估集量化问题、对照根因归类定位、按测-改-测循环调参（BM25/minscore/停用词/正文索引/wikilink 图）。</div></div></div></a><a class="pagination-related" href="/posts/9431c497/" title="LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库</div></div><div class="info-2"><div class="info-item-1">从零开始用 llmwiki-suite 工具链（Karpathy incremental wiki 方法论），打造可检索、可问答、可自维护的个人知识库。</div></div></div></a><a class="pagination-related" href="/posts/81a48d54/" title="llmwiki 网页问答与工作台设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-27</div><div class="info-item-2">llmwiki 网页问答与工作台设计</div></div><div class="info-2"><div class="info-item-1">为 llmwiki-suite 补齐浏览器侧交互：一个自包含的网页问答页 /webui/chat、一个导航工作台 /dashboard，与现有 /chat JSON 接口、/ilink/webui 扫码页的分层关系，以及服务暴露形态（仅自己</div></div></div></a><a class="pagination-related" href="/posts/de2f159c/" title="测试策略设计：分类、命名与分层契约测试"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-13</div><div class="info-item-2">测试策略设计：分类、命名与分层契约测试</div></div><div class="info-2"><div class="info-item-1">用TestCategory/Priority分类体系、规范命名约定和分层契约测试实现全后端覆盖</div></div></div></a><a class="pagination-related" href="/posts/ccf7f534/" title="渠道 SPI 与注册中心"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">渠道 SPI 与注册中心</div></div><div class="info-2"><div class="info-item-1">非对称能力留在具体类：渠道独有能力不进 SPI（避免 SPI 膨胀），调用点在 handlers 层 dynamicpointercast。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E9%A1%B6%E5%B1%82%E5%88%86%E5%B1%82"><span class="toc-number">1.</span> <span class="toc-text">1. 顶层分层</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%80%9A%E9%81%93%E5%B1%82%EF%BC%9AChannelAdapter-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%8A%BD%E8%B1%A1%E4%B8%A4%E7%B1%BB%E9%A9%B1%E5%8A%A8"><span class="toc-number">2.</span> <span class="toc-text">2. 通道层：ChannelAdapter 为什么要抽象两类驱动</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E4%B8%AA%E4%BA%BA%E5%BE%AE%E4%BF%A1%E8%B7%AF%E7%BA%BF%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89-iLink%EF%BC%88%E6%9B%BF%E4%BB%A3-Wechaty-puppet%EF%BC%89"><span class="toc-number">3.</span> <span class="toc-text">3. 个人微信路线：为什么选 iLink（替代 Wechaty puppet）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#iLink-%E5%A5%91%E7%BA%A6%EF%BC%88%E4%B8%8E-cc-go-%E9%80%90%E5%AD%97%E6%AE%B5%E5%AF%B9%E9%BD%90%EF%BC%89"><span class="toc-number">3.1.</span> <span class="toc-text">iLink 契约（与 cc-go 逐字段对齐）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%AE%89%E5%85%A8%E4%B8%8E%E9%83%A8%E7%BD%B2%E8%BE%B9%E7%95%8C"><span class="toc-number">4.</span> <span class="toc-text">4. 安全与部署边界</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E4%B8%8E%E4%B8%AA%E4%BA%BA%E7%9F%A5%E8%AF%86%E5%BA%93%EF%BC%88%E4%B8%AA%E4%BA%BA%E5%BA%93-scripts-%EF%BC%89%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">5.</span> <span class="toc-text">5. 与个人知识库（个人库 scripts&#x2F;）的关系</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

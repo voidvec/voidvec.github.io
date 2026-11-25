@@ -1,0 +1,636 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>插件架构设计：让认证引擎可扩展 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="插件架构设计：让认证引擎可扩展">
+<meta property="og:url" content="https://voidvec.github.io/posts/c079fffd/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:22:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:22:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="extension">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "插件架构设计：让认证引擎可扩展",
+  "url": "https://voidvec.github.io/posts/c079fffd/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:22:00.000Z",
+  "dateModified": "2026-11-03T00:22:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/c079fffd/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '插件架构设计：让认证引擎可扩展',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">插件架构设计：让认证引擎可扩展</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">插件架构设计：让认证引擎可扩展</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:22:00.000Z" title="发表于 2026-11-03 08:22:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:22:00.000Z" title="更新于 2026-11-03 08:22:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">软件架构</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1/">系统设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">插件扩展</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">架构设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><cite>
+**本文引用的文件**
+- [OAuth2Plugin.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h)
+- [OAuth2Plugin.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc)
+- [OAuth2AuthFilter.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/filters/OAuth2AuthFilter.cc)
+- [SessionController.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h)
+- [MemoryRepositoryBundle.h](https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryRepositoryBundle.h)
+- [PostgresGrantRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresGrantRepository.h)
+- [PostgresConsentRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresConsentRepository.h)
+- [RedisConsentRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisConsentRepository.h)
+- [MemoryClientRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryClientRepository.h)
+- [MemoryTokenRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryTokenRepository.h)
+- [PostgresClientRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresClientRepository.h)
+- [IdentityService.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/IdentityService.h)
+- [RoleProvider.h](https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/RoleProvider.h)
+- [AuthorizationEndpointController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/AuthorizationEndpointController.cc)
+- [DiscoveryController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc)
+- [CMakeLists.txt](https://github.com/voidvec/fulla/blob/master/CMakeLists.txt)
+- [conanfile.py](https://github.com/voidvec/fulla/blob/master/conanfile.py)
+- [release.yml](https://github.com/voidvec/fulla/blob/master/.github/workflows/release.yml)
+- [_sdk-smoke.yml](https://github.com/voidvec/fulla/blob/master/.github/workflows/_sdk-smoke.yml)
+- [sdk-integration-guide.md](https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-integration-guide.md)
+- [sdk-runtime-contract.md](https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-runtime-contract.md)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91">性能考虑</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。同时覆盖编译打包流程（CMake + Conan）与 SDK 发布要点，并给出存储、认证提供商、权限验证等接口抽象的规范与最佳实践。</p>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p>Fulla 采用分层与模块化组织：</p>
+<ul>
+<li>Domain 层：oauth2、identity、common（端口定义、DTO、算法）</li>
+<li>Storage 适配层：memory&#x2F;postgres&#x2F;redis 的具体仓库实现</li>
+<li>Adapter&#x2F;Drogon 层：OAuth2Plugin、控制器、过滤器、视图</li>
+<li>应用层：apps&#x2F;server 提供宿主入口与迁移、OpenAPI 等</li>
+<li>构建与发布：根 CMakeLists、Conan 描述、CI&#x2F;CD 工作流</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">subgraph &quot;领域层&quot;</span><br><span class="line">O[&quot;fulla::oauth2&quot;]</span><br><span class="line">I[&quot;fulla::identity&quot;]</span><br><span class="line">C[&quot;fulla::common&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;存储适配层&quot;</span><br><span class="line">M[&quot;storage::memory&quot;]</span><br><span class="line">P[&quot;storage::postgres&quot;]</span><br><span class="line">R[&quot;storage::redis&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;Drogon 适配层&quot;</span><br><span class="line">PLG[&quot;OAuth2Plugin&quot;]</span><br><span class="line">CTRL[&quot;控制器/过滤器&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;应用层&quot;</span><br><span class="line">APP[&quot;apps/server&quot;]</span><br><span class="line">end</span><br><span class="line">O --&gt; PLG</span><br><span class="line">I --&gt; PLG</span><br><span class="line">C --&gt; PLG</span><br><span class="line">M --&gt; PLG</span><br><span class="line">P --&gt; PLG</span><br><span class="line">R --&gt; PLG</span><br><span class="line">PLG --&gt; CTRL</span><br><span class="line">APP --&gt; PLG</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L72-L118">CMakeLists.txt:72-118</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L1-L171">CMakeLists.txt:1-171</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>OAuth2Plugin：插件入口，负责初始化存储、服务、JWK、清理任务，暴露统一 API 给控制器与过滤器使用。</li>
+<li>存储仓库聚合：Memory&#x2F;Postgres&#x2F;Redis RepositoryBundle 按 storage_type 选择后端，解耦具体存储。</li>
+<li>身份与服务：IdentityService、RoleProvider、AuthorizationService 等组合成授权与鉴权能力。</li>
+<li>过滤器：OAuth2AuthFilter 对请求进行 Bearer Token 校验，通过 resolvePlugin 获取插件实例。</li>
+<li>控制器：SessionController、DiscoveryController 等通过插件提供的服务完成业务逻辑。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h#L50-L115">OAuth2Plugin.h:50-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L30-L200">OAuth2Plugin.cc:30-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/filters/OAuth2AuthFilter.cc#L7-L41">OAuth2AuthFilter.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L66-L100">SessionController.h:66-100</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>插件系统围绕“配置驱动 + 服务装配 + 接口解耦”展开：</p>
+<ul>
+<li>配置加载：initAndStart 读取 config.json 中 plugins[].config，解析 storage_type、tokens TTL、oidc issuer 等。</li>
+<li>插件发现：Drogon 根据 plugins[].name 反射构造 OAuth2Plugin；控制器&#x2F;过滤器通过 ADD_METHOD_TO 字符串引用被动注册。</li>
+<li>依赖注入：插件在 init 阶段组装各 RepositoryBundle、Service、Adapter（审计、指标、角色提供者），以 shared_ptr 共享所有权。</li>
+<li>生命周期：initAndStart -&gt; 运行期请求处理 -&gt; shutdown 有序释放资源。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Host as &quot;宿主应用&quot;</span><br><span class="line">participant Drogon as &quot;Drogon 框架&quot;</span><br><span class="line">participant Plugin as &quot;OAuth2Plugin&quot;</span><br><span class="line">participant Store as &quot;存储仓库(Bundle)&quot;</span><br><span class="line">participant Svc as &quot;服务(Identity/Token/Client)&quot;</span><br><span class="line">participant Filter as &quot;OAuth2AuthFilter&quot;</span><br><span class="line">participant Ctrl as &quot;控制器&quot;</span><br><span class="line">Host-&gt;&gt;Drogon : 启动并加载配置</span><br><span class="line">Drogon-&gt;&gt;Plugin : 反射构造并调用 initAndStart(config)</span><br><span class="line">Plugin-&gt;&gt;Store : 按 storage_type 初始化 Bundle</span><br><span class="line">Plugin-&gt;&gt;Svc : 构造并注入依赖(审计/指标/角色提供者)</span><br><span class="line">Note over Plugin,Svc : JwkManager/Issuer/TTLs 一次性初始化</span><br><span class="line">Host--&gt;&gt;Drogon : 开始接受请求</span><br><span class="line">Filter-&gt;&gt;Plugin : resolvePlugin() 获取插件实例</span><br><span class="line">Filter-&gt;&gt;Svc : 校验令牌/角色/范围</span><br><span class="line">Ctrl-&gt;&gt;Plugin : 调用业务方法(生成授权码/交换令牌等)</span><br><span class="line">Plugin-&gt;&gt;Svc : 转发到领域服务</span><br><span class="line">Svc-&gt;&gt;Store : 持久化或查询</span><br><span class="line">Store--&gt;&gt;Svc : 返回结果</span><br><span class="line">Svc--&gt;&gt;Ctrl : 响应数据</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L30-L200">OAuth2Plugin.cc:30-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/filters/OAuth2AuthFilter.cc#L7-L41">OAuth2AuthFilter.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L66-L100">SessionController.h:66-100</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="OAuth2Plugin-生命周期与依赖注入"><a href="#OAuth2Plugin-生命周期与依赖注入" class="headerlink" title="OAuth2Plugin 生命周期与依赖注入"></a>OAuth2Plugin 生命周期与依赖注入</h3><ul>
+<li>初始化顺序：<ul>
+<li>解析 storage_type，选择 Memory&#x2F;Postgres&#x2F;Redis Bundle，提取四个 OAuth2 仓库与三个 Identity 仓库。</li>
+<li>初始化 JwkManager（只读发布）、读取 metadata.issuer 并规范化尾部斜杠。</li>
+<li>构造 TokenService&#x2F;ClientService&#x2F;IdentityService，注入审计、指标、角色提供者与主题解析器。</li>
+<li>启动清理服务（基于 grant&#x2F;token 仓库）。</li>
+</ul>
+</li>
+<li>生命周期管理：<ul>
+<li>shutdown 中先停止清理任务，再依次释放服务与仓库句柄，确保异步回调完成后销毁底层存储。</li>
+</ul>
+</li>
+<li>对外暴露：<ul>
+<li>统一的异步 API（validateClient、generateAuthorizationCode、exchangeCodeForToken、refreshAccessToken、validateAccessToken、getUserRoles、hasUserConsent&#x2F;saveUserConsent、introspectToken&#x2F;revokeAccessToken 等）。</li>
+<li>可观测性端口（IAuditSink&#x2F;IMetrics）与授权引擎（AuthorizationService）。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">classDiagram</span><br><span class="line">class OAuth2Plugin &#123;</span><br><span class="line">+initAndStart(config)</span><br><span class="line">+shutdown()</span><br><span class="line">+getTokenService()</span><br><span class="line">+getClientService()</span><br><span class="line">+getIdentityService()</span><br><span class="line">+getJwkManager()</span><br><span class="line">+getAuthorizationService()</span><br><span class="line">+validateClient(...)</span><br><span class="line">+generateAuthorizationCode(...)</span><br><span class="line">+exchangeCodeForToken(...)</span><br><span class="line">+refreshAccessToken(...)</span><br><span class="line">+validateAccessToken(...)</span><br><span class="line">+getUserRoles(...)</span><br><span class="line">+hasUserConsent(...)</span><br><span class="line">+saveUserConsent(...)</span><br><span class="line">+introspectToken(...)</span><br><span class="line">+revokeAccessToken(...)</span><br><span class="line">&#125;</span><br><span class="line">class RepositoryBundle &#123;</span><br><span class="line">+clientRepository()</span><br><span class="line">+grantRepository()</span><br><span class="line">+tokenRepository()</span><br><span class="line">+consentRepository()</span><br><span class="line">&#125;</span><br><span class="line">class IdentityService &#123;</span><br><span class="line">+getUserRoles(...)</span><br><span class="line">+hasUserConsent(...)</span><br><span class="line">+saveUserConsent(...)</span><br><span class="line">&#125;</span><br><span class="line">class TokenService &#123;</span><br><span class="line">+generateAuthorizationCode(...)</span><br><span class="line">+exchangeCodeForToken(...)</span><br><span class="line">+refreshAccessToken(...)</span><br><span class="line">+validateAccessToken(...)</span><br><span class="line">+introspectToken(...)</span><br><span class="line">+revokeAccessToken(...)</span><br><span class="line">&#125;</span><br><span class="line">class ClientService &#123;</span><br><span class="line">+validateClient(...)</span><br><span class="line">+validateRedirectUri(...)</span><br><span class="line">+validateClientScopes(...)</span><br><span class="line">&#125;</span><br><span class="line">OAuth2Plugin --&gt; RepositoryBundle : &quot;选择并持有仓库&quot;</span><br><span class="line">OAuth2Plugin --&gt; IdentityService : &quot;注入&quot;</span><br><span class="line">OAuth2Plugin --&gt; TokenService : &quot;注入&quot;</span><br><span class="line">OAuth2Plugin --&gt; ClientService : &quot;注入&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h#L50-L115">OAuth2Plugin.h:50-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L118-L199">OAuth2Plugin.cc:118-199</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L30-L200">OAuth2Plugin.cc:30-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L202-L322">OAuth2Plugin.cc:202-322</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L324-L361">OAuth2Plugin.cc:324-361</a></li>
+</ul>
+<h3 id="存储后端与仓库聚合"><a href="#存储后端与仓库聚合" class="headerlink" title="存储后端与仓库聚合"></a>存储后端与仓库聚合</h3><ul>
+<li>存储类型选择：<ul>
+<li>postgres：使用 PostgresRepositoryBundle，并从同一 DbClient 构造 PostgresIdentityRepository 作为三个 Identity 仓库的共享实现。</li>
+<li>redis：已弃用独立模式，仅保留兼容；刷新令牌流程拒绝 unsupported_grant_type。</li>
+<li>memory：默认开发模式，从 clients&#x2F;admin_users 配置初始化。</li>
+</ul>
+</li>
+<li>仓库职责：<ul>
+<li>IClientRepository：客户端信息、重定向 URI、客户端作用域校验。</li>
+<li>IGrantRepository：授权码与授权事务。</li>
+<li>ITokenRepository：访问令牌、刷新令牌、令牌元数据。</li>
+<li>IConsentRepository：用户同意记录。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;initStorage&quot;]) --&gt; ReadType[&quot;读取 storage_type&quot;]</span><br><span class="line">ReadType --&gt; |postgres| PG[&quot;PostgresRepositoryBundle.initFromConfig&quot;]</span><br><span class="line">ReadType --&gt; |redis| RD[&quot;RedisRepositoryBundle.initFromConfig&lt;br/&gt;日志警告: 已弃用&quot;]</span><br><span class="line">ReadType --&gt; |memory| MEM[&quot;MemoryRepositoryBundle.initFromConfig&quot;]</span><br><span class="line">PG --&gt; Assign[&quot;分配 client/grant/token/consent 仓库&quot;]</span><br><span class="line">RD --&gt; Assign</span><br><span class="line">MEM --&gt; Assign</span><br><span class="line">Assign --&gt; Identity[&quot;构造 Identity 仓库(多接口复用)&quot;]</span><br><span class="line">Identity --&gt; End([&quot;完成&quot;])</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L202-L322">OAuth2Plugin.cc:202-322</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryRepositoryBundle.h#L40-L72">MemoryRepositoryBundle.h:40-72</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresGrantRepository.h#L1-L31">PostgresGrantRepository.h:1-31</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresConsentRepository.h#L1-L28">PostgresConsentRepository.h:1-28</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisConsentRepository.h#L1-L28">RedisConsentRepository.h:1-28</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryClientRepository.h#L49-L79">MemoryClientRepository.h:49-79</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryTokenRepository.h#L29-L53">MemoryTokenRepository.h:29-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresClientRepository.h#L1-L28">PostgresClientRepository.h:1-28</a></li>
+</ul>
+<h3 id="过滤器与控制器集成"><a href="#过滤器与控制器集成" class="headerlink" title="过滤器与控制器集成"></a>过滤器与控制器集成</h3><ul>
+<li>过滤器：<ul>
+<li>OAuth2AuthFilter 在 doFilter 中通过 resolvePlugin 获取插件实例，若不可用则返回内部错误；OPTIONS 请求直接放行；否则校验 Authorization 头并继续链式处理。</li>
+</ul>
+</li>
+<li>控制器：<ul>
+<li>SessionController 挂载 OAuth2AuthFilter 保护登录&#x2F;同意&#x2F;注销等路由；内部通过插件方法调用领域服务。</li>
+<li>DiscoveryController 在 JWKS 端点中通过插件获取 JwkManager，保证无缓存空键的安全行为。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Client as &quot;客户端&quot;</span><br><span class="line">participant Filter as &quot;OAuth2AuthFilter&quot;</span><br><span class="line">participant Plugin as &quot;OAuth2Plugin&quot;</span><br><span class="line">participant Service as &quot;Token/Client/Identity 服务&quot;</span><br><span class="line">participant Controller as &quot;控制器&quot;</span><br><span class="line">Client-&gt;&gt;Filter : HTTP 请求 (含 Authorization)</span><br><span class="line">Filter-&gt;&gt;Plugin : resolvePlugin()</span><br><span class="line">alt 插件可用</span><br><span class="line">Filter-&gt;&gt;Service : 校验令牌/角色/范围</span><br><span class="line">Service--&gt;&gt;Filter : 校验结果</span><br><span class="line">Filter-&gt;&gt;Controller : 调用处理器</span><br><span class="line">Controller-&gt;&gt;Plugin : 调用业务方法</span><br><span class="line">Plugin-&gt;&gt;Service : 转发到领域服务</span><br><span class="line">Service--&gt;&gt;Controller : 返回数据</span><br><span class="line">Controller--&gt;&gt;Client : 响应</span><br><span class="line">else 插件不可用</span><br><span class="line">Filter--&gt;&gt;Client : 401/500 错误</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/filters/OAuth2AuthFilter.cc#L7-L41">OAuth2AuthFilter.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L66-L100">SessionController.h:66-100</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L232-L259">DiscoveryController.cc:232-259</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/AuthorizationEndpointController.cc#L36-L64">AuthorizationEndpointController.cc:36-64</a></li>
+</ul>
+<h3 id="插件发现与自动注册"><a href="#插件发现与自动注册" class="headerlink" title="插件发现与自动注册"></a>插件发现与自动注册</h3><ul>
+<li>插件发现：Drogon 根据 config.json 中 plugins[].name 反射构造 OAuth2Plugin；类名契约保持稳定。</li>
+<li>自动注册：<ul>
+<li>控制器与过滤器通过 ADD_METHOD_TO 字符串引用被动注册；过滤器保持 AutoCreation&#x3D;true，由框架动态查找实例。</li>
+<li>插件本身不适用 AutoCreation 模板参数，需依赖反射机制。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-integration-guide.md#L40-L87">sdk-integration-guide.md:40-87</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-runtime-contract.md#L60-L74">sdk-runtime-contract.md:60-74</a></li>
+</ul>
+<h3 id="配置加载系统"><a href="#配置加载系统" class="headerlink" title="配置加载系统"></a>配置加载系统</h3><ul>
+<li>tokens 块：设置 auth_code_ttl、access_token_ttl、refresh_token_ttl。</li>
+<li>oidc 块：初始化 JwkManager（支持空配置生成临时密钥）。</li>
+<li>metadata.issuer：标准化后用于令牌签发与发现文档一致性。</li>
+<li>storage_type 与对应后端配置块（postgres&#x2F;redis&#x2F;clients&#x2F;admin_users）。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L47-L117">OAuth2Plugin.cc:47-117</a></li>
+</ul>
+<h3 id="插件接口规范（抽象定义）"><a href="#插件接口规范（抽象定义）" class="headerlink" title="插件接口规范（抽象定义）"></a>插件接口规范（抽象定义）</h3><ul>
+<li>存储插件接口（按仓库划分）：<ul>
+<li>IClientRepository：客户端信息查询与校验。</li>
+<li>IGrantRepository：授权码与授权事务 CRUD。</li>
+<li>ITokenRepository：令牌存取与元数据更新。</li>
+<li>IConsentRepository：用户同意记录管理。</li>
+</ul>
+</li>
+<li>认证提供商接口（身份侧）：<ul>
+<li>RoleProvider：基于 IRoleRepository 的角色查询。</li>
+<li>UserInfoProvider：基于 IUserRepository 的用户信息与角色集合。</li>
+</ul>
+</li>
+<li>权限验证器接口（领域侧）：<ul>
+<li>AuthorizationService：评估作用域、管理员角色要求、用户同意与客户端白名单。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/RoleProvider.h#L1-L42">RoleProvider.h:1-42</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/IdentityService.h#L29-L57">IdentityService.h:29-57</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/AuthorizationService.cc#L45-L83">AuthorizationService.cc:45-83</a></li>
+</ul>
+<h3 id="编译打包流程（CMake-Conan-SDK-发布）"><a href="#编译打包流程（CMake-Conan-SDK-发布）" class="headerlink" title="编译打包流程（CMake + Conan + SDK 发布）"></a>编译打包流程（CMake + Conan + SDK 发布）</h3><ul>
+<li>CMake 顶层：<ul>
+<li>启用 C++17、测试、可选功能开关（WITH_IDENTITY&#x2F;WITH_SOCIAL&#x2F;WITH_WEBAUTHN）。</li>
+<li>子目录顺序体现依赖：common -&gt; oauth2 -&gt; identity -&gt; storage-* -&gt; drogon -&gt; server -&gt; tests -&gt; examples。</li>
+</ul>
+</li>
+<li>Conan 依赖：<ul>
+<li>声明 drogon、openssl、jsoncpp、hiredis、libcurl、brotli、zlib 等版本。</li>
+<li>将 with_* 选项映射为 CMake 变量，控制条件编译。</li>
+</ul>
+</li>
+<li>CI&#x2F;SDK 冒烟：<ul>
+<li>release.yml 与 _sdk-smoke.yml 使用 conan install 生成工具链，添加 drogon_ctl 到 PATH，执行构建与冒烟测试。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">A[&quot;conan install . --output-folder=build/preset&quot;] --&gt; B[&quot;CMake configure/build&quot;]</span><br><span class="line">B --&gt; C[&quot;链接 libs/* 目标&quot;]</span><br><span class="line">C --&gt; D[&quot;生成可执行程序/库&quot;]</span><br><span class="line">D --&gt; E[&quot;运行 ctest / SDK 冒烟&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L33-L171">CMakeLists.txt:33-171</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/conanfile.py#L27-L83">conanfile.py:27-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/release.yml#L97-L124">release.yml:97-124</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/_sdk-smoke.yml#L43-L74">_sdk-smoke.yml:43-74</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L1-L171">CMakeLists.txt:1-171</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/conanfile.py#L1-L83">conanfile.py:1-83</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/release.yml#L97-L124">release.yml:97-124</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/_sdk-smoke.yml#L43-L74">_sdk-smoke.yml:43-74</a></li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>耦合与内聚：<ul>
+<li>OAuth2Plugin 高内聚地封装了存储、服务、适配器装配；对外暴露稳定接口，降低控制器与过滤器的耦合。</li>
+<li>存储层通过 RepositoryBundle 聚合，单一入口初始化，提升内聚性。</li>
+</ul>
+</li>
+<li>外部依赖：<ul>
+<li>Drogon（框架）、OpenSSL（加密）、JSON（配置）、PostgreSQL&#x2F;Redis（存储）。</li>
+</ul>
+</li>
+<li>循环依赖规避：<ul>
+<li>Domain 层不依赖 Drogon；Adapter 层依赖 Domain；插件位于 Adapter 层，避免反向依赖。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">Common[&quot;common&quot;] --&gt; OAuth2[&quot;oauth2&quot;]</span><br><span class="line">Common --&gt; Identity[&quot;identity&quot;]</span><br><span class="line">OAuth2 --&gt; DrogonLayer[&quot;drogon(插件/控制器/过滤器)&quot;]</span><br><span class="line">Identity --&gt; DrogonLayer</span><br><span class="line">Storage[&quot;storage-*&quot;] --&gt; DrogonLayer</span><br><span class="line">DrogonLayer --&gt; Server[&quot;apps/server&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L57-L118">CMakeLists.txt:57-118</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CMakeLists.txt#L57-L118">CMakeLists.txt:57-118</a></li>
+</ul>
+<h2 id="性能考虑"><a href="#性能考虑" class="headerlink" title="性能考虑"></a>性能考虑</h2><ul>
+<li>令牌与授权码 TTL：<ul>
+<li>通过 tokens 配置集中管理，避免硬编码，减少过期策略不一致带来的重试开销。</li>
+</ul>
+</li>
+<li>并发安全：<ul>
+<li>JwkManager 在 initAndStart 中一次性初始化并发布为 const shared_ptr，后续只读访问无需锁。</li>
+<li>清理服务按间隔调度，避免频繁扫描。</li>
+</ul>
+</li>
+<li>存储后端特性：<ul>
+<li>Memory 仓库使用递归互斥同步回调，保证内存态一致性；Postgres&#x2F;Redis 实现遵循各自并发模型。</li>
+</ul>
+</li>
+<li>弃用路径：<ul>
+<li>Redis 独立模式不支持刷新令牌旋转，显式拒绝以避免无效重试。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L58-L85">OAuth2Plugin.cc:58-85</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L191-L199">OAuth2Plugin.cc:191-199</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-memory/include/fulla/storage/memory/MemoryTokenRepository.h#L29-L53">MemoryTokenRepository.h:29-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L420-L444">OAuth2Plugin.cc:420-444</a></li>
+</ul>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>插件不可用：<ul>
+<li>现象：过滤器返回内部错误，提示插件不可用。</li>
+<li>排查：确认 config.json 中 plugins[].name 为 “OAuth2Plugin”；检查 Drogon 反射是否成功；查看 initAndStart 日志。</li>
+</ul>
+</li>
+<li>刷新令牌失败：<ul>
+<li>现象：unsupported_grant_type。</li>
+<li>原因：storage_type&#x3D;”redis” 模式下刷新令牌不被支持。</li>
+<li>解决：切换到 storage_type&#x3D;”postgres”。</li>
+</ul>
+</li>
+<li>JWKS 缓存问题：<ul>
+<li>现象：JWKS 为空导致下游验证失败。</li>
+<li>处理：当前实现不缓存空响应，避免长期失效；检查插件初始化是否完成。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/filters/OAuth2AuthFilter.cc#L7-L41">OAuth2AuthFilter.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L420-L444">OAuth2Plugin.cc:420-444</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L232-L259">DiscoveryController.cc:232-259</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Fulla 插件架构以 OAuth2Plugin 为核心，通过配置驱动与依赖注入将存储、服务、适配器有机组合，提供稳定的异步 API。控制器与过滤器通过 Drogon 的自动注册机制接入，形成清晰的请求处理链路。存储层通过 RepositoryBundle 解耦后端差异，便于扩展与维护。构建与发布流程借助 CMake 与 Conan 实现跨平台一致性与可复现性。遵循接口规范与最佳实践，可在保障安全与性能的前提下快速扩展新的存储、认证与权限能力。</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><ul>
+<li>插件集成步骤参考：<ul>
+<li>在宿主应用的 config.json 中配置 OAuth2Plugin 及其存储与 Redis 客户端名称。</li>
+<li>在业务控制器中使用 AuthorizationFilter 保护 API。</li>
+</ul>
+</li>
+<li>SDK 运行时契约：<ul>
+<li>插件类名与配置契约保持稳定；当前以 OBJECT 库形态链接，无需 whole-archive；未来静态库分发时需引入强制链接方案。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-integration-guide.md#L40-L87">sdk-integration-guide.md:40-87</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/sdk/sdk-runtime-contract.md#L60-L74">sdk-runtime-contract.md:60-74</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/c079fffd/">https://voidvec.github.io/posts/c079fffd/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a><a class="post-meta__tags" href="/tags/extension/">extension</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/2e791cf6/"><span class="pj-related__name">从零接入 OIDC 登录</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/47d52779/"><span class="pj-related__name">Fulla 架构总览：技术栈、模块布局与授权码流程</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/d1522b35/"><span class="pj-related__name">PostgreSQL 15 → 17 大版本升级实战</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ae985cd0/"><span class="pj-related__name">数据库迁移管理</span><span class="pj-related__type">数据与运维</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/5cd14a42/" title="RBAC 权限控制模型"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">RBAC 权限控制模型</div></div><div class="info-2"><div class="info-item-1">三道门强制执行的三层访问控制模型，以及角色、权限与资源的映射关系。</div></div></div></a><a class="pagination-related" href="/posts/fc70949e/" title="数据库性能优化"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">数据库性能优化</div></div><div class="info-2"><div class="info-item-1">本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 数据持久化：存储选型与一致性</div></div><div class="info-2"><div class="info-item-1">OAuth2 插件的持久化层：PostgreSQL Schema、Redis 键值结构与存储侧安全加固。</div></div></div></a><a class="pagination-related" href="/posts/d1522b35/" title="PostgreSQL 15 → 17 大版本升级实战"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">PostgreSQL 15 → 17 大版本升级实战</div></div><div class="info-2"><div class="info-item-1">适用范围：使用本仓库 deploy/docker/docker-compose.prod.yml（或 Helm chart）</div></div></div></a><a class="pagination-related" href="/posts/03144bb1/" title="把 Fulla 作为 OIDC 提供方接入（RP 指南）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">把 Fulla 作为 OIDC 提供方接入（RP 指南）</div></div><div class="info-2"><div class="info-item-1">面向把外部依赖方（RP）——WeKnora、Nextcloud、内部 SSO 应用——接入 Fulla</div></div></div></a><a class="pagination-related" href="/posts/f607c499/" title="SDK 集成：消费发布产物"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">SDK 集成：消费发布产物</div></div><div class="info-2"><div class="info-item-1">如何获取并集成 Fulla 的发布产物：SDK 二进制包（库 + 头 +</div></div></div></a><a class="pagination-related" href="/posts/11796283/" title="OAuth2 可观测性设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-23</div><div class="info-item-2">OAuth2 可观测性设计</div></div><div class="info-2"><div class="info-item-1">本系统通过 IMetrics 适配器提供 Prometheus 指标，并提供带上下文的结构化指标日志，供监控与问题排查使用。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#OAuth2Plugin-%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E4%B8%8E%E4%BE%9D%E8%B5%96%E6%B3%A8%E5%85%A5"><span class="toc-number">6.1.</span> <span class="toc-text">OAuth2Plugin 生命周期与依赖注入</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AD%98%E5%82%A8%E5%90%8E%E7%AB%AF%E4%B8%8E%E4%BB%93%E5%BA%93%E8%81%9A%E5%90%88"><span class="toc-number">6.2.</span> <span class="toc-text">存储后端与仓库聚合</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%87%E6%BB%A4%E5%99%A8%E4%B8%8E%E6%8E%A7%E5%88%B6%E5%99%A8%E9%9B%86%E6%88%90"><span class="toc-number">6.3.</span> <span class="toc-text">过滤器与控制器集成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8F%92%E4%BB%B6%E5%8F%91%E7%8E%B0%E4%B8%8E%E8%87%AA%E5%8A%A8%E6%B3%A8%E5%86%8C"><span class="toc-number">6.4.</span> <span class="toc-text">插件发现与自动注册</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E5%8A%A0%E8%BD%BD%E7%B3%BB%E7%BB%9F"><span class="toc-number">6.5.</span> <span class="toc-text">配置加载系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8F%92%E4%BB%B6%E6%8E%A5%E5%8F%A3%E8%A7%84%E8%8C%83%EF%BC%88%E6%8A%BD%E8%B1%A1%E5%AE%9A%E4%B9%89%EF%BC%89"><span class="toc-number">6.6.</span> <span class="toc-text">插件接口规范（抽象定义）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BC%96%E8%AF%91%E6%89%93%E5%8C%85%E6%B5%81%E7%A8%8B%EF%BC%88CMake-Conan-SDK-%E5%8F%91%E5%B8%83%EF%BC%89"><span class="toc-number">6.7.</span> <span class="toc-text">编译打包流程（CMake + Conan + SDK 发布）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91"><span class="toc-number">8.</span> <span class="toc-text">性能考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>用 Obsidian 编辑 llmwiki 知识库 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="LLMWiki 体系零编辑器依赖，Obsidian 只是可选的 Markdown 前端工具。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用 Obsidian 编辑 llmwiki 知识库">
+<meta property="og:url" content="https://voidvec.github.io/posts/75a89736/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="LLMWiki 体系零编辑器依赖，Obsidian 只是可选的 Markdown 前端工具。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-08-20T01:33:00.000Z">
+<meta property="article:modified_time" content="2026-08-20T01:33:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="frontmatter">
+<meta property="article:tag" content="llmwiki">
+<meta property="article:tag" content="obsidian">
+<meta property="article:tag" content="tools">
+<meta property="article:tag" content="wikilink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "用 Obsidian 编辑 llmwiki 知识库",
+  "url": "https://voidvec.github.io/posts/75a89736/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-20T01:33:00.000Z",
+  "dateModified": "2026-08-20T01:33:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/75a89736/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '用 Obsidian 编辑 llmwiki 知识库',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">用 Obsidian 编辑 llmwiki 知识库</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">用 Obsidian 编辑 llmwiki 知识库</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-20T01:33:00.000Z" title="发表于 2026-08-20 09:33:00">2026-08-20</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-20T01:33:00.000Z" title="更新于 2026-08-20 09:33:00">2026-08-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">使用指南</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">实践指南</span><span class="pj-badge pj-badge--muted">入门</span></div><article class="container post-content" id="article-container"><blockquote>
+<p><strong>定位：可选的</strong>前端配套指南。LLMWiki 体系的全部核心——文档规范、索引、检索、巡检——都在「Markdown 文件 + &#96;&#96;&#96;&#96; 工具链」里，<strong>不依赖任何编辑器</strong>。用 VS Code、vim 甚至记事本都能完整工作。<br>如果你已经在用 &#x2F; 想用 Obsidian，本文告诉你如何<strong>让前端工具服务于体系规范，而不是破坏它</strong>。</p>
+</blockquote>
+<hr>
+<h2 id="1-为什么这篇是「可选」的"><a href="#1-为什么这篇是「可选」的" class="headerlink" title="1. 为什么这篇是「可选」的"></a>1. 为什么这篇是「可选」的</h2><table>
+<thead>
+<tr>
+<th>体系组成部分</th>
+<th>是否依赖 Obsidian</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>frontmatter + 正文规范</td>
+<td>❌ 纯 Markdown</td>
+</tr>
+<tr>
+<td><code>kb-index.json</code> &#x2F; <code>category-index.md</code></td>
+<td>❌ 由 <code>llmwiki index</code> 生成</td>
+</tr>
+<tr>
+<td>检索 &#x2F; 问答</td>
+<td>❌ 由 <code>llmwiki query</code> 承担</td>
+</tr>
+<tr>
+<td>lint 巡检</td>
+<td>❌ 由 <code>llmwiki lint</code> 承担</td>
+</tr>
+<tr>
+<td><strong>Obsidian</strong></td>
+<td>只是<strong>前端编辑工具</strong>，零依赖</td>
+</tr>
+</tbody></table>
+<p>一句话：Obsidian 是「用起来更舒服的编辑器」，不是体系组件。它<strong>不参与</strong>索引、检索、巡检任何一环；它只是碰巧和体系一样以 Markdown + wikilink 为底层格式，所以天然契合。</p>
+<p>体系搭建流程见 [[llmwiki-tutorial-01-system]]；本文只覆盖「用 Obsidian 编辑」这一件事。</p>
+<hr>
+<h2 id="2-打开知识库（vault）"><a href="#2-打开知识库（vault）" class="headerlink" title="2. 打开知识库（vault）"></a>2. 打开知识库（vault）</h2><p>用 Obsidian 的「打开文件夹作为仓库（vault）」直接选择知识库<strong>仓库根目录</strong>即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">知识库仓库/</span><br><span class="line">├── NN-xxx/            # 分类目录</span><br><span class="line">├── docs/              # 方法论文档（本文在这里）</span><br><span class="line">├── ``           # LLMWiki 工具链</span><br><span class="line">├── kb-index.json      # 检索索引（自动生成）</span><br><span class="line">└── category-index.md  # 分类导航页（自动生成）</span><br></pre></td></tr></table></figure>
+
+<p>Obsidian 会在仓库根创建 <code>.obsidian/</code>（存放配置与插件）。<strong>该目录已被 <code>.gitignore</code> 忽略</strong>，不会进入 git——这是刻意配置，见 §5 安全注意。</p>
+<hr>
+<h2 id="3-编辑规范：输入侧对齐体系"><a href="#3-编辑规范：输入侧对齐体系" class="headerlink" title="3. 编辑规范：输入侧对齐体系"></a>3. 编辑规范：输入侧对齐体系</h2><p>体系对文档的硬约束只有三条，Obsidian 编辑时<strong>不要绕过</strong>它们：</p>
+<h3 id="3-1-frontmatter：首尾-不能删"><a href="#3-1-frontmatter：首尾-不能删" class="headerlink" title="3.1 frontmatter：首尾 --- 不能删"></a>3.1 frontmatter：首尾 <code>---</code> 不能删</h3><p>每份文档必须以 YAML 头开头。在 Obsidian 里编辑时，注意：</p>
+<ul>
+<li>**不要删掉首尾 <code>---</code>**——那是 frontmatter 的边界，删了文档不入索引；</li>
+<li>Obsidian 的「Properties」面板看到的字段就是 frontmatter，两种编辑方式等价，改完以文件内容为准；</li>
+<li>必填四项 <code>title / description / tags / difficulty</code> 缺一会被 lint 判 error（见 [[llmwiki-tutorial-01-system]] §2.2）。</li>
+</ul>
+<h3 id="3-2-wikilink：两种写法都认，但用「路径式」更稳"><a href="#3-2-wikilink：两种写法都认，但用「路径式」更稳" class="headerlink" title="3.2 wikilink：两种写法都认，但用「路径式」更稳"></a>3.2 wikilink：两种写法都认，但用「路径式」更稳</h3><table>
+<thead>
+<tr>
+<th>写法</th>
+<th>示例</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>路径式</td>
+<td><code>[[NN-xxx/主题文档]]</code></td>
+<td>含目录层级，跨目录唯一</td>
+</tr>
+<tr>
+<td>裸名式</td>
+<td><code>[[主题文档]]</code></td>
+<td>按全局文件名跳转（Obsidian 语义）</td>
+</tr>
+</tbody></table>
+<p>两类写法 lint 都按「归一 + 分隔符 + 大小写不敏感」判活（见 [[llmwiki-tutorial-01-system]] §2.5）。<strong>建议正文里用路径式</strong>：重名文件多时不会歧义，且 lint 解析更直接。</p>
+<h3 id="3-3-文件命名：交给归一规则，手写时自觉遵守"><a href="#3-3-文件命名：交给归一规则，手写时自觉遵守" class="headerlink" title="3.3 文件命名：交给归一规则，手写时自觉遵守"></a>3.3 文件命名：交给归一规则，手写时自觉遵守</h3><ul>
+<li>全小写；空格 &#x2F; 下划线 <code>_</code> → 连字符 <code>-</code>；全角冒号 <code>：</code> → <code>-</code>；</li>
+<li>中文原样保留。</li>
+</ul>
+<p>Obsidian 新文件默认带空格（如 <code>Untitled 1.md</code>），记得按规范改名，或直接让 <code>llmwiki ingest --apply</code> 归一（见 [[llmwiki-tutorial-01-system]] §3.2）。</p>
+<hr>
+<h2 id="4-插件清单与分层使用建议"><a href="#4-插件清单与分层使用建议" class="headerlink" title="4. 插件清单与分层使用建议"></a>4. 插件清单与分层使用建议</h2><p>当前仓库 <code>.obsidian/community-plugins.json</code> 启用 11 个插件，按与体系的协同度分三层：</p>
+<h3 id="4-1-体系协同（建议了解用法）—-3-个"><a href="#4-1-体系协同（建议了解用法）—-3-个" class="headerlink" title="4.1 体系协同（建议了解用法）— 3 个"></a>4.1 体系协同（建议了解用法）— 3 个</h3><table>
+<thead>
+<tr>
+<th>插件</th>
+<th>用途</th>
+<th>与体系的关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>templater</strong></td>
+<td>新建文档时套模板自动填 frontmatter</td>
+<td>直接服务 §2.2 规范：把必填四项固化进模板，从源头杜绝漏字段</td>
+</tr>
+<tr>
+<td><strong>obsidian-git</strong></td>
+<td>库内直接 commit &#x2F; push</td>
+<td>和体系「带 git 的 markdown 仓库」心智模型一致，编辑即提交</td>
+</tr>
+<tr>
+<td><strong>local-rest-api</strong></td>
+<td>暴露本地 HTTP 接口读写 vault</td>
+<td>供外部桥接（如微信渠道）以文件系统外的路径访问知识库</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-内容增强（知道即可）—-1-个"><a href="#4-2-内容增强（知道即可）—-1-个" class="headerlink" title="4.2 内容增强（知道即可）— 1 个"></a>4.2 内容增强（知道即可）— 1 个</h3><ul>
+<li><strong>dataview</strong>：库内做动态查询 &#x2F; 聚合视图（如「列出某分类下所有文档」）。<strong>仅展示层</strong>，不影响体系检索，也不进索引。</li>
+</ul>
+<h3 id="4-3-纯体验（不影响体系，按喜好用）—-7-个"><a href="#4-3-纯体验（不影响体系，按喜好用）—-7-个" class="headerlink" title="4.3 纯体验（不影响体系，按喜好用）— 7 个"></a>4.3 纯体验（不影响体系，按喜好用）— 7 个</h3><p>realclaudian、excalidraw（画图）、quickadd、ace-code-editor、code-styler、table-editor、file-explorer-plus。这些只影响编辑体验，与规范、索引、检索无关，本文不展开。</p>
+<hr>
+<h2 id="5-安全注意：local-rest-api-的明文密钥"><a href="#5-安全注意：local-rest-api-的明文密钥" class="headerlink" title="5. 安全注意：local-rest-api 的明文密钥"></a>5. 安全注意：local-rest-api 的明文密钥</h2><p><code>.obsidian/plugins/obsidian-local-rest-api/data.json</code> 中<strong>明文存放 API key 与私钥</strong>（默认端口 <code>27124</code>）。当前风险可控：</p>
+<ul>
+<li><code>.obsidian/</code> 已被 <code>.gitignore</code> 忽略，<code>git status</code> 显示 <strong>0 个文件被跟踪</strong> → 密钥不会入库；</li>
+<li>但<strong>整个 <code>.obsidian/</code> 目录被复制</strong>（换机器、打包分享 vault、压缩包发给他人）时会<strong>连带携带明文密钥</strong>。</li>
+</ul>
+<p>规避动作：</p>
+<ul>
+<li>换机器时不要整目录复制 <code>.obsidian/</code>，只复制 <code>community-plugins.json</code> + 需要的插件配置；</li>
+<li>如果未来要把 vault 分享给他人，先删除 <code>obsidian-local-rest-api</code> 插件目录或其中的 <code>data.json</code>。</li>
+</ul>
+<hr>
+<h2 id="6-模板与-templater-的关系"><a href="#6-模板与-templater-的关系" class="headerlink" title="6. 模板与 templater 的关系"></a>6. 模板与 templater 的关系</h2><p><code>Templates/</code> 目录（仓库根）存放 templater 模板，配置指向 <code>templates_folder</code>。</p>
+<blockquote>
+<p><strong>修复记录（2026-08-20）</strong>：templater 的 <code>templates_folder</code> 曾配置为小写 <code>&quot;templates&quot;</code>，与实际目录 <code>Templates/</code> <strong>大小写不匹配</strong>——Windows 大小写不敏感所以本地不报错，但 vault 换到 Linux&#x2F;macOS 或分享给他人时模板功能会失效。<strong>已修复</strong>：配置改为 <code>&quot;Templates&quot;</code>，与目录完全一致。</p>
+</blockquote>
+<p>模板文件本身可按需定制：<code>llmwiki init</code> 会向库根 <code>templates/</code> 拷入<strong>通用会议纪要 &#x2F; 读书笔记模板</strong>（见 [[llmwiki-tutorial-01-system]] §2.6），在此基础上按你自己的主题扩展即可。</p>
+<hr>
+<h2 id="7-一句话总结"><a href="#7-一句话总结" class="headerlink" title="7. 一句话总结"></a>7. 一句话总结</h2><blockquote>
+<p>Obsidian 是体系的<strong>可选前端</strong>：用它的模板、双链、git 插件提升编辑体验，但<strong>规范（frontmatter&#x2F;wikilink&#x2F;命名）由体系说了算</strong>，前端只负责让输入更顺。任何编辑行为都不应绕过 §3 的三条硬约束。</p>
+</blockquote>
+<p>相关文档：</p>
+<ul>
+<li>[[llmwiki-tutorial-01-system]]（体系搭建教程，先读这篇）</li>
+<li>[[llmwiki-tutorial-02-channel-guide]]（渠道接入）</li>
+<li>[[llmwiki-tutorial-03-quality-tuning-guide]]（检索质量调优）</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/75a89736/">https://voidvec.github.io/posts/75a89736/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/llmwiki/">llmwiki</a><a class="post-meta__tags" href="/tags/obsidian/">obsidian</a><a class="post-meta__tags" href="/tags/frontmatter/">frontmatter</a><a class="post-meta__tags" href="/tags/wikilink/">wikilink</a><a class="post-meta__tags" href="/tags/tools/">tools</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/9431c497/"><span class="pj-related__name">LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/cde0a889/"><span class="pj-related__name">LLMWiki 渠道接入：把知识库接到微信等聊天渠道</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3abaf54f/"><span class="pj-related__name">LLMWiki 检索质量调优：评估、诊断与调参</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/89ba81b5/"><span class="pj-related__name">在另一台电脑接入 llmwiki-suite</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/31c7485d/"><span class="pj-related__name">llmwiki 项目定位、业务背景与边界</span><span class="pj-related__type">深度设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/87ad07fc/" title="五步接入你已有的笔记库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">五步接入你已有的笔记库</div></div><div class="info-2"><div class="info-item-1">llmwiki-suite 的快速上手入口：装包 → init → ingest → index → query。把任意 Markdown 笔记目录变成可检索、可问答、可自维护的个人知识库。</div></div></div></a><a class="pagination-related" href="/posts/3abaf54f/" title="LLMWiki 检索质量调优：评估、诊断与调参"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">LLMWiki 检索质量调优：评估、诊断与调参</div></div><div class="info-2"><div class="info-item-1">当知识库问答检索质量不满足时（答非所问、明明有却查不到、命中一堆无关文档），如何用评估集量化问题、对照根因归类定位、按测-改-测循环调参（BM25/minscore/停用词/正文索引/wikilink 图）。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/552f8dfa/" title="llmwiki health：知识库健康分参考"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-31</div><div class="info-item-2">llmwiki health：知识库健康分参考</div></div><div class="info-2"><div class="info-item-1">llmwiki health 的定性健康分口径：评什么、不评什么，以及怎么读分数。</div></div></div></a><a class="pagination-related" href="/posts/9431c497/" title="LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库</div></div><div class="info-2"><div class="info-item-1">从零开始用 llmwiki-suite 工具链（Karpathy incremental wiki 方法论），打造可检索、可问答、可自维护的个人知识库。</div></div></div></a><a class="pagination-related" href="/posts/81a48d54/" title="llmwiki 网页问答与工作台设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-27</div><div class="info-item-2">llmwiki 网页问答与工作台设计</div></div><div class="info-2"><div class="info-item-1">为 llmwiki-suite 补齐浏览器侧交互：一个自包含的网页问答页 /webui/chat、一个导航工作台 /dashboard，与现有 /chat JSON 接口、/ilink/webui 扫码页的分层关系，以及服务暴露形态（仅自己</div></div></div></a><a class="pagination-related" href="/posts/603c3e7c/" title="发布到 PyPI 操作指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-25</div><div class="info-item-2">发布到 PyPI 操作指南</div></div><div class="info-2"><div class="info-item-1">从 pypi.org 注册、开 2FA、建 API Token，到本地 twine upload 的完整发布流程</div></div></div></a><a class="pagination-related" href="/posts/4d17ec14/" title="llmwiki eval：召回质量评估命令参考"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-25</div><div class="info-item-2">llmwiki eval：召回质量评估命令参考</div></div><div class="info-2"><div class="info-item-1">llmwiki eval 的完整参考文档——全部命令行选项、评估集 schema、报告文件格式与字段、指标解读（recall@K/MRR/生产等价口径）与基线回归用法。</div></div></div></a><a class="pagination-related" href="/posts/4c33d9ed/" title="飞书 &#x2F; Telegram 通道本地验证手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-27</div><div class="info-item-2">飞书 &#x2F; Telegram 通道本地验证手册</div></div><div class="info-2"><div class="info-item-1">只讲本机验证：不依赖真实消息，用 curl 模拟平台回调，即可确认</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E7%AF%87%E6%98%AF%E3%80%8C%E5%8F%AF%E9%80%89%E3%80%8D%E7%9A%84"><span class="toc-number">1.</span> <span class="toc-text">1. 为什么这篇是「可选」的</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%89%93%E5%BC%80%E7%9F%A5%E8%AF%86%E5%BA%93%EF%BC%88vault%EF%BC%89"><span class="toc-number">2.</span> <span class="toc-text">2. 打开知识库（vault）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%BC%96%E8%BE%91%E8%A7%84%E8%8C%83%EF%BC%9A%E8%BE%93%E5%85%A5%E4%BE%A7%E5%AF%B9%E9%BD%90%E4%BD%93%E7%B3%BB"><span class="toc-number">3.</span> <span class="toc-text">3. 编辑规范：输入侧对齐体系</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-frontmatter%EF%BC%9A%E9%A6%96%E5%B0%BE-%E4%B8%8D%E8%83%BD%E5%88%A0"><span class="toc-number">3.1.</span> <span class="toc-text">3.1 frontmatter：首尾 --- 不能删</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-wikilink%EF%BC%9A%E4%B8%A4%E7%A7%8D%E5%86%99%E6%B3%95%E9%83%BD%E8%AE%A4%EF%BC%8C%E4%BD%86%E7%94%A8%E3%80%8C%E8%B7%AF%E5%BE%84%E5%BC%8F%E3%80%8D%E6%9B%B4%E7%A8%B3"><span class="toc-number">3.2.</span> <span class="toc-text">3.2 wikilink：两种写法都认，但用「路径式」更稳</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%96%87%E4%BB%B6%E5%91%BD%E5%90%8D%EF%BC%9A%E4%BA%A4%E7%BB%99%E5%BD%92%E4%B8%80%E8%A7%84%E5%88%99%EF%BC%8C%E6%89%8B%E5%86%99%E6%97%B6%E8%87%AA%E8%A7%89%E9%81%B5%E5%AE%88"><span class="toc-number">3.3.</span> <span class="toc-text">3.3 文件命名：交给归一规则，手写时自觉遵守</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%8F%92%E4%BB%B6%E6%B8%85%E5%8D%95%E4%B8%8E%E5%88%86%E5%B1%82%E4%BD%BF%E7%94%A8%E5%BB%BA%E8%AE%AE"><span class="toc-number">4.</span> <span class="toc-text">4. 插件清单与分层使用建议</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%BD%93%E7%B3%BB%E5%8D%8F%E5%90%8C%EF%BC%88%E5%BB%BA%E8%AE%AE%E4%BA%86%E8%A7%A3%E7%94%A8%E6%B3%95%EF%BC%89%E2%80%94-3-%E4%B8%AA"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 体系协同（建议了解用法）— 3 个</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%86%85%E5%AE%B9%E5%A2%9E%E5%BC%BA%EF%BC%88%E7%9F%A5%E9%81%93%E5%8D%B3%E5%8F%AF%EF%BC%89%E2%80%94-1-%E4%B8%AA"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 内容增强（知道即可）— 1 个</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E7%BA%AF%E4%BD%93%E9%AA%8C%EF%BC%88%E4%B8%8D%E5%BD%B1%E5%93%8D%E4%BD%93%E7%B3%BB%EF%BC%8C%E6%8C%89%E5%96%9C%E5%A5%BD%E7%94%A8%EF%BC%89%E2%80%94-7-%E4%B8%AA"><span class="toc-number">4.3.</span> <span class="toc-text">4.3 纯体验（不影响体系，按喜好用）— 7 个</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F%EF%BC%9Alocal-rest-api-%E7%9A%84%E6%98%8E%E6%96%87%E5%AF%86%E9%92%A5"><span class="toc-number">5.</span> <span class="toc-text">5. 安全注意：local-rest-api 的明文密钥</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%A8%A1%E6%9D%BF%E4%B8%8E-templater-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">6.</span> <span class="toc-text">6. 模板与 templater 的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-number">7.</span> <span class="toc-text">7. 一句话总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

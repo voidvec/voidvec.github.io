@@ -1,0 +1,689 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>密码存储与校验 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="密码存储算法、加盐策略与校验流程的取舍，以及实测口径。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="密码存储与校验">
+<meta property="og:url" content="https://voidvec.github.io/posts/f73c3341/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="密码存储算法、加盐策略与校验流程的取舍，以及实测口径。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:16:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:16:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "密码存储与校验",
+  "url": "https://voidvec.github.io/posts/f73c3341/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:16:00.000Z",
+  "dateModified": "2026-11-03T00:16:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/f73c3341/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '密码存储与校验',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">密码存储与校验</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">密码存储与校验</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:16:00.000Z" title="发表于 2026-11-03 08:16:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:16:00.000Z" title="更新于 2026-11-03 08:16:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">安全设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><cite>
+**本文引用的文件**
+- [PasswordHasher.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h)
+- [PasswordHasher.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc)
+- [PasswordResetController.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/PasswordResetController.h)
+- [PasswordResetController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc)
+- [PasswordResetService.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/PasswordResetService.h)
+- [PasswordResetService.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc)
+- [PasswordResetTokens.h](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/models/PasswordResetTokens.h)
+- [V009__password_reset_tokens.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql)
+- [config.json](https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json)
+- [RuleSet.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/validation/RuleSet.cc)
+- [PasswordHasherTest.cc](https://github.com/voidvec/fulla/blob/master/tests/unit/utils/PasswordHasherTest.cc)
+- [EmailNormalizerTest.cc](https://github.com/voidvec/fulla/blob/master/tests/unit/utils/EmailNormalizerTest.cc)
+- [OpenSslCryptoProviderTest.cc](https://github.com/voidvec/fulla/blob/master/tests/unit/utils/OpenSslCryptoProviderTest.cc)
+- [AuthService.cc](https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc)
+- [CHANGELOG.md](https://github.com/voidvec/fulla/blob/master/CHANGELOG.md)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F">性能考量</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本文件聚焦 Fulla 的密码安全实现，覆盖以下主题：</p>
+<ul>
+<li>密码哈希算法与参数选择（当前为 PBKDF2-SHA256；设计文档预留 Argon2id 升级路径）</li>
+<li>密码验证流程（含格式校验、强度检查与安全评估）</li>
+<li>密码存储机制（盐值生成、哈希计算、数据库存储策略）</li>
+<li>密码重置功能的安全实现（一次性令牌、过期控制、一次性使用）</li>
+<li>配置指南与安全最佳实践</li>
+<li>常见问题与性能优化建议</li>
+</ul>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p>与密码安全相关的代码主要分布在以下模块：</p>
+<ul>
+<li>工具层：密码哈希与通用加密能力</li>
+<li>服务层：密码重置业务流程编排</li>
+<li>控制器层：HTTP 接口暴露</li>
+<li>存储层：密码重置令牌模型与迁移脚本</li>
+<li>配置与校验：应用配置与输入校验规则</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">Client[&quot;客户端&quot;] --&gt; Ctrl[&quot;PasswordResetController&lt;br/&gt;HTTP 接口&quot;]</span><br><span class="line">Ctrl --&gt; Svc[&quot;PasswordResetService&lt;br/&gt;业务编排&quot;]</span><br><span class="line">Svc --&gt; DB[&quot;PostgreSQL&lt;br/&gt;users / password_reset_tokens&quot;]</span><br><span class="line">Svc --&gt; Email[&quot;邮件服务&quot;]</span><br><span class="line">Svc --&gt; PH[&quot;PasswordHasher&lt;br/&gt;PBKDF2-SHA256&quot;]</span><br><span class="line">Svc --&gt; CU[&quot;CryptoUtils&lt;br/&gt;token/hash&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql#L1-L13">V009__password_reset_tokens.sql:1-13</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/PasswordResetController.h#L12-L29">PasswordResetController.h:12-29</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/PasswordResetService.h#L22-L33">PasswordResetService.h:22-33</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h#L7-L19">PasswordHasher.h:7-19</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L12-L18">PasswordHasher.cc:12-18</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql#L1-L13">V009__password_reset_tokens.sql:1-13</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>密码哈希器 PasswordHasher<ul>
+<li>提供 PBKDF2-SHA256 哈希；其 <code>verify()</code> 对任何非 PBKDF2 格式直接返回 false。遗留格式的兼容验证与 <code>auth.allow_legacy_hash</code> 开关属于 AuthService，不属于 PasswordHasher。</li>
+<li>输出格式：$pbkdf2-sha256$迭代次数$十六进制盐$十六进制哈希。</li>
+</ul>
+</li>
+<li>密码重置控制器 PasswordResetController<ul>
+<li>暴露 POST &#x2F;api&#x2F;password-reset&#x2F;request 与 POST &#x2F;api&#x2F;password-reset&#x2F;confirm 两个端点。</li>
+</ul>
+</li>
+<li>密码重置服务 PasswordResetService<ul>
+<li>编排请求重置与确认重置流程：邮箱归一化、令牌生成与哈希、过期时间控制、一次性使用、会话撤销与审计日志。</li>
+</ul>
+</li>
+<li>密码重置令牌模型 PasswordResetTokens<ul>
+<li>持久化一次性重置令牌的哈希、用户ID、过期时间与使用状态。</li>
+</ul>
+</li>
+<li>配置与校验<ul>
+<li>应用配置包含前端地址等；输入校验通过 RuleSet 进行必填、长度、模式等约束。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h#L23-L53">PasswordHasher.h:23-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/PasswordResetController.h#L12-L29">PasswordResetController.h:12-29</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/PasswordResetService.h#L22-L33">PasswordResetService.h:22-33</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/models/PasswordResetTokens.h#L43-L145">PasswordResetTokens.h:43-145</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L172-L194">config.json:172-194</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/validation/RuleSet.cc#L10-L58">RuleSet.cc:10-58</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>下图展示从客户端到后端各层的调用关系与数据流。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant C as &quot;客户端&quot;</span><br><span class="line">participant R as &quot;PasswordResetController&quot;</span><br><span class="line">participant S as &quot;PasswordResetService&quot;</span><br><span class="line">participant DB as &quot;PostgreSQL&quot;</span><br><span class="line">participant E as &quot;邮件服务&quot;</span><br><span class="line">participant H as &quot;PasswordHasher&quot;</span><br><span class="line">Note over C,R : 请求重置链接</span><br><span class="line">C-&gt;&gt;R : POST /api/password-reset/request</span><br><span class="line">R-&gt;&gt;S : requestReset(req, cb)</span><br><span class="line">S-&gt;&gt;DB : 按邮箱查找用户</span><br><span class="line">DB--&gt;&gt;S : 用户记录</span><br><span class="line">S-&gt;&gt;S : 生成随机令牌并哈希</span><br><span class="line">S-&gt;&gt;DB : 插入一次性令牌(含过期时间)</span><br><span class="line">S-&gt;&gt;E : 发送邮件(含重置链接)</span><br><span class="line">E--&gt;&gt;S : 发送完成</span><br><span class="line">S--&gt;&gt;R : 响应(统一提示)</span><br><span class="line">Note over C,R : 确认重置密码</span><br><span class="line">C-&gt;&gt;R : POST /api/password-reset/confirm</span><br><span class="line">R-&gt;&gt;S : confirmReset(req, cb)</span><br><span class="line">S-&gt;&gt;DB : UPDATE...RETURNING 标记已用并返回用户ID</span><br><span class="line">S-&gt;&gt;H : 哈希新密码(PBKDF2)</span><br><span class="line">S-&gt;&gt;DB : 更新用户密码并清空旧盐</span><br><span class="line">S-&gt;&gt;DB : 批量撤销访问/刷新令牌</span><br><span class="line">S--&gt;&gt;C : 成功响应</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql#L1-L13">V009__password_reset_tokens.sql:1-13</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="密码哈希器-PasswordHasher"><a href="#密码哈希器-PasswordHasher" class="headerlink" title="密码哈希器 PasswordHasher"></a>密码哈希器 PasswordHasher</h3><ul>
+<li>算法与参数<ul>
+<li>使用 PBKDF2-SHA256，迭代次数、密钥长度与盐长度在实现中定义。</li>
+<li>（v1.5.0 文档对齐）真实口径为 <strong>310,000 轮迭代</strong>（<code>PBKDF2_ITERATIONS = 310000</code>，OWASP 2023 建议值；TECH_SPECS 与 drogon 层 AGENTS.md 自 v1.5.0 起载明同一数字），输出格式中的迭代数字段即 <code>310000</code>。</li>
+<li>输出格式包含前缀、迭代次数、十六进制盐与十六进制哈希，便于解析与迁移。</li>
+</ul>
+</li>
+<li>向后兼容<ul>
+<li>PasswordHasher 不兼容旧格式；AuthService 默认拒绝遗留 SHA-256，仅显式重开 <code>auth.allow_legacy_hash</code> 后才执行遗留验证。存量用户也可通过邮件&#x2F;管理员重置迁移，重置写入 PBKDF2。</li>
+</ul>
+</li>
+<li>安全性<ul>
+<li>使用常量时间比较避免时序攻击。</li>
+<li>盐由安全随机源生成，失败时回退到 OpenSSL <code>RAND_bytes</code>（仍为 CSPRNG，非弱系统随机）；注意 v1.2.0 起<strong>令牌铸造</strong>路径不再有任何确定性回退（CSPRNG 失败即失败）。</li>
+</ul>
+</li>
+<li>可演进性<ul>
+<li>头文件注释指出未来可通过引入 libsodium 升级到 Argon2id。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;verify 入口&quot;]) --&gt; CheckPrefix&#123;&quot;是否以 PBKDF2 前缀开头?&quot;&#125;</span><br><span class="line">CheckPrefix --&gt; |是| Parse[&quot;解析迭代次数/盐/哈希&quot;]</span><br><span class="line">Parse --&gt; Derive[&quot;使用相同参数派生密钥&quot;]</span><br><span class="line">Derive --&gt; Compare[&quot;常量时间比较&quot;]</span><br><span class="line">Compare --&gt; Result1&#123;&quot;匹配?&quot;&#125;</span><br><span class="line">Result1 --&gt; |是| True[&quot;返回 true&quot;]</span><br><span class="line">Result1 --&gt; |否| False[&quot;返回 false&quot;]</span><br><span class="line">CheckPrefix --&gt; |否| LegacyReject[&quot;直接返回 false（不进入遗留验证）&quot;]</span><br><span class="line">LegacyReject --&gt; False</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L90-L176">PasswordHasher.cc:90-176</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L167-L176">PasswordHasher.cc:167-176</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h#L7-L19">PasswordHasher.h:7-19</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h#L23-L53">PasswordHasher.h:23-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L12-L18">PasswordHasher.cc:12-18</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L90-L176">PasswordHasher.cc:90-176</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L167-L176">PasswordHasher.cc:167-176</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/PasswordHasherTest.cc#L7-L41">PasswordHasherTest.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/PasswordHasherTest.cc#L50-L93">PasswordHasherTest.cc:50-93</a></li>
+</ul>
+<h3 id="密码重置控制器-PasswordResetController"><a href="#密码重置控制器-PasswordResetController" class="headerlink" title="密码重置控制器 PasswordResetController"></a>密码重置控制器 PasswordResetController</h3><ul>
+<li>暴露两个端点：<ul>
+<li>POST &#x2F;api&#x2F;password-reset&#x2F;request：请求重置链接</li>
+<li>POST &#x2F;api&#x2F;password-reset&#x2F;confirm：使用令牌确认重置</li>
+</ul>
+</li>
+<li>控制器仅做路由与回调转发，业务逻辑下沉至服务层。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/PasswordResetController.h#L12-L29">PasswordResetController.h:12-29</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+</ul>
+<h3 id="密码重置服务-PasswordResetService"><a href="#密码重置服务-PasswordResetService" class="headerlink" title="密码重置服务 PasswordResetService"></a>密码重置服务 PasswordResetService</h3><ul>
+<li>请求重置流程<ul>
+<li>接收邮箱并进行归一化处理（处理 Gmail 别名、大小写与空白）。</li>
+<li>查询用户，生成高熵临时令牌并哈希存储。</li>
+<li>设置过期时间（15 分钟），写入一次性令牌表。</li>
+<li>组装前端重置链接并通过邮件服务发送。</li>
+<li>无论用户是否存在，均返回统一消息以避免枚举。</li>
+</ul>
+</li>
+<li>确认重置流程<ul>
+<li>校验必要字段与新密码最小长度。</li>
+<li>原子性更新一次性令牌：标记 used&#x3D;true 且未过期，同时返回 user_id。</li>
+<li>使用 PasswordHasher 哈希新密码并更新用户记录，清空旧盐。</li>
+<li>批量撤销该用户的所有访问令牌与刷新令牌，确保会话失效。</li>
+<li>记录审计日志并返回成功响应。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant C as &quot;客户端&quot;</span><br><span class="line">participant S as &quot;PasswordResetService&quot;</span><br><span class="line">participant DB as &quot;PostgreSQL&quot;</span><br><span class="line">participant E as &quot;邮件服务&quot;</span><br><span class="line">participant H as &quot;PasswordHasher&quot;</span><br><span class="line">Note over C,S : 确认重置</span><br><span class="line">C-&gt;&gt;S : token + new_password</span><br><span class="line">S-&gt;&gt;S : 校验字段与密码长度</span><br><span class="line">S-&gt;&gt;DB : UPDATE ... WHERE token_hash=? AND used=false AND expires_at &gt; now RETURNING user_id</span><br><span class="line">DB--&gt;&gt;S : user_id 或空</span><br><span class="line">alt 令牌有效</span><br><span class="line">S-&gt;&gt;H : hash(new_password)</span><br><span class="line">S-&gt;&gt;DB : 更新用户密码并清空盐</span><br><span class="line">S-&gt;&gt;DB : 批量撤销 access/refresh tokens</span><br><span class="line">S--&gt;&gt;C : 成功</span><br><span class="line">else 令牌无效/过期/已用</span><br><span class="line">S--&gt;&gt;C : 错误</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql#L1-L13">V009__password_reset_tokens.sql:1-13</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/services/PasswordResetService.h#L22-L33">PasswordResetService.h:22-33</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L161-L359">PasswordResetService.cc:161-359</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/EmailNormalizerTest.cc#L68-L96">EmailNormalizerTest.cc:68-96</a></li>
+</ul>
+<h3 id="密码重置令牌模型与存储"><a href="#密码重置令牌模型与存储" class="headerlink" title="密码重置令牌模型与存储"></a>密码重置令牌模型与存储</h3><ul>
+<li>表结构<ul>
+<li>token_hash：主键，存储一次性令牌的哈希值</li>
+<li>user_id：关联用户</li>
+<li>expires_at：过期时间戳</li>
+<li>used：是否已使用（默认 false）</li>
+<li>created_at：创建时间</li>
+</ul>
+</li>
+<li>索引<ul>
+<li>针对 user_id 与 expires_at 建立索引，提升查询与清理效率。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/models/PasswordResetTokens.h#L43-L145">PasswordResetTokens.h:43-145</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V009__password_reset_tokens.sql#L1-L13">V009__password_reset_tokens.sql:1-13</a></li>
+</ul>
+<h3 id="密码验证流程（登录与历史兼容）"><a href="#密码验证流程（登录与历史兼容）" class="headerlink" title="密码验证流程（登录与历史兼容）"></a>密码验证流程（登录与历史兼容）</h3><ul>
+<li>PasswordHasher 只接受 PBKDF2；AuthService 默认拒绝遗留 SHA-256（<code>auth.allow_legacy_hash</code> 默认 false），旧格式验证仅在显式重开迁移窗口后可达。</li>
+<li>对 PBKDF2 分支进行格式解析与常量时间比较；遗留分支按 <code>SHA-256(password+legacySalt)</code> 计算，并做长度、大小写归一化后的逐位比较。</li>
+<li>仅在迁移窗口开放且遗留格式验证成功后，AuthService 才尝试异步重哈希；重哈希异常不阻塞本次登录。邮件&#x2F;管理员重置同样可将存量用户迁移到 PBKDF2。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">A[&quot;输入: 密码 + 存储哈希 + 可选盐&quot;] --&gt; B&#123;&quot;是否 PBKDF2 格式?&quot;&#125;</span><br><span class="line">B --&gt; |是| C[&quot;解析迭代次数/盐/哈希&quot;]</span><br><span class="line">C --&gt; D[&quot;派生密钥并常量时间比较&quot;]</span><br><span class="line">D --&gt; E&#123;&quot;匹配?&quot;&#125;</span><br><span class="line">E --&gt; |是| F[&quot;验证通过&quot;]</span><br><span class="line">E --&gt; |否| G[&quot;验证失败&quot;]</span><br><span class="line">B --&gt; |否| W&#123;&quot;allow_legacy_hash=true?&quot;&#125;</span><br><span class="line">W --&gt; |否| Reject[&quot;策略拒绝（不增加失败计数）&quot;]</span><br><span class="line">W --&gt; |是| H[&quot;旧版: 计算 SHA-256(password+legacySalt)&quot;]</span><br><span class="line">H --&gt; I[&quot;长度检查、大小写归一化后逐位比较&quot;]</span><br><span class="line">I --&gt; J&#123;&quot;匹配?&quot;&#125;</span><br><span class="line">J --&gt; |是| F[&quot;验证通过&quot;]</span><br><span class="line">J --&gt; |否| G[&quot;验证失败&quot;]</span><br><span class="line">F --&gt; L&#123;&quot;遗留格式?&quot;&#125;</span><br><span class="line">L --&gt; |是| R[&quot;尝试异步重哈希（异常不阻塞登录）&quot;]</span><br><span class="line">L --&gt; |否| Done[&quot;完成&quot;]</span><br><span class="line">R --&gt; Done</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc#L129-L243">AuthService.cc:129-243</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc#L256-L367">AuthService.cc:256-367</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L90-L176">PasswordHasher.cc:90-176</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc#L129-L243">AuthService.cc:129-243</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc#L256-L367">AuthService.cc:256-367</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L90-L176">PasswordHasher.cc:90-176</a></li>
+</ul>
+<h3 id="遗留哈希拒绝与登录防护增量（v1-1-0-v1-2-0）"><a href="#遗留哈希拒绝与登录防护增量（v1-1-0-v1-2-0）" class="headerlink" title="遗留哈希拒绝与登录防护增量（v1.1.0 &#x2F; v1.2.0）"></a>遗留哈希拒绝与登录防护增量（v1.1.0 &#x2F; v1.2.0）</h3><ul>
+<li>遗留哈希默认拒绝（v1.1.0 Breaking）<ul>
+<li><code>auth.allow_legacy_hash</code> 默认 <strong>false</strong>，配置键缺失同样按 false 处理；PasswordHasher 对遗留 SHA-256 格式直接拒绝，AuthService 默认也会策略拒绝且不增加失败计数。</li>
+<li>迁移路径：存量遗留哈希用户可经<strong>邮件&#x2F;管理员发起的口令重置</strong>迁移（重置写入 PBKDF2），或临时重开迁移窗口，在登录验证成功后透明重哈希。</li>
+<li>策略拒绝（如遗留格式命中关闭的迁移窗口）<strong>不计入账户锁定</strong>。</li>
+</ul>
+</li>
+<li>失败登录的时序拉平（v1.2.0）<ul>
+<li>失败登录额外烧一次 PBKDF2 计算，拉平”用户不存在&#x2F;已锁定&#x2F;策略拒绝”各路径的响应时序，消除以响应时间探测账户存在性的侧信道。</li>
+</ul>
+</li>
+<li>登录失败限流的键控（v1.2.0）<ul>
+<li>失败限流默认按 <strong>TCP peer 地址</strong>键控（<code>(ip, client_id)</code> 组合桶，client_id 缺失时仅按 IP 分桶）；<code>X-Forwarded-For</code> &#x2F; <code>X-Real-IP</code> 是客户端可伪造的头，仅在运维显式开启 <code>auth.rate_limit_trust_forwarded_for=true</code> 时才被信任（生产 nginx 前置布局的 prod 配置已开启；直连部署不应开启）。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CHANGELOG.md">CHANGELOG.md</a>（[1.1.0] #103 遗留哈希条目、[1.2.0] P1&#x2F;P2 伴随加固条目、[1.2.0] 生产配置条目）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc">PasswordHasher.cc</a>（310k 轮常量与遗留格式拒绝现状）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/AuthService.cc#L256-L367">AuthService.cc:256-367</a>（迁移窗口、遗留验证与透明重哈希）</li>
+</ul>
+<h3 id="输入校验与密码强度"><a href="#输入校验与密码强度" class="headerlink" title="输入校验与密码强度"></a>输入校验与密码强度</h3><ul>
+<li>规则引擎 RuleSet<ul>
+<li>支持必填、长度上下界、正则模式与自定义校验。</li>
+<li>对非法正则表达式进行容错处理，不阻塞整体验证。</li>
+</ul>
+</li>
+<li>密码重置确认时的最小长度校验<ul>
+<li>在服务层对新密码进行最小长度检查，防止弱密码提交。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/validation/RuleSet.cc#L10-L58">RuleSet.cc:10-58</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L179-L199">PasswordResetService.cc:179-199</a></li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>组件耦合<ul>
+<li>Controller 仅负责路由与回调传递，低耦合。</li>
+<li>Service 聚合 ORM、加密工具、邮件服务与审计日志，承担业务编排。</li>
+<li>PasswordHasher 依赖 OpenSSL 提供的 PBKDF2 与安全随机能力。</li>
+</ul>
+</li>
+<li>外部依赖<ul>
+<li>PostgreSQL：存储用户与一次性令牌。</li>
+<li>邮件服务：发送重置链接。</li>
+<li>OpenSSL：密码学原语。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">Ctrl[&quot;PasswordResetController&quot;] --&gt; Svc[&quot;PasswordResetService&quot;]</span><br><span class="line">Svc --&gt; ORM[&quot;ORM Mapper&quot;]</span><br><span class="line">Svc --&gt; DB[&quot;PostgreSQL&quot;]</span><br><span class="line">Svc --&gt; Email[&quot;邮件服务&quot;]</span><br><span class="line">Svc --&gt; PH[&quot;PasswordHasher&quot;]</span><br><span class="line">PH --&gt; SSL[&quot;OpenSSL&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/PasswordResetController.cc#L46-L64">PasswordResetController.cc:46-64</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L64-L156">PasswordResetService.cc:64-156</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L51-L88">PasswordHasher.cc:51-88</a></li>
+</ul>
+<h2 id="性能考量"><a href="#性能考量" class="headerlink" title="性能考量"></a>性能考量</h2><ul>
+<li>哈希成本<ul>
+<li>PBKDF2 迭代次数影响 CPU 消耗与抗暴力破解能力，需根据硬件与合规要求平衡。</li>
+</ul>
+</li>
+<li>数据库操作<ul>
+<li>使用原子 UPDATE…RETURNING 减少竞争条件与额外查询。</li>
+<li>对 user_id 与 expires_at 建立索引，加速令牌查找与过期清理。</li>
+</ul>
+</li>
+<li>并发与回退<ul>
+<li>口令盐的随机源失败时回退到 OpenSSL <code>RAND_bytes</code>（仍为 CSPRNG）；令牌铸造路径自 v1.2.0 起无确定性回退。</li>
+<li>仅显式开放 <code>auth.allow_legacy_hash</code> 迁移窗口后，旧格式验证成功才异步尝试重哈希；窗口关闭时旧格式直接策略拒绝，且重哈希异常不阻塞本次登录。</li>
+</ul>
+</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>常见错误与定位<ul>
+<li>数据库不可用：服务层捕获异常并返回统一错误码。</li>
+<li>令牌无效&#x2F;过期&#x2F;已用：确认重置流程会返回明确错误。</li>
+<li>哈希失败：捕获异常并返回内部错误，附带日志信息。</li>
+</ul>
+</li>
+<li>调试建议<ul>
+<li>检查邮件发送是否成功（观察回调与日志）。</li>
+<li>核对一次性令牌是否被正确插入与标记 used。</li>
+<li>确认用户密码更新与会话撤销是否都执行成功。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L22-L56">PasswordResetService.cc:22-56</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L211-L226">PasswordResetService.cc:211-226</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L230-L241">PasswordResetService.cc:230-241</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L328-L359">PasswordResetService.cc:328-359</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Fulla 的密码安全实现采用 PBKDF2-SHA256 作为当前哈希算法；遗留 SHA-256 格式默认拒绝，仅在显式开放迁移窗口后提供有条件的兼容验证与透明重哈希，不能视为默认自动升级能力。密码重置流程通过一次性令牌、严格过期控制与一次性使用保障安全性；结合输入校验、常量时间比较与审计日志，形成完整的安全闭环。建议在部署时根据硬件与合规要求调整哈希成本，并持续监控性能与安全性指标。</p>
+<p>[本节为总结性内容，不直接分析具体文件]</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><h3 id="配置与安全最佳实践"><a href="#配置与安全最佳实践" class="headerlink" title="配置与安全最佳实践"></a>配置与安全最佳实践</h3><ul>
+<li>算法选择<ul>
+<li>当前使用 PBKDF2-SHA256；如需更强抗量子与抗 GPU 破解能力，可考虑未来升级到 Argon2id（需在头文件中扩展实现）。</li>
+</ul>
+</li>
+<li>工作因子与参数<ul>
+<li>迭代次数、密钥长度与盐长度已在实现中定义；可根据服务器性能与合规要求调整。</li>
+</ul>
+</li>
+<li>安全实践<ul>
+<li>始终使用安全随机源生成盐与令牌。</li>
+<li>对所有敏感比较使用常量时间比较。</li>
+<li>对重置令牌实施过期与一次性使用限制。</li>
+<li>重置成功后批量撤销所有会话令牌，防止重放。</li>
+<li>对邮箱进行归一化处理，避免别名导致的账户混淆。</li>
+</ul>
+</li>
+<li>配置项参考<ul>
+<li>前端地址用于构造重置链接，应设置为生产环境真实域名。</li>
+<li>数据库连接池与超时参数需合理设置，避免资源耗尽。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/PasswordHasher.h#L7-L19">PasswordHasher.h:7-19</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/utils/PasswordHasher.cc#L12-L18">PasswordHasher.cc:12-18</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/services/PasswordResetService.cc#L109-L136">PasswordResetService.cc:109-136</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L172-L194">config.json:172-194</a></li>
+</ul>
+<h3 id="测试与验证要点"><a href="#测试与验证要点" class="headerlink" title="测试与验证要点"></a>测试与验证要点</h3><ul>
+<li>哈希器单元测试<ul>
+<li>验证 PBKDF2 格式、正确&#x2F;错误密码验证、旧版兼容、需要重新哈希判断与畸形哈希拒绝。</li>
+</ul>
+</li>
+<li>邮箱归一化测试<ul>
+<li>验证 Gmail 别名、大小写与空白处理，确保重置查找一致性。</li>
+</ul>
+</li>
+<li>加密提供者测试<ul>
+<li>验证 Base64URL、HMAC、PBKDF2 与随机数生成的正确性与确定性。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/PasswordHasherTest.cc#L7-L41">PasswordHasherTest.cc:7-41</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/PasswordHasherTest.cc#L50-L93">PasswordHasherTest.cc:50-93</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/EmailNormalizerTest.cc#L68-L96">EmailNormalizerTest.cc:68-96</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/unit/utils/OpenSslCryptoProviderTest.cc#L181-L238">OpenSslCryptoProviderTest.cc:181-238</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/f73c3341/">https://voidvec.github.io/posts/f73c3341/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/34f6f1ca/"><span class="pj-related__name">OAuth2/OIDC 协议层安全</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f69881e8/"><span class="pj-related__name">授权模型安全：从 scope 到 RBAC</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/712a4a7b/"><span class="pj-related__name">上线前的安全加固清单</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/c9545167/"><span class="pj-related__name">会话管理机制与安全约束</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ab872dd4/"><span class="pj-related__name">网络安全边界</span><span class="pj-related__type">深度设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/c9545167/" title="会话管理机制与安全约束"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">会话管理机制与安全约束</div></div><div class="info-2"><div class="info-item-1">本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及</div></div></div></a><a class="pagination-related" href="/posts/712a4a7b/" title="上线前的安全加固清单"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">上线前的安全加固清单</div></div><div class="info-2"><div class="info-item-1">本文件面向Fulla的安全加固，覆盖输入验证与清理（SQL注入、XSS、命令注入）、依赖包安全更新与漏洞扫描、敏感信息保护（配置加密、密钥管理、日志脱敏）、安全审计与监控（登录尝试记录、权限变更追踪、异常行为检测）、安全配置基线（生产模板与</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/76a05675/" title="SDK 运行时契约：二进制兼容怎么保证"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-18</div><div class="info-item-2">SDK 运行时契约：二进制兼容怎么保证</div></div><div class="info-2"><div class="info-item-1">尚未发布的 S03 刷新加固增加了仓储迁移要求，见</div></div></div></a><a class="pagination-related" href="/posts/a3ad6b97/" title="无人工参与的自动化授权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">无人工参与的自动化授权</div></div><div class="info-2"><div class="info-item-1">Fulla 说标准 OAuth 2.0，脚本、CLI 与服务间集成使用与浏览器相同的协议。</div></div></div></a><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a><a class="pagination-related" href="/posts/ab872dd4/" title="网络安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">网络安全边界</div></div><div class="info-2"><div class="info-item-1">本章节面向Fulla的网络安全配置与加固，覆盖HTTPS/TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</div></div></div></a><a class="pagination-related" href="/posts/9808bae6/" title="多租户组织模型设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">多租户组织模型设计</div></div><div class="info-2"><div class="info-item-1">组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%86%E7%A0%81%E5%93%88%E5%B8%8C%E5%99%A8-PasswordHasher"><span class="toc-number">6.1.</span> <span class="toc-text">密码哈希器 PasswordHasher</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%86%E7%A0%81%E9%87%8D%E7%BD%AE%E6%8E%A7%E5%88%B6%E5%99%A8-PasswordResetController"><span class="toc-number">6.2.</span> <span class="toc-text">密码重置控制器 PasswordResetController</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%86%E7%A0%81%E9%87%8D%E7%BD%AE%E6%9C%8D%E5%8A%A1-PasswordResetService"><span class="toc-number">6.3.</span> <span class="toc-text">密码重置服务 PasswordResetService</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%86%E7%A0%81%E9%87%8D%E7%BD%AE%E4%BB%A4%E7%89%8C%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%AD%98%E5%82%A8"><span class="toc-number">6.4.</span> <span class="toc-text">密码重置令牌模型与存储</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%86%E7%A0%81%E9%AA%8C%E8%AF%81%E6%B5%81%E7%A8%8B%EF%BC%88%E7%99%BB%E5%BD%95%E4%B8%8E%E5%8E%86%E5%8F%B2%E5%85%BC%E5%AE%B9%EF%BC%89"><span class="toc-number">6.5.</span> <span class="toc-text">密码验证流程（登录与历史兼容）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%81%97%E7%95%99%E5%93%88%E5%B8%8C%E6%8B%92%E7%BB%9D%E4%B8%8E%E7%99%BB%E5%BD%95%E9%98%B2%E6%8A%A4%E5%A2%9E%E9%87%8F%EF%BC%88v1-1-0-v1-2-0%EF%BC%89"><span class="toc-number">6.6.</span> <span class="toc-text">遗留哈希拒绝与登录防护增量（v1.1.0 &#x2F; v1.2.0）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BE%93%E5%85%A5%E6%A0%A1%E9%AA%8C%E4%B8%8E%E5%AF%86%E7%A0%81%E5%BC%BA%E5%BA%A6"><span class="toc-number">6.7.</span> <span class="toc-text">输入校验与密码强度</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F"><span class="toc-number">8.</span> <span class="toc-text">性能考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%8E%E5%AE%89%E5%85%A8%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-number">11.1.</span> <span class="toc-text">配置与安全最佳实践</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E4%B8%8E%E9%AA%8C%E8%AF%81%E8%A6%81%E7%82%B9"><span class="toc-number">11.2.</span> <span class="toc-text">测试与验证要点</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>llmwiki 检索与召回算法口径 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="BM25 打分、字段权重、中文 2-gram、别名组、覆盖度 ramp 与 wikilink 补位">
+<meta property="og:type" content="article">
+<meta property="og:title" content="llmwiki 检索与召回算法口径">
+<meta property="og:url" content="https://voidvec.github.io/posts/3552fcbc/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="BM25 打分、字段权重、中文 2-gram、别名组、覆盖度 ramp 与 wikilink 补位">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-13T01:25:00.000Z">
+<meta property="article:modified_time" content="2026-11-13T01:25:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="BM25">
+<meta property="article:tag" content="检索">
+<meta property="article:tag" content="调优">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "llmwiki 检索与召回算法口径",
+  "url": "https://voidvec.github.io/posts/3552fcbc/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-13T01:25:00.000Z",
+  "dateModified": "2026-11-13T01:25:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/3552fcbc/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'llmwiki 检索与召回算法口径',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">llmwiki 检索与召回算法口径</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">llmwiki 检索与召回算法口径</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-13T01:25:00.000Z" title="发表于 2026-11-13 09:25:00">2026-11-13</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-13T01:25:00.000Z" title="更新于 2026-11-13 09:25:00">2026-11-13</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">架构设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">架构设计</span><span class="pj-badge pj-badge--muted">深入</span></div><article class="container post-content" id="article-container"><blockquote>
+<p><strong>定位</strong>：把 <code>recall.py</code> 的实现参数、设计动机与调优方法整理成可查的工程口径。教程 <code>tutorial-03</code> 讲「怎么调」，这篇讲「到底在调什么」。</p>
+</blockquote>
+<h2 id="1-背景"><a href="#1-背景" class="headerlink" title="1. 背景"></a>1. 背景</h2><p>召回是本项目唯一的核心算法，完全自研、零第三方依赖：BM25 + wikilink 图补位，无 embedding。0.1.0 起经历了 P1 别名组 &#x2F; R1 每词阈值 &#x2F; R2 覆盖度线性 ramp &#x2F; R3 打分缓存（约 170×）&#x2F; P3 索引新鲜度 &#x2F; P4 via_link 补位门槛 &#x2F; top_k 收紧 4 等迭代（<code>CHANGELOG.md</code>）。这些字母编号是版本史里的改进代号，不是模块名。</p>
+<h2 id="2-结论速览"><a href="#2-结论速览" class="headerlink" title="2. 结论速览"></a>2. 结论速览</h2><table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>打分</td>
+<td><code>idf * tf*(K1+1) / (tf + K1*(1-B+B*dl/avgdl))</code>，K1&#x3D;1.5、B&#x3D;0.75，<strong>按字段分别统计 avgdl</strong></td>
+</tr>
+<tr>
+<td>字段权重</td>
+<td>title 3.0 &gt; tags 2.0 &gt; headings 1.5 &gt; body_text &#x2F; description &#x2F; summary 1.0 &gt; categories 0.8</td>
+</tr>
+<tr>
+<td>中文</td>
+<td>连续汉字串切滑动 2-gram；单字停用表「含任一即弃」；重复 token 保留以维持 tf</td>
+</tr>
+<tr>
+<td>门槛</td>
+<td><code>effective_min = max(min_score=0.15, min_score_per_term=1.0 * len(terms))</code></td>
+</tr>
+<tr>
+<td>覆盖度</td>
+<td>线性 ramp：<code>cov=0 → ×0.7</code>，<code>cov≥0.34 → ×1.0</code></td>
+</tr>
+<tr>
+<td>链接补位</td>
+<td>只补位不顶替，<code>link_boost = min(direct.score) * 0.5</code>，需过 <code>link_gate=0.5</code> 门槛</td>
+</tr>
+<tr>
+<td>默认 top_k</td>
+<td><strong>4</strong>（<code>recall()</code> 签名 &#x2F; CLI <code>--top-k</code> &#x2F; <code>QueryReq</code> &#x2F; <code>build_context.max_chapters</code> &#x2F; <code>prod_top_k</code>）</td>
+</tr>
+<tr>
+<td>公开基线</td>
+<td>8 条 query，<code>contextual_recall@4=1.0</code>、<code>mrr@4=1.0</code>、未命中 0</td>
+</tr>
+</tbody></table>
+<h2 id="3-关键关系：一次查询的流水线"><a href="#3-关键关系：一次查询的流水线" class="headerlink" title="3. 关键关系：一次查询的流水线"></a>3. 关键关系：一次查询的流水线</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">query 文本</span><br><span class="line">  → tokenize（英文整词 / 中文 2-gram / 停用字过滤）+ expand_aliases</span><br><span class="line">  → terms（dict.fromkeys 去重，保序）</span><br><span class="line">  → _candidates（categories 用倒排并集；tags 用倒排交集；无过滤则全库）</span><br><span class="line">  → _score_doc（7 字段 × terms 累加 BM25*boost → 覆盖度 ramp）</span><br><span class="line">  → effective_min 过滤 → direct（按分降序）</span><br><span class="line">  → via_link 补位（仅 direct 非空且链接图非空）</span><br><span class="line">  → 重排 → 取 top_k</span><br><span class="line">  → build_context(4 章 / 1200 字每章) → LLM</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-主体内容"><a href="#4-主体内容" class="headerlink" title="4. 主体内容"></a>4. 主体内容</h2><h3 id="4-1-索引与缓存（R3）"><a href="#4-1-索引与缓存（R3）" class="headerlink" title="4.1 索引与缓存（R3）"></a>4.1 索引与缓存（R3）</h3><p><code>KbRetriever.__init__</code> 一次性构建：<code>_blobs</code>（各字段别名扩展后的文本）、<code>_blobs_low</code>、<code>_field_tf[path][field] = Counter</code>、<code>_field_dl</code>、<code>df</code>（文档级去重计数）、<code>avgdl</code>（按字段）、<code>_link_graph</code>。之后 <code>_bm25</code> 变成纯查表算术，单次查询从约 854 ms 降到约 5 ms（约 170×）。</p>
+<h3 id="4-2-分词与别名"><a href="#4-2-分词与别名" class="headerlink" title="4.2 分词与别名"></a>4.2 分词与别名</h3><ul>
+<li><code>tokenize</code> 用 <code>re.findall(r&quot;[一-鿿]+|[a-zA-Z0-9_]+&quot;, text.lower())</code>；英文&#x2F;数字整体成词，中文长度 &gt;1 切 <code>[c[i:i+2] for i in range(len-1)]</code>。</li>
+<li>停用字集 <code>_CJK_STOP = &quot;与的了这那是在和对如何怎么一个可以我们你们做哪些&quot;</code>，<code>cjk_stop=True</code> 时<strong>丢弃含任一停用字的 gram</strong>。</li>
+<li><strong>保留重复 token</strong>：早期去重会让 tf 恒 ≤1，使 K1 饱和调节失效（<code>recall.py</code> docstring 明确记录）。</li>
+<li><code>expand_aliases</code>：组内任一变体命中即把其余变体追加到文本末尾；ASCII 变体用词边界正则，中文变体用子串匹配。<strong>索引侧与查询侧双向扩展</strong>，故 k8s ↔ kubernetes 可互命中。默认 5 组（kubernetes&#x2F;k8s、end-to-end&#x2F;e2e&#x2F;端到端、系统架构&#x2F;architecture、可观测性&#x2F;observability、反向代理&#x2F;reverse-proxy）。</li>
+</ul>
+<h3 id="4-3-打分与门槛"><a href="#4-3-打分与门槛" class="headerlink" title="4.3 打分与门槛"></a>4.3 打分与门槛</h3><p><code>_score_doc</code> 对 7 个字段逐 term 累加 <code>BM25 × FIELD_BOOST</code>；<code>matched_headings</code> 记录命中标题，供 <code>build_context</code> 取整章。覆盖度 ramp：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">factor = 0.7 + 0.3 * min(coverage / 0.34, 1.0)</span><br><span class="line">score *= factor</span><br></pre></td></tr></table></figure>
+
+<p>用线性替代旧硬阶跃，消除约 43% 的分数跳变。<code>effective_min = max(0.15, per_term × len(terms))</code> 实现「查询长度感知」：<code>min_score_per_term=1.0</code>，0 可关闭。设计注释给过判别区间：真查询最弱约 3.60 分&#x2F;词，库外主题 Top-1 最高约 2.08 分&#x2F;词，因此 1.0 能挡住库外噪声又保留真命中。</p>
+<h3 id="4-4-wikilink-图补位（P4）"><a href="#4-4-wikilink-图补位（P4）" class="headerlink" title="4.4 wikilink 图补位（P4）"></a>4.4 wikilink 图补位（P4）</h3><p><code>_build_link_graph</code> 用 <code>body_text_clean</code> 扫 <code>WIKILINK_RE</code>，经 <code>kb_core.build_link_index</code> 解析，只收索引内真实文档；异常降级为空图。补位规则：</p>
+<ul>
+<li>仅当 <code>direct</code> 非空才扩展；只取 direct 文档的<strong>出链</strong>、且不在 direct、且在候选集内。</li>
+<li><code>link_boost = min(h.score for h in direct) * 0.5</code> —— 任何补位文档都不可能压过最弱直接命中。</li>
+<li><code>score = max(own_score, link_boost)</code>，并需 <code>own_score &gt;= effective_min * link_gate(0.5)</code>；<code>link_gate=0</code> 关闭。</li>
+<li>命中标记 <code>via_link=True</code>；补位后重排，最终仍取 <code>direct[:top_k]</code>。</li>
+</ul>
+<p>设计动机：342 次命中里出现 3 条链接噪声，噪声得分 &lt;0.5 分&#x2F;词，低于期望文档最弱 0.7 分&#x2F;词。</p>
+<h3 id="4-5-新鲜度（P3）"><a href="#4-5-新鲜度（P3）" class="headerlink" title="4.5 新鲜度（P3）"></a>4.5 新鲜度（P3）</h3><p><code>check_freshness()</code>：<code>has_fp</code> 判断索引是否含 <code>mtime_ns</code>；快路径 <code>st_mtime_ns + size</code>，不一致再用 <code>content_hash()</code>（blake2b 16B）决胜；<code>deleted</code> 靠 <code>os.stat</code> 异常；<code>added</code> 用 <code>os.walk</code> 找索引外 <code>.md</code> 并读前 8192 字节验 <code>FM_RE</code>；<code>kind==&quot;generated-index&quot;</code> 与 <code>category-index.md</code> 豁免。实测约 11 ms &#x2F; 188 篇。<strong>只告警，不改变查询或退出码</strong>。</p>
+<h3 id="4-6-上下文组装"><a href="#4-6-上下文组装" class="headerlink" title="4.6 上下文组装"></a>4.6 上下文组装</h3><p><code>build_context(max_chapters=4)</code>：有 <code>matched_headings</code> 就 <code>fetch_chapter()</code> 取整章，否则 <code>read_doc()</code> 读全文；每段格式 <code>【title】\n&lt;chunk[:1200]&gt;</code>，用空行连接。从 6 章缩到 4 章约省 35% token。<code>assistant.PROMPT_TMPL</code> 要求「仅根据片段回答、不编造、不声称『知识库中未找到』、多自然段短列表、引用来源标题」。</p>
+<h3 id="4-7-失效分类与调优循环（tutorial-03）"><a href="#4-7-失效分类与调优循环（tutorial-03）" class="headerlink" title="4.7 失效分类与调优循环（tutorial-03）"></a>4.7 失效分类与调优循环（tutorial-03）</h3><p>六类失效编号 <strong>R1–R6</strong>（教程用于定位问题类型）；调参坐标系集中在 <code>llmwiki.toml [recall]</code> 的 <code>min_score_per_term / link_gate</code>，以及 CLI 的 <code>--min-score</code>。标准「测-改-测」循环：</p>
+<ol>
+<li><code>llmwiki eval --tag before-tune</code> 留基线；</li>
+<li><strong>一次只改一个变量</strong>；</li>
+<li><code>llmwiki index</code> 重建；</li>
+<li><code>llmwiki eval --tag after-tune</code>；</li>
+<li>对比两份 JSON 快照的 <code>summary.contextual_recall</code> &#x2F; <code>mrr</code>。</li>
+</ol>
+<p>评估集编写 5 要点：收录真实失败 query、覆盖 10+ 主题域、加语义改写挑战、expected 必须是索引内真实路径、<strong>加库外主题 query（预期返回空）</strong>。</p>
+<h3 id="4-8-混合检索的触发条件（当前未实现）"><a href="#4-8-混合检索的触发条件（当前未实现）" class="headerlink" title="4.8 混合检索的触发条件（当前未实现）"></a>4.8 混合检索的触发条件（当前未实现）</h3><p>教程给出三条门槛：知识库 ≥2000 篇 &#x2F; recall@4 &lt;0.7 且扩集后长期如此 &#x2F; 问法极大偏离关键字。路径是「bge-small-zh 或 OpenAI 兼容 embedding + RRF 融合 + cross-encoder 重排」。<strong>代码里没有任何向量检索实现</strong>，且 scope-freeze 明确本期不做向量&#x2F;embedding 系统设计。</p>
+<h2 id="5-注意事项与常见误读"><a href="#5-注意事项与常见误读" class="headerlink" title="5. 注意事项与常见误读"></a>5. 注意事项与常见误读</h2><ol>
+<li><strong>BM25 分数不是相似度也不是概率</strong>，<code>min_score=0.15</code> 只是该量纲下的低门槛，跨库不可比。</li>
+<li><strong>改任何 <code>.md</code> 都要重建索引再评估</strong>；<code>ingest --apply</code> 已自动重建，但手工编辑没有。</li>
+<li><strong>对比快照脚本曾用错字段</strong>：<code>tutorial-03</code> 原写 <code>b[&#39;summary&#39;][&#39;recall&#39;]</code>，真实字段是 <code>contextual_recall</code>；该处已于 2026-11-11 修正（PR-04 §1 修订记录）。</li>
+<li><strong><code>--demo</code> 的高分不代表你的库质量</strong>：内置集指向 demo 库（KB-03）。</li>
+<li><strong>公开基线的局限</strong>（<code>llmwiki-eval-report-v1.md</code> 自述 6 条）：样本仅 8 条、非真实用户库、以中文为主、零 embedding、不评估 LLM 回答质量、无交叉验证。</li>
+<li><code>defaults.DEFAULT_TOP_K = 6</code> 是死常量；不要误当默认值。</li>
+<li><code>eval_recall.py</code> docstring 写 <code>max_chapters=6</code>，与实现 4 不符。</li>
+</ol>
+<h2 id="6-不确定-待补充项"><a href="#6-不确定-待补充项" class="headerlink" title="6. 不确定 &#x2F; 待补充项"></a>6. 不确定 &#x2F; 待补充项</h2><ul>
+<li><code>FIELD_BOOST</code> &#x2F; <code>K1</code> &#x2F; <code>B</code> &#x2F; <code>COVERAGE_FULL</code> 是硬编码常量，<strong>不通过 <code>llmwiki.toml</code> 暴露</strong>；是否需要可配置化未定。</li>
+<li>中文停用字表是硬编码的 20 余字，未见评估依据，扩库后可能需要重新校准。</li>
+<li><code>min_score_per_term</code> 在 <code>serve</code> 路径下不生效（TOML 未注入，KB-04），因此 CLI 调好的参数在 Web&#x2F;IM 问答里不一定生效，<strong>需实测确认</strong>。</li>
+<li>覆盖度阈值 0.34 与 ramp 下限 0.7 的取值来自一次调优实验，缺少可复现实验记录。</li>
+<li><code>open_prs</code> &#x2F; 检索质量之外的统计口径缺陷见 PR-04；本篇只覆盖算法。</li>
+</ul>
+<h2 id="7-主要依据"><a href="#7-主要依据" class="headerlink" title="7. 主要依据"></a>7. 主要依据</h2><table>
+<thead>
+<tr>
+<th>依据</th>
+<th>具体线索</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>src/llmwiki/recall.py</code></td>
+<td><code>FIELD_BOOST</code> :98-106、<code>K1/B</code> :109、<code>COVERAGE_*</code> :113-114、<code>tokenize</code> :131-152、<code>expand_aliases</code> :168-186、<code>_bm25</code> :389-398、<code>_build_link_graph</code> :401、<code>_candidates</code> :426、<code>_score_doc</code> :445、<code>recall</code> :473-542、<code>check_freshness</code> :299-363</td>
+</tr>
+<tr>
+<td><code>src/llmwiki/defaults.py</code></td>
+<td>别名组、门槛默认值与注释里的判别区间</td>
+</tr>
+<tr>
+<td><code>src/llmwiki/assistant.py</code></td>
+<td><code>build_context</code> :148-156、<code>PROMPT_TMPL</code></td>
+</tr>
+<tr>
+<td><code>CHANGELOG.md</code> 0.1.0</td>
+<td>P1&#x2F;R1&#x2F;R2&#x2F;R3&#x2F;P3&#x2F;P4 改进代号与 ~170× &#x2F; ~35% 数字</td>
+</tr>
+<tr>
+<td><code>docs/tutorials/llmwiki-tutorial-03-quality-tuning.md</code></td>
+<td>六类失效、调参坐标系、测-改-测循环、混合检索触发条件</td>
+</tr>
+<tr>
+<td><code>docs/llmwiki-eval-report-v1.md</code></td>
+<td>8 条 query &#x2F; <code>contextual_recall@4=1.0</code> &#x2F; <code>mrr=1.0</code> &#x2F; 6 条局限</td>
+</tr>
+<tr>
+<td><code>testkb/eval_reports/*.json</code></td>
+<td>Top-1 分数实例 23.301 &#x2F; 6.024 &#x2F; 28.803 &#x2F; 32.832 &#x2F; 34.254 &#x2F; 11.897 &#x2F; 41.054 &#x2F; 10.026</td>
+</tr>
+</tbody></table>
+<h2 id="8-相关主题"><a href="#8-相关主题" class="headerlink" title="8. 相关主题"></a>8. 相关主题</h2><ul>
+<li>KB-02 核心业务流程与数据流</li>
+<li>KB-03 关键概念与术语词典</li>
+<li>KB-06 质量保障体系与门禁</li>
+<li>PR-04 已知偏差与待补充台账</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/3552fcbc/">https://voidvec.github.io/posts/3552fcbc/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E6%A3%80%E7%B4%A2/">检索</a><a class="post-meta__tags" href="/tags/BM25/">BM25</a><a class="post-meta__tags" href="/tags/%E8%B0%83%E4%BC%98/">调优</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/44f2733a/"><span class="pj-related__name">llmwiki 系统架构、模块与依赖关系</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/cb4d0cb4/"><span class="pj-related__name">llmwiki 核心业务流程与数据流</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/e57cb7cd/"><span class="pj-related__name">llmwiki 关键概念与术语词典</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ff9b1cc7/"><span class="pj-related__name">llmwiki 配置三层模型与运行入口</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/20926480/"><span class="pj-related__name">llmwiki 通道体系、服务层与安全边界</span><span class="pj-related__type">架构设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/20926480/" title="llmwiki 通道体系、服务层与安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">llmwiki 通道体系、服务层与安全边界</div></div><div class="info-2"><div class="info-item-1">四类通道的驱动模型、端点与验签、SSE 事件、鉴权范围与安全边界</div></div></div></a><a class="pagination-related" href="/posts/ff9b1cc7/" title="llmwiki 配置三层模型与运行入口"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">llmwiki 配置三层模型与运行入口</div></div><div class="info-2"><div class="info-item-1">默认值、llmwiki.toml 与环境变量三层配置，运行入口矩阵与退出码总表</div></div></div></a></nav><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E8%83%8C%E6%99%AF"><span class="toc-number">1.</span> <span class="toc-text">1. 背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%BB%93%E8%AE%BA%E9%80%9F%E8%A7%88"><span class="toc-number">2.</span> <span class="toc-text">2. 结论速览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%85%B3%E9%94%AE%E5%85%B3%E7%B3%BB%EF%BC%9A%E4%B8%80%E6%AC%A1%E6%9F%A5%E8%AF%A2%E7%9A%84%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="toc-number">3.</span> <span class="toc-text">3. 关键关系：一次查询的流水线</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E4%B8%BB%E4%BD%93%E5%86%85%E5%AE%B9"><span class="toc-number">4.</span> <span class="toc-text">4. 主体内容</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%B4%A2%E5%BC%95%E4%B8%8E%E7%BC%93%E5%AD%98%EF%BC%88R3%EF%BC%89"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 索引与缓存（R3）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%88%86%E8%AF%8D%E4%B8%8E%E5%88%AB%E5%90%8D"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 分词与别名</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%89%93%E5%88%86%E4%B8%8E%E9%97%A8%E6%A7%9B"><span class="toc-number">4.3.</span> <span class="toc-text">4.3 打分与门槛</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-wikilink-%E5%9B%BE%E8%A1%A5%E4%BD%8D%EF%BC%88P4%EF%BC%89"><span class="toc-number">4.4.</span> <span class="toc-text">4.4 wikilink 图补位（P4）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%96%B0%E9%B2%9C%E5%BA%A6%EF%BC%88P3%EF%BC%89"><span class="toc-number">4.5.</span> <span class="toc-text">4.5 新鲜度（P3）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E4%B8%8A%E4%B8%8B%E6%96%87%E7%BB%84%E8%A3%85"><span class="toc-number">4.6.</span> <span class="toc-text">4.6 上下文组装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-%E5%A4%B1%E6%95%88%E5%88%86%E7%B1%BB%E4%B8%8E%E8%B0%83%E4%BC%98%E5%BE%AA%E7%8E%AF%EF%BC%88tutorial-03%EF%BC%89"><span class="toc-number">4.7.</span> <span class="toc-text">4.7 失效分类与调优循环（tutorial-03）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-8-%E6%B7%B7%E5%90%88%E6%A3%80%E7%B4%A2%E7%9A%84%E8%A7%A6%E5%8F%91%E6%9D%A1%E4%BB%B6%EF%BC%88%E5%BD%93%E5%89%8D%E6%9C%AA%E5%AE%9E%E7%8E%B0%EF%BC%89"><span class="toc-number">4.8.</span> <span class="toc-text">4.8 混合检索的触发条件（当前未实现）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9%E4%B8%8E%E5%B8%B8%E8%A7%81%E8%AF%AF%E8%AF%BB"><span class="toc-number">5.</span> <span class="toc-text">5. 注意事项与常见误读</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E4%B8%8D%E7%A1%AE%E5%AE%9A-%E5%BE%85%E8%A1%A5%E5%85%85%E9%A1%B9"><span class="toc-number">6.</span> <span class="toc-text">6. 不确定 &#x2F; 待补充项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E4%B8%BB%E8%A6%81%E4%BE%9D%E6%8D%AE"><span class="toc-number">7.</span> <span class="toc-text">7. 主要依据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E7%9B%B8%E5%85%B3%E4%B8%BB%E9%A2%98"><span class="toc-number">8.</span> <span class="toc-text">8. 相关主题</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,658 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>会话管理机制与安全约束 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及">
+<meta property="og:type" content="article">
+<meta property="og:title" content="会话管理机制与安全约束">
+<meta property="og:url" content="https://voidvec.github.io/posts/c9545167/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:17:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:17:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "会话管理机制与安全约束",
+  "url": "https://voidvec.github.io/posts/c9545167/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:17:00.000Z",
+  "dateModified": "2026-11-03T00:17:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/c9545167/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '会话管理机制与安全约束',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">会话管理机制与安全约束</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">会话管理机制与安全约束</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:17:00.000Z" title="发表于 2026-11-03 08:17:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:17:00.000Z" title="更新于 2026-11-03 08:17:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">安全设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><blockquote>
+<p><strong>快照说明（未发布）</strong>：当前发布仍为 v1.6.0。本文已区分 Bearer 令牌主架构、短期社交绑定 Cookie 与授权交易存储，并按基线工作区补充<strong>未发布</strong>的刷新轮换、Redis cache schema&#x3D;2 与 introspection owner 门；版本边界见 [[versioning-and-release-guide-zh]]。</p>
+</blockquote>
+<cite>
+**本文引用的文件**
+- [SessionController.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h)
+- [SessionController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc)
+- [SessionManager.h](https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/SessionManager.h)
+- [SessionManager.cc](https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc)
+- [RedisRepositoryBase.h](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h)
+- [RedisRepositoryBase.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisRepositoryBase.cc)
+- [RedisTokenRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisTokenRepository.h)
+- [RedisTokenRepository.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisTokenRepository.cc)
+- [RedisGrantRepository.h](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisGrantRepository.h)
+- [RedisGrantRepository.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc)
+- [OAuth2Plugin.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc)
+- [configuration-guide.md](https://github.com/voidvec/fulla/blob/master/docs/operate/configuration-guide.md)
+- [security.spec.ts](https://github.com/voidvec/fulla/blob/master/frontends/admin/tests/e2e/security.spec.ts)
+- [admin-test-cases.md](https://github.com/voidvec/fulla/blob/master/docs/contribute/admin-test-cases.md)
+- [AuthorizePkcePassthroughIntegrationTest.cc](https://github.com/voidvec/fulla/blob/master/tests/integration/auth/AuthorizePkcePassthroughIntegrationTest.cc)
+- [_build-test.yml](https://github.com/voidvec/fulla/blob/master/.github/workflows/_build-test.yml)
+- [TokenExpiryTtlConfigTest.cc](https://github.com/voidvec/fulla/blob/master/tests/integration/token/TokenExpiryTtlConfigTest.cc)
+- [CHANGELOG.md](https://github.com/voidvec/fulla/blob/master/CHANGELOG.md)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F">性能考量</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本文件面向 Fulla 的“会话管理”能力，围绕授权码交易、Bearer 访问&#x2F;刷新令牌、社交绑定 Cookie、撤销级联、缓存&#x2F;introspection、过期与截止策略及配置排障进行说明。<strong>Bearer 是受保护 API 的主认证机制</strong>；Redis 中可能存在授权交易与令牌缓存，不等于存在以 JSESSIONID 为凭据的服务端 Web 会话。短期 <code>__Host-fulla-social-binding</code> 只绑定社交 authorize&#x2F;exchange 事务，不是认证会话。</p>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p>与会话管理直接相关的代码分布在以下层次：</p>
+<ul>
+<li>控制器层：SessionController 暴露登录、同意、登出等 HTTP 端点，并集成身份服务与会话管理器。</li>
+<li>身份层：SessionManager 负责登录策略评估与跨通道登出通知。</li>
+<li>存储层：Redis 仓库基类与各具体仓库（令牌、授权码、同意记录）负责持久化与 TTL 管理。</li>
+<li>插件层：OAuth2Plugin 统一装配服务与存储后端，并在关闭时释放资源。</li>
+<li>前端与安全测试：通过 E2E 用例验证 CSRF 防护与 Bearer 方案。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">Client[&quot;客户端&quot;] --&gt; SC[&quot;SessionController&lt;br/&gt;HTTP 端点&quot;]</span><br><span class="line">SC --&gt; SM[&quot;SessionManager&lt;br/&gt;登录策略/登出通知&quot;]</span><br><span class="line">SC --&gt; OP[&quot;OAuth2Plugin&lt;br/&gt;服务装配&quot;]</span><br><span class="line">SC --&gt; PGToken[&quot;PostgresTokenRepository&lt;br/&gt;master权威令牌存储&quot;]</span><br><span class="line">SC --&gt; Cache[&quot;RedisCachedTokenRepository&lt;br/&gt;schema=2 缓存装饰器&quot;]</span><br><span class="line">Cache --&gt; PGToken</span><br><span class="line">SC --&gt; RGr[&quot;RedisGrantRepository&lt;br/&gt;授权码/交易&quot;]</span><br><span class="line">SC --&gt; RCon[&quot;RedisConsentRepository&lt;br/&gt;用户同意&quot;]</span><br><span class="line">SC --&gt; SocialState[&quot;RedisSocialLoginStateStore&lt;br/&gt;digest-only绑定state&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L32-L69">SessionController.h:32-69</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/SessionManager.h#L115-L131">SessionManager.h:115-131</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L28-L55">RedisRepositoryBase.h:28-55</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisTokenRepository.h#L67-L98">RedisTokenRepository.h:67-98</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisGrantRepository.h#L28-L58">RedisGrantRepository.h:28-58</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L32-L69">SessionController.h:32-69</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L1-L200">SessionController.cc:1-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/SessionManager.h#L115-L131">SessionManager.h:115-131</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L1-L50">SessionManager.cc:1-50</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L28-L55">RedisRepositoryBase.h:28-55</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisRepositoryBase.cc#L1-L21">RedisRepositoryBase.cc:1-21</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>SessionController：定义 &#x2F;login、&#x2F;oauth2&#x2F;login、&#x2F;oauth2&#x2F;consent、&#x2F;oauth2&#x2F;logout、&#x2F;api&#x2F;register 等端点；支持注入 identity 服务与会话管理器，并提供回退路径兼容旧实现。</li>
+<li>SessionManager：封装登录策略评估（邮箱验证、MFA）与跨通道登出通知调用。</li>
+<li>Redis 存储基类与各仓库：提供 Redis 连接初始化、超时设置、原子脚本执行、TTL 管理；令牌与授权码采用 SETEX + JSON 序列化，利用 Redis 原生 TTL 自动清理。</li>
+<li>OAuth2Plugin：集中管理服务与存储对象生命周期，在停止时释放引用，保证回调完成后再析构。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L32-L100">SessionController.h:32-100</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L12-L48">SessionManager.cc:12-48</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisRepositoryBase.cc#L7-L19">RedisRepositoryBase.cc:7-19</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L337-L361">OAuth2Plugin.cc:337-361</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>下图展示授权码签发与 Bearer 使用的主路径：客户端向 &#x2F;oauth2&#x2F;login 提交凭证，控制器评估身份策略，成功后保存授权码&#x2F;交易或返回授权码；客户端用授权码 + PKCE 换取 token pair。后续受保护 API 请求携带 <code>Authorization: Bearer</code>，不以 JSESSIONID 作为主认证凭据；登出&#x2F;撤销按令牌与族处理。Redis 可保存交易、同意、绑定 state 与正&#x2F;负缓存，Postgres master 是未发布安全读的权威来源。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant C as &quot;客户端&quot;</span><br><span class="line">participant S as &quot;SessionController&quot;</span><br><span class="line">participant I as &quot;身份服务/SessionManager&quot;</span><br><span class="line">participant R as &quot;Redis 存储&quot;</span><br><span class="line">participant P as &quot;OAuth2Plugin&quot;</span><br><span class="line">C-&gt;&gt;S : POST /oauth2/login (用户名/密码/客户端信息)</span><br><span class="line">S-&gt;&gt;I : 评估登录策略(邮箱验证/MFA)</span><br><span class="line">I--&gt;&gt;S : 决策(Proceed/RequireMfa/DenyEmailNotVerified)</span><br><span class="line">alt 需要同意</span><br><span class="line">S-&gt;&gt;C : 重定向至同意页</span><br><span class="line">C--&gt;&gt;S : 提交同意</span><br><span class="line">else 直接授权</span><br><span class="line">S-&gt;&gt;R : 保存授权码/交易(SETX+JSON, TTL)</span><br><span class="line">R--&gt;&gt;S : 成功</span><br><span class="line">S--&gt;&gt;C : 返回授权码或重定向</span><br><span class="line">end</span><br><span class="line">Note over S,R : Redis保存授权交易/缓存，不以JSESSIONID作为API认证凭据</span><br><span class="line">C-&gt;&gt;S : 携带Authorization: Bearer访问受保护端点</span><br><span class="line">S-&gt;&gt;P : 校验token有效性/撤销/过期与权限</span><br><span class="line">S--&gt;&gt;C : 业务响应</span><br><span class="line">C-&gt;&gt;S : POST /oauth2/logout</span><br><span class="line">S-&gt;&gt;I : 触发跨通道登出通知</span><br><span class="line">I--&gt;&gt;S : 完成</span><br><span class="line">S--&gt;&gt;C : 登出响应</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L58-L69">SessionController.h:58-69</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L12-L48">SessionManager.cc:12-48</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L337-L361">OAuth2Plugin.cc:337-361</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="会话生命周期管理"><a href="#会话生命周期管理" class="headerlink" title="会话生命周期管理"></a>会话生命周期管理</h3><ul>
+<li>会话创建<ul>
+<li>入口：&#x2F;oauth2&#x2F;login（POST）。控制器接收用户名、密码、client_id、redirect_uri、scope、state 等参数，并进行校验。</li>
+<li>策略评估：调用 SessionManager::evaluateLoginPolicy，依据邮箱验证与 MFA 策略决定 Proceed&#x2F;RequireMfa&#x2F;DenyEmailNotVerified。</li>
+<li>授权码&#x2F;交易：按存储配置保存授权码或授权交易；Redis 模式使用 JSON 与 SETEX。未发布 <code>require_pkce</code> 默认要求所有 authorization_code 客户端提供 S256 challenge。</li>
+<li>认证凭据：授权码换取第一方 access&#x2F;refresh token pair；受保护 API 使用 Bearer。社交流程额外使用 600 秒 HttpOnly 绑定 Cookie，但它不是认证会话。</li>
+</ul>
+</li>
+<li>会话验证<ul>
+<li>受保护端点通过过滤器要求认证；未认证返回 401。</li>
+<li><code>validateAccessToken</code> 检查记录存在、revoked 与 expires_at，不检查 not_before；Redis 正缓存读取&#x2F;回填及 PostgreSQL introspection 另有 nbf 边界，不能把内省结果当作所有普通令牌校验的统一行为。</li>
+</ul>
+</li>
+<li>会话更新<ul>
+<li>刷新令牌通过 grant 轮换，不以“每次访问续期 JSESSIONID”为模型。</li>
+<li>缓存使用绝对 refill 截止；未发布 Redis refill 由服务器 TIME 检查 expires-at，不延长令牌寿命。</li>
+</ul>
+</li>
+<li>会话销毁<ul>
+<li>登出：&#x2F;oauth2&#x2F;logout 触发 SessionManager::logout 与跨通道通知，并由令牌撤销路径终结相关访问&#x2F;刷新族。</li>
+<li>清理：Postgres 可执行过期清理；Redis 键依赖 TTL，但正缓存的 TTL 是收敛窗口，不表示撤销立即生效。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;登录入口&quot;]) --&gt; Validate[&quot;参数校验&quot;]</span><br><span class="line">Validate --&gt; Policy&#123;&quot;邮箱验证/MFA策略&quot;&#125;</span><br><span class="line">Policy --&gt; |DenyEmailNotVerified| Deny[&quot;拒绝登录&quot;]</span><br><span class="line">Policy --&gt; |RequireMfa| MFA[&quot;进入MFA流程&quot;]</span><br><span class="line">Policy --&gt; |Proceed| Grant[&quot;保存授权码/交易(SETEX+JSON)&quot;]</span><br><span class="line">Grant --&gt; Redirect[&quot;返回授权码或重定向&quot;]</span><br><span class="line">Redirect --&gt; Protected[&quot;访问受保护端点(Authorization: Bearer)&quot;]</span><br><span class="line">Protected --&gt; Logout&#123;&quot;是否登出?&quot;&#125;</span><br><span class="line">Logout --&gt; |是| Notify[&quot;触发跨通道登出通知&quot;]</span><br><span class="line">Notify --&gt; End([&quot;结束&quot;])</span><br><span class="line">Logout --&gt; |否| End</span><br><span class="line">MFA --&gt; End</span><br><span class="line">Deny --&gt; End</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L58-L69">SessionController.h:58-69</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L12-L48">SessionManager.cc:12-48</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/auth/AuthorizePkcePassthroughIntegrationTest.cc#L132-L170">AuthorizePkcePassthroughIntegrationTest.cc:132-170</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L58-L69">SessionController.h:58-69</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L1-L200">SessionController.cc:1-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L12-L48">SessionManager.cc:12-48</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/auth/AuthorizePkcePassthroughIntegrationTest.cc#L132-L170">AuthorizePkcePassthroughIntegrationTest.cc:132-170</a></li>
+</ul>
+<h3 id="登出-撤销级联与口令重置撤销修复（v1-2-0）"><a href="#登出-撤销级联与口令重置撤销修复（v1-2-0）" class="headerlink" title="登出&#x2F;撤销级联与口令重置撤销修复（v1.2.0）"></a>登出&#x2F;撤销级联与口令重置撤销修复（v1.2.0）</h3><blockquote>
+<p>增量补篇：2026-09 逐行审计 P0-2&#x2F;P0-3 两项修复，总览见 [[versioning-and-release-guide-zh]] 与 [[security-hardening]]。</p>
+</blockquote>
+<ul>
+<li><strong>登出&#x2F;撤销级联修复（审计 P0-2）</strong>：<code>revokeAccessToken</code> 内部的级联此前把传入访问令牌的哈希匹配到<strong>错误的列</strong>（刷新令牌自身的哈希列），永远不命中——访问令牌撤销与登出之后，配对的刷新令牌仍可用<strong>至多 30 天</strong>。现在级联按 <code>access_token</code> 列连接，并额外<strong>杀死整个轮换族</strong>：登出时提交的（可能已过期的）访问令牌与已轮换出的刷新令牌同死。</li>
+<li><strong>口令重置撤销双键化（审计 P0-3）</strong>：重置流程此前按<strong>内部用户 id</strong> 撤销令牌，而登录&#x2F;MFA&#x2F;社交的令牌行以 <strong>public subject</strong> 为键——响应声称已撤销全部会话，实际所有公键令牌仍然有效。现在撤销按双键进行（<code>public_sub</code> <strong>或</strong> 内部 id，与账户删除的撤销形状对齐），同时消耗该用户全部未用的口令重置令牌。</li>
+<li>排障提示：升级到 v1.2.0 前签发、依赖旧级联漏洞存活的刷新令牌，在修复后的撤销&#x2F;登出路径下会被正确终结；若仍观察到”登出后刷新令牌可用”，先确认实例已升级至 ≥ v1.2.0。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CHANGELOG.md">CHANGELOG.md</a>（[1.2.0] Security 段 P0-2&#x2F;P0-3 条目）</li>
+</ul>
+<h3 id="令牌存储与撤销（未发布当前主路径）"><a href="#令牌存储与撤销（未发布当前主路径）" class="headerlink" title="令牌存储与撤销（未发布当前主路径）"></a>令牌存储与撤销（未发布当前主路径）</h3><ul>
+<li><strong>权威存储</strong>：生产推荐 Postgres。<code>getAccessToken</code>、刷新 inspect&#x2F;rotate 与 introspection 使用 <code>dbClientMaster_</code>，避免 lagging reader refill L2 安全缓存。</li>
+<li><strong>Redis 装饰器</strong>：<code>RedisCachedTokenRepository</code> 不是当前生产 refresh 主存储；它包装权威仓库，缓存 access 与 access-token introspection。<code>cache_schema=2</code>，两类值均序列化 <code>orgId</code>，旧 schema 拒绝。</li>
+<li><strong>绝对截止与原子 refill</strong>：正缓存 EXAT 不晚于令牌 expires-at；Lua 用 Redis <code>TIME</code> 检查撤销 marker 与绝对截止，introspection 还要求对应 access 正键存在。已过期&#x2F;撤销快照不得回填。</li>
+<li><strong>5 秒 deadline</strong>：单次 lookup 的 steady-clock 截止覆盖 Redis lookup、master read 与 guardedFill；到点强制未命中&#x2F;不活跃，<strong>无 stale positive fallback</strong>。Redis 命令错误可回读权威仓库，但不是返回旧缓存。</li>
+<li><strong>单 token 撤销</strong>：权威 revoke 后写 negative marker（TTL 至少 60 秒），再 double-delete access&#x2F;introspection 正缓存；marker&#x2F;DEL best-effort，失败记录日志与指标。</li>
+<li><strong>族撤销边界</strong>：checked family revoke 在存储事务内终结 RT&#x2F;关联 AT，但<strong>不主动遍历清除全部正缓存</strong>；已有正缓存依赖 TTL 收敛，不能称全局即时撤销。</li>
+<li><strong>刷新轮换（未发布）</strong>：hash → <code>inspectRefreshToken</code> → Memory 同锁 inspect+insert（失败回滚）或 Postgres family advisory lock 内重验 + 旧 RT CAS + 新 pair 事务 → confirmed commit 才返回 <code>Rotated</code>。明确重用才调用 <code>revokeTokenFamilyChecked</code>；StorageError&#x2F;未知 COMMIT 返回 server_error，不误判 replay、不泄露 token。</li>
+<li><strong>兼容性</strong>：Redis 独立 token 模式已弃用且拒绝 refresh grant；旧自定义 <code>ITokenRepository</code> 未实现 inspect&#x2F;rotate&#x2F;checked revoke 时，新默认接口 fail closed，不会回退旧撤销后签发流程。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">classDiagram</span><br><span class="line">class RedisCachedTokenRepository &#123;</span><br><span class="line">+cacheSchema=2</span><br><span class="line">+getAccessToken(token, cb)</span><br><span class="line">+introspectToken(token, cb)</span><br><span class="line">+revokeAccessToken(token, revokedBy, cb)</span><br><span class="line">+guardedFill(absoluteDeadline)</span><br><span class="line">&#125;</span><br><span class="line">class PostgresTokenRepository &#123;</span><br><span class="line">+getAccessToken(token, cb)</span><br><span class="line">+inspectRefreshToken(token, client, cb)</span><br><span class="line">+rotateRefreshToken(expected, newAT, newRT, cb)</span><br><span class="line">+revokeTokenFamilyChecked(family, cb)</span><br><span class="line">+introspectToken(token, cb)</span><br><span class="line">&#125;</span><br><span class="line">class RedisGrantRepository &#123;</span><br><span class="line">+consumeAuthCode(code, redirectUri, cb)</span><br><span class="line">+saveAuthorizationTransaction(tx, cb)</span><br><span class="line">+markTransactionConsumed(txId, cb)</span><br><span class="line">&#125;</span><br><span class="line">class RedisSocialLoginStateStore &#123;</span><br><span class="line">+reserve(digest, context, cb)</span><br><span class="line">+consume(digest, context, cb)</span><br><span class="line">&#125;</span><br><span class="line">RedisCachedTokenRepository --&gt; PostgresTokenRepository : &quot;权威读取/撤销&quot;</span><br><span class="line">RedisGrantRepository ..&gt; Redis : &quot;授权交易TTL&quot;</span><br><span class="line">RedisSocialLoginStateStore ..&gt; Redis : &quot;digest NX EX / Lua compare-delete&quot;</span><br></pre></td></tr></table></figure>
+
+<p><strong>实现与测试依据</strong></p>
+<ul>
+<li><code>libs/storage-postgres/src/PostgresTokenRepository.cc:350-479,481-525,788-899</code></li>
+<li><code>libs/storage-redis/src/RedisCachedTokenRepository.cc</code>、<code>tests/integration/storage/RedisCachedTokenRepositoryTest.cc</code></li>
+<li><code>tests/contract/RefreshRotationContractTest.cc</code>（覆盖回滚、并发、延迟提交、checked revoke；本次未运行）</li>
+</ul>
+<h3 id="会话安全特性与-introspection"><a href="#会话安全特性与-introspection" class="headerlink" title="会话安全特性与 introspection"></a>会话安全特性与 introspection</h3><ul>
+<li>认证凭据<ul>
+<li>受保护 API 以 Bearer access token 为主；前端不把 access&#x2F;refresh token 放入 auth Cookie。</li>
+<li>社交绑定 Cookie <code>__Host-fulla-social-binding</code> 为 Secure&#x2F;HttpOnly&#x2F;SameSite&#x3D;Lax&#x2F;600 秒，仅用于一次性社交 state 事务，不能据此推断存在 JSESSIONID 会话。</li>
+</ul>
+</li>
+<li>防重放<ul>
+<li>授权码一次性消费；社交登录 state 以 SHA-256 digest 为 Redis key，Lua compare-delete 防并发重放，账号绑定 state 使用另一 store 的明文 key + GETDEL；refresh 轮换以锁内重验与 CAS 防重复轮换。</li>
+</ul>
+</li>
+<li>CSRF 防护<ul>
+<li>Bearer 不随 Cookie 自动发送，降低传统 Cookie CSRF 暴露，但<strong>不能称天然免疫所有 CSRF</strong>。社交流程仍要求允许 Origin、绑定 Cookie、服务端 state，并拒绝 <code>Sec-Fetch-Site: cross-site</code>、query 参数与重复键；CORS 白名单不是这些防护的替代品。</li>
+</ul>
+</li>
+<li>introspection（未发布）<ul>
+<li>仅 active 响应带 metadata；无结果固定 <code>{&quot;active&quot;:false}</code>，全部 <code>no-store</code>。</li>
+<li>普通校验：<code>TokenService::validateAccessToken</code> 检查记录存在、<code>revoked</code> 与 <code>expires_at</code>，不检查 <code>not_before</code>；<code>RedisCachedTokenRepository::getAccessToken</code> 的缓存读取与回填分支另行拒绝未到 <code>not_before</code> 的快照，是否经过缓存装饰层会影响该边界。</li>
+<li>introspection：Postgres 仓库在 revoked&#x2F;expiry 之外检查 <code>not_before</code>；非 memory 模式还要求 owner <strong>Active &#x2F; Unmanaged</strong>，<strong>Suspended &#x2F; Unavailable</strong> 拒绝。owner 指令牌客户端的所有者状态，不是用户活跃状态。owner 查询 60 秒缓存、5 秒 deadline，超时&#x2F;DB error 不缓存，NoRow 才是 Unmanaged。</li>
+<li>access-token introspection 可命中 schema&#x3D;2 正缓存，refresh-token introspection 不缓存；<code>org_id</code> 是令牌事实，不是实时组织成员资格。</li>
+</ul>
+</li>
+</ul>
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/auth/AuthorizePkcePassthroughIntegrationTest.cc#L132-L170">AuthorizePkcePassthroughIntegrationTest.cc:132-170</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/frontends/admin/tests/e2e/security.spec.ts#L120-L144">security.spec.ts:120-144</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/contribute/admin-test-cases.md#L247-L262">admin-test-cases.md:247-262</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L910-L960">TokenService.cc:910-960</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L275-L365">RedisCachedTokenRepository.cc:275-365</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L855-L889">PostgresTokenRepository.cc:855-889</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/auth/AuthorizePkcePassthroughIntegrationTest.cc#L132-L170">AuthorizePkcePassthroughIntegrationTest.cc:132-170</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/frontends/admin/tests/e2e/security.spec.ts#L120-L144">security.spec.ts:120-144</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/contribute/admin-test-cases.md#L247-L262">admin-test-cases.md:247-262</a></li>
+</ul>
+<h3 id="会话过期策略"><a href="#会话过期策略" class="headerlink" title="会话过期策略"></a>会话过期策略</h3><ul>
+<li>令牌绝对过期<ul>
+<li>access&#x2F;refresh token 的 expires-at 由签发配置与签发时刻决定；缓存 EXAT&#x2F;refill 截止不得晚于该值。Redis 到期删除只是存储机制，不构成滑动续期。</li>
+</ul>
+</li>
+<li>授权交易 TTL<ul>
+<li>授权码&#x2F;交易使用 SETEX 与原子消费控制一次性有效期；社交 binding&#x2F;state 为 600 秒。</li>
+</ul>
+</li>
+<li>缓存绝对 refill 截止（未发布）<ul>
+<li>Redis TIME + Lua 在 refill 时拒绝到达绝对截止的旧快照；lookup 另有 5 秒 steady-clock deadline。正缓存不因访问而延长，族撤销后的已有正缓存只依赖 TTL 收敛。</li>
+</ul>
+</li>
+<li>owner 缓存（未发布）<ul>
+<li>owner 状态 memo 60 秒；错误&#x2F;超时归类 Unavailable 且不写缓存。该缓存只影响 introspection 放行，不延长 token 本身寿命。</li>
+</ul>
+</li>
+<li>配置影响<ul>
+<li>tokens.access_token_ttl、tokens.refresh_token_ttl 等驱动令牌寿命；测试断言 expires_in 与配置一致。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">A[&quot;读取令牌/缓存&quot;] --&gt; B&#123;&quot;撤销marker或schema不匹配?&quot;&#125;</span><br><span class="line">B --&gt; |是| Deny[&quot;未命中/不活跃&quot;]</span><br><span class="line">B --&gt; |否| C&#123;&quot;5秒deadline内?&quot;&#125;</span><br><span class="line">C --&gt; |否| Deny</span><br><span class="line">C --&gt; |是| D&#123;&quot;正缓存存在且未过期?&quot;&#125;</span><br><span class="line">D --&gt; |是| Hit[&quot;返回匹配的正缓存&quot;]</span><br><span class="line">D --&gt; |否| Master[&quot;Postgres master读取&quot;]</span><br><span class="line">Master --&gt; E&#123;&quot;权威active?&quot;&#125;</span><br><span class="line">E --&gt; |否| Deny</span><br><span class="line">E --&gt; |是| F&#123;&quot;Redis TIME未到绝对截止?&quot;&#125;</span><br><span class="line">F --&gt; |否| ActiveNoFill[&quot;本次可返回权威结果，不回填&quot;]</span><br><span class="line">F --&gt; |是| Fill[&quot;Lua原子guardedFill&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L386-L428">RedisCachedTokenRepository.cc:386-428</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/token/TokenExpiryTtlConfigTest.cc#L1-L23">TokenExpiryTtlConfigTest.cc:1-23</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L386-L428">RedisCachedTokenRepository.cc:386-428</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/token/TokenExpiryTtlConfigTest.cc#L1-L23">TokenExpiryTtlConfigTest.cc:1-23</a></li>
+</ul>
+<h3 id="会话配置选项"><a href="#会话配置选项" class="headerlink" title="会话配置选项"></a>会话配置选项</h3><ul>
+<li>存储后端选择<ul>
+<li>storage_type：postgres（生产推荐）、redis（已弃用）、memory（仅测试）。</li>
+</ul>
+</li>
+<li>过期时间设置<ul>
+<li>tokens.access_token_ttl、tokens.refresh_token_ttl 等配置项驱动令牌 TTL；测试断言响应中的 expires_in 与配置一致。</li>
+</ul>
+</li>
+<li>安全参数配置<ul>
+<li>CORS 白名单、Origin 校验；社交流程还需 Cookie + state + Sec-Fetch-Site 检查。CORS 不是完整 CSRF 防线。</li>
+</ul>
+</li>
+<li>Redis 连接与超时<ul>
+<li>RedisRepositoryBase 初始化时获取 RedisClient 并设置超时（3.0s），失败时记录错误日志；未发布 token lookup 另有覆盖全链路阶段的 5 秒 deadline。社交 state store 的 Redis 故障 fail closed。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/configuration-guide.md#L59-L77">configuration-guide.md:59-77</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisRepositoryBase.cc#L7-L19">RedisRepositoryBase.cc:7-19</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/contribute/admin-test-cases.md#L247-L262">admin-test-cases.md:247-262</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/integration/token/TokenExpiryTtlConfigTest.cc#L1-L23">TokenExpiryTtlConfigTest.cc:1-23</a></li>
+</ul>
+<h3 id="会话监控、调试与故障排查"><a href="#会话监控、调试与故障排查" class="headerlink" title="会话监控、调试与故障排查"></a>会话监控、调试与故障排查</h3><ul>
+<li>监控与日志<ul>
+<li>Redis 操作失败时记录错误日志（如 revoke&#x2F;consent&#x2F;token 操作异常）。</li>
+<li>插件停止时释放资源，便于定位生命周期问题。</li>
+</ul>
+</li>
+<li>CI 环境准备<ul>
+<li>测试前等待 Redis 就绪（ping PONG），否则输出错误并中止，便于快速发现环境问题。</li>
+</ul>
+</li>
+<li>常见问题定位<ul>
+<li>若授权码无法消费：检查 Lua 脚本执行结果与 TTL 是否有效。</li>
+<li>若令牌撤销无效：检查 Redis 键是否存在及撤销逻辑是否命中。</li>
+<li>若登出不生效：确认跨通道登出通知器是否可用，以及会话标识是否正确清除。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L386-L428">RedisCachedTokenRepository.cc:386-428</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L337-L361">OAuth2Plugin.cc:337-361</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/_build-test.yml#L248-L282">_build-test.yml:248-282</a></li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>控制器依赖身份服务与会话管理器，并通过 OAuth2Plugin 获取服务实例；当未注入时使用回退路径。</li>
+<li>存储层通过 RedisRepositoryBase 统一管理 Redis 客户端与超时；各仓库实现具体业务键与命令。</li>
+<li>前端通过 Bearer 令牌与 CORS 策略配合后端安全模型，避免 CSRF 风险。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">SC[&quot;SessionController&quot;] --&gt; SM[&quot;SessionManager&quot;]</span><br><span class="line">SC --&gt; OP[&quot;OAuth2Plugin&quot;]</span><br><span class="line">SC --&gt; RB[&quot;RedisRepositoryBase&quot;]</span><br><span class="line">RB --&gt; RT[&quot;RedisTokenRepository&quot;]</span><br><span class="line">RB --&gt; RG[&quot;RedisGrantRepository&quot;]</span><br><span class="line">RB --&gt; RC[&quot;RedisConsentRepository&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L32-L100">SessionController.h:32-100</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/SessionManager.h#L115-L131">SessionManager.h:115-131</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L28-L55">RedisRepositoryBase.h:28-55</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/controllers/SessionController.h#L32-L100">SessionController.h:32-100</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/include/fulla/identity/SessionManager.h#L115-L131">SessionManager.h:115-131</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L28-L55">RedisRepositoryBase.h:28-55</a></li>
+</ul>
+<h2 id="性能考量"><a href="#性能考量" class="headerlink" title="性能考量"></a>性能考量</h2><ul>
+<li>使用 Redis 原生 TTL 减少后台清理任务开销。</li>
+<li>授权码消费使用 Lua 脚本原子操作，降低锁竞争与网络往返。</li>
+<li>令牌撤销采用条件更新，避免全表扫描与高延迟。</li>
+<li>合理设置 Redis 超时与连接池，避免阻塞请求。</li>
+</ul>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>登录失败<ul>
+<li>检查邮箱验证与 MFA 策略；查看 SessionManager 决策分支。</li>
+</ul>
+</li>
+<li>授权码无效<ul>
+<li>检查 Redis 键是否存在、是否已被消费（Lua 脚本返回值）；确认 redirect_uri 匹配。</li>
+</ul>
+</li>
+<li>令牌撤销不立即全局生效<ul>
+<li>区分单 token negative marker 与 family revoke。已有正缓存可存活至 TTL；检查 cacheUntil、schema&#x3D;2 与 marker&#x2F;DEL 失败指标，不能把最终一致误报为“撤销完全无效”。</li>
+</ul>
+</li>
+<li>刷新返回 server_error<ul>
+<li>检查 inspect&#x2F;rotate 的 StorageError、Postgres advisory lock、pair 插入或 COMMIT；未知 COMMIT 不记录 reuse、不返回新 token。</li>
+</ul>
+</li>
+<li>introspection active&#x3D;false<ul>
+<li>除 token revoked&#x2F;expiry&#x2F;nbf 外，检查 owner Suspended&#x2F;Unavailable、5 秒超时和 60 秒缓存；错误&#x2F;超时不缓存。</li>
+</ul>
+</li>
+<li>登出不生效<ul>
+<li>检查跨通道登出通知器是否可用；确认会话标识是否清除。</li>
+</ul>
+</li>
+<li>环境就绪<ul>
+<li>确认 Redis 服务可达（CI 中 ping PONG）；检查连接超时与错误日志。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/identity/src/session/SessionManager.cc#L12-L48">SessionManager.cc:12-48</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisGrantRepository.cc#L184-L209">RedisGrantRepository.cc:184-209</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L386-L428">RedisCachedTokenRepository.cc:386-428</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/.github/workflows/_build-test.yml#L248-L282">_build-test.yml:248-282</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Fulla 的会话相关能力以授权交易与 Bearer 令牌为核心：控制器评估登录策略，Postgres master 提供权威令牌状态，Redis 保存交易&#x2F;同意&#x2F;社交绑定 state，并作为有绝对截止的 token cache 装饰层。未发布刷新轮换通过锁内重验、CAS、pair 事务与 checked revoke 降低竞争和误判；缓存有 5 秒截止且无 stale fallback。必须同时承认两处边界：<strong>族撤销依赖正缓存 TTL 收敛，不是全局即时撤销；Bearer + CORS 也不是所有 CSRF 的完整答案，社交 Cookie 事务仍有独立 Origin&#x2F;state 防护。</strong></p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><ul>
+<li>关键端点<ul>
+<li>POST &#x2F;oauth2&#x2F;login：登录并生成授权码或重定向。</li>
+<li>POST &#x2F;oauth2&#x2F;logout：登出并触发跨通道注销通知。</li>
+<li>GET &#x2F;oauth2&#x2F;authorize：授权端点；授权码客户端默认要求 S256（未发布 <code>require_pkce</code>）。</li>
+</ul>
+</li>
+<li>关键配置<ul>
+<li>storage_type：选择存储后端。</li>
+<li>tokens.*_ttl：令牌 TTL 配置。</li>
+<li>CORS&#x2F;Origin：严格白名单，禁止通配符。</li>
+</ul>
+</li>
+<li>参考测试<ul>
+<li>会话 Cookie 与授权流程：AuthorizePkcePassthroughIntegrationTest.cc。</li>
+<li>CSRF 防护与 Bearer 方案：security.spec.ts、test-cases.md；社交流程另见 SocialLoginHttpTest.cc。</li>
+<li>未发布刷新轮换&#x2F;缓存：RefreshRotationContractTest.cc、RedisCachedTokenRepositoryTest.cc。</li>
+<li>令牌 TTL 与配置一致性：TokenExpiryTtlConfigTest.cc。</li>
+</ul>
+</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/c9545167/">https://voidvec.github.io/posts/c9545167/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/34f6f1ca/"><span class="pj-related__name">OAuth2/OIDC 协议层安全</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f69881e8/"><span class="pj-related__name">授权模型安全：从 scope 到 RBAC</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/712a4a7b/"><span class="pj-related__name">上线前的安全加固清单</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f73c3341/"><span class="pj-related__name">密码存储与校验</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ab872dd4/"><span class="pj-related__name">网络安全边界</span><span class="pj-related__type">深度设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/ab872dd4/" title="网络安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">网络安全边界</div></div><div class="info-2"><div class="info-item-1">本章节面向Fulla的网络安全配置与加固，覆盖HTTPS/TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</div></div></div></a><a class="pagination-related" href="/posts/f73c3341/" title="密码存储与校验"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">密码存储与校验</div></div><div class="info-2"><div class="info-item-1">密码存储算法、加盐策略与校验流程的取舍，以及实测口径。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/4916bf40/" title="刷新令牌与撤销的生效边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-08</div><div class="info-item-2">刷新令牌与撤销的生效边界</div></div><div class="info-2"><div class="info-item-1">S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。</div></div></div></a><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/03144bb1/" title="把 Fulla 作为 OIDC 提供方接入（RP 指南）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">把 Fulla 作为 OIDC 提供方接入（RP 指南）</div></div><div class="info-2"><div class="info-item-1">面向把外部依赖方（RP）——WeKnora、Nextcloud、内部 SSO 应用——接入 Fulla</div></div></div></a><a class="pagination-related" href="/posts/712a4a7b/" title="上线前的安全加固清单"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">上线前的安全加固清单</div></div><div class="info-2"><div class="info-item-1">本文件面向Fulla的安全加固，覆盖输入验证与清理（SQL注入、XSS、命令注入）、依赖包安全更新与漏洞扫描、敏感信息保护（配置加密、密钥管理、日志脱敏）、安全审计与监控（登录尝试记录、权限变更追踪、异常行为检测）、安全配置基线（生产模板与</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%9A%E8%AF%9D%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E7%AE%A1%E7%90%86"><span class="toc-number">6.1.</span> <span class="toc-text">会话生命周期管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%99%BB%E5%87%BA-%E6%92%A4%E9%94%80%E7%BA%A7%E8%81%94%E4%B8%8E%E5%8F%A3%E4%BB%A4%E9%87%8D%E7%BD%AE%E6%92%A4%E9%94%80%E4%BF%AE%E5%A4%8D%EF%BC%88v1-2-0%EF%BC%89"><span class="toc-number">6.2.</span> <span class="toc-text">登出&#x2F;撤销级联与口令重置撤销修复（v1.2.0）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A4%E7%89%8C%E5%AD%98%E5%82%A8%E4%B8%8E%E6%92%A4%E9%94%80%EF%BC%88%E6%9C%AA%E5%8F%91%E5%B8%83%E5%BD%93%E5%89%8D%E4%B8%BB%E8%B7%AF%E5%BE%84%EF%BC%89"><span class="toc-number">6.3.</span> <span class="toc-text">令牌存储与撤销（未发布当前主路径）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%9A%E8%AF%9D%E5%AE%89%E5%85%A8%E7%89%B9%E6%80%A7%E4%B8%8E-introspection"><span class="toc-number">6.4.</span> <span class="toc-text">会话安全特性与 introspection</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%9A%E8%AF%9D%E8%BF%87%E6%9C%9F%E7%AD%96%E7%95%A5"><span class="toc-number">6.5.</span> <span class="toc-text">会话过期策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%9A%E8%AF%9D%E9%85%8D%E7%BD%AE%E9%80%89%E9%A1%B9"><span class="toc-number">6.6.</span> <span class="toc-text">会话配置选项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%9A%E8%AF%9D%E7%9B%91%E6%8E%A7%E3%80%81%E8%B0%83%E8%AF%95%E4%B8%8E%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5"><span class="toc-number">6.7.</span> <span class="toc-text">会话监控、调试与故障排查</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F"><span class="toc-number">8.</span> <span class="toc-text">性能考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

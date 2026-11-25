@@ -1,0 +1,623 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>llmwiki 网页问答与工作台设计 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="为 llmwiki-suite 补齐浏览器侧交互：一个自包含的网页问答页 &#x2F;webui&#x2F;chat、一个导航工作台 &#x2F;dashboard，与现有 &#x2F;chat JSON 接口、&#x2F;ilink&#x2F;webui 扫码页的分层关系，以及服务暴露形态（仅自己">
+<meta property="og:type" content="article">
+<meta property="og:title" content="llmwiki 网页问答与工作台设计">
+<meta property="og:url" content="https://voidvec.github.io/posts/81a48d54/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="为 llmwiki-suite 补齐浏览器侧交互：一个自包含的网页问答页 &#x2F;webui&#x2F;chat、一个导航工作台 &#x2F;dashboard，与现有 &#x2F;chat JSON 接口、&#x2F;ilink&#x2F;webui 扫码页的分层关系，以及服务暴露形态（仅自己">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-08-27T01:43:00.000Z">
+<meta property="article:modified_time" content="2026-08-27T01:43:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="dashboard">
+<meta property="article:tag" content="llmwiki">
+<meta property="article:tag" content="serve">
+<meta property="article:tag" content="webui">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "llmwiki 网页问答与工作台设计",
+  "url": "https://voidvec.github.io/posts/81a48d54/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-27T01:43:00.000Z",
+  "dateModified": "2026-08-27T01:43:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/81a48d54/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'llmwiki 网页问答与工作台设计',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">llmwiki 网页问答与工作台设计</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">llmwiki 网页问答与工作台设计</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-27T01:43:00.000Z" title="发表于 2026-08-27 09:43:00">2026-08-27</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-27T01:43:00.000Z" title="更新于 2026-08-27 09:43:00">2026-08-27</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">演进与设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><blockquote>
+<p>角色：Software Architect。本设计为 llmwiki-suite 补齐「浏览器侧的问答体验」：<br>现状 <code>llmwiki query</code> 与 <code>POST /chat</code> 都是无界面形态，本文设计网页问答页与导航工作台，<br>明确其与既有 <code>/chat</code>、<code>/ilink/webui</code> 的关系，并给出<strong>服务暴露形态（仅自己 A &#x2F; 团队内网 B）</strong>下的安全模型与分阶段实施计划。</p>
+<p><strong>本文档保存本地，仅作评审与实施依据，不提交远程</strong>；待实施完成后，按其”联动更新”清单更新 <code>llmwiki-suite</code> 的相关文档。</p>
+</blockquote>
+<hr>
+<h2 id="0-TL-DR（结论先行）"><a href="#0-TL-DR（结论先行）" class="headerlink" title="0. TL;DR（结论先行）"></a>0. TL;DR（结论先行）</h2><table>
+<thead>
+<tr>
+<th>决策点</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>聊天端点放哪？</td>
+<td><code>/chat</code> 保持为<strong>纯 JSON API</strong>（机器对机器）；新增 <strong><code>GET /webui/chat</code></strong> 为<strong>带界面的网页问答页</strong>。两者共用同一后端 <code>assistant.answer()</code>。</td>
+</tr>
+<tr>
+<td>与 <code>/ilink/webui</code> 的关系？</td>
+<td><code>/ilink/webui</code> 是 iLink 微信通道的<strong>扫码绑定页</strong>（一次性流程），<strong>不属于问答</strong>，保持通道专属、互不合并。</td>
+</tr>
+<tr>
+<td>要不要 <code>/dashboard</code> 统一管理？</td>
+<td>要，但是<strong>导航中枢 + 状态聚合</strong>，不是承载各页面的容器：统一入口，聚合通道健康&#x2F;索引新鲜度，各功能页保持独立端点。</td>
+</tr>
+<tr>
+<td>暴露形态？</td>
+<td>只支持两种：<strong>A 仅自己</strong>（Tailscale 组网）与 <strong>B 团队内网</strong>（反代 + 网关认证）。**套件永远只监听 <code>127.0.0.1</code>**，不直连公网。</td>
+</tr>
+<tr>
+<td>会话保护？</td>
+<td><strong>P4 取消</strong>（经确认不做）。A&#x2F;B 形态下认证在网关&#x2F;设备层完成，套件内部不引入登录&#x2F;session。</td>
+</tr>
+<tr>
+<td>实施优先级？</td>
+<td>P0（<code>/webui/chat</code> 页）→ P1（<code>/dashboard</code> 工作台）→ P2（路由收敛）→ P3（SSE 流式，可选）。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="1-现状盘点（为什么需要这个设计）"><a href="#1-现状盘点（为什么需要这个设计）" class="headerlink" title="1. 现状盘点（为什么需要这个设计）"></a>1. 现状盘点（为什么需要这个设计）</h2><h3 id="1-1-现有端点（serve-内）"><a href="#1-1-现有端点（serve-内）" class="headerlink" title="1.1 现有端点（serve 内）"></a>1.1 现有端点（<code>serve</code> 内）</h3><table>
+<thead>
+<tr>
+<th>端点</th>
+<th>方法</th>
+<th>用途</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/api/chat</code></td>
+<td>POST</td>
+<td>JSON 对话接口（query → answer + candidates）</td>
+<td>✅ 正式机器接口（P2 已收敛），受 <code>BRIDGE_TOKEN</code> 保护</td>
+</tr>
+<tr>
+<td><code>/api/recall</code></td>
+<td>POST</td>
+<td>JSON 召回调试接口</td>
+<td>✅ 正式机器接口（P2 已收敛）</td>
+</tr>
+<tr>
+<td><code>/chat</code> <code>/recall</code></td>
+<td>POST</td>
+<td><strong>兼容别名</strong>，等价 <code>/api/*</code> 同路径</td>
+<td>✅ 保留可用（P2）</td>
+</tr>
+<tr>
+<td><code>/ilink/qrcode</code> <code>/ilink/activate</code> <code>/ilink/status</code></td>
+<td>GET&#x2F;POST</td>
+<td>iLink 通道二维码&#x2F;激活&#x2F;状态</td>
+<td>✅ 已有</td>
+</tr>
+<tr>
+<td><code>/ilink/webui</code></td>
+<td>GET(HTML)</td>
+<td>iLink 微信<strong>扫码绑定页</strong>（HTML）</td>
+<td>✅ 已有</td>
+</tr>
+<tr>
+<td><code>/healthz</code></td>
+<td>GET</td>
+<td>健康检查（含各通道状态）</td>
+<td>✅ 已有</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-核心缺口"><a href="#1-2-核心缺口" class="headerlink" title="1.2 核心缺口"></a>1.2 核心缺口</h3><ul>
+<li><code>llmwiki query</code> &#x2F; <code>POST /chat</code> 都是<strong>纯接口、无界面</strong>——在浏览器里没有”输入框 → 回答”的体验。</li>
+<li><code>/ilink/webui</code> 只服务 iLink 通道的<strong>绑定环节</strong>，不是通用问答页。</li>
+<li>没有<strong>总的导航&#x2F;入口页</strong>，多端点（通道、问答、检索、运维）散落，靠人记 URL。</li>
+</ul>
+<h3 id="1-3-分层原则（写进套件约定）"><a href="#1-3-分层原则（写进套件约定）" class="headerlink" title="1.3 分层原则（写进套件约定）"></a>1.3 分层原则（写进套件约定）</h3><table>
+<thead>
+<tr>
+<th>前缀</th>
+<th>职责</th>
+<th>鉴权</th>
+<th>代表端点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/api/*</code></td>
+<td>纯机器接口（JSON）</td>
+<td>统一 token（<code>BRIDGE_TOKEN</code>）</td>
+<td><code>/api/chat</code>（未来收敛）</td>
+</tr>
+<tr>
+<td><code>/webui/*</code></td>
+<td>人用页面（HTML）</td>
+<td>继承”能访问到 <code>127.0.0.1:8000</code> 即已过身份”（网关层决定）</td>
+<td><code>/webui/chat</code></td>
+</tr>
+<tr>
+<td><code>/dashboard</code></td>
+<td>总览工作台（HTML）</td>
+<td>同上</td>
+<td><code>/dashboard</code></td>
+</tr>
+<tr>
+<td><code>/{channel}/*</code></td>
+<td>通道专属</td>
+<td>通道线下口令</td>
+<td><code>/ilink/*</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>现行 <code>/chat</code>、<code>/recall</code> 已作为兼容别名保留（P2 已实施），正式机器接口收敛到 <code>/api/*</code>；<code>/webui/*</code> 作为新页面的固定前缀先行落地。</p>
+</blockquote>
+<hr>
+<h2 id="2-端点设计"><a href="#2-端点设计" class="headerlink" title="2. 端点设计"></a>2. 端点设计</h2><h3 id="2-1-P0-—-GET-webui-chat（网页问答页）"><a href="#2-1-P0-—-GET-webui-chat（网页问答页）" class="headerlink" title="2.1 P0 — GET /webui/chat（网页问答页）"></a>2.1 P0 — <code>GET /webui/chat</code>（网页问答页）</h3><p><strong>目标</strong>：浏览器打开即用，输入问题 → 出回答 + 引用列表。自包含 HTML（内嵌 style&#x2F;script，<strong>无外部 CDN、无构建</strong>），与现有 <code>/ilink/webui</code> 一致的实现风格。</p>
+<p><strong>页面 UX</strong>：</p>
+<ul>
+<li>单栏对话，顶部可折叠”筛选”：<code>top_k</code>、分类（categories）、标签（tags）</li>
+<li>回答正文下方<strong>引用卡</strong>：<code>path</code>（可点击）、<code>title</code>、<code>score</code></li>
+<li>索引过期时（<code>index_stale</code> 非空）醒目提示”建议 <code>llmwiki index</code>“</li>
+</ul>
+<p><strong>数据流</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant U as 浏览器</span><br><span class="line">    participant S as llmwiki serve</span><br><span class="line">    participant A as KbAssistant</span><br><span class="line">    U-&gt;&gt;S: GET /webui/chat（HTML）</span><br><span class="line">    S--&gt;&gt;U: 渲染页面</span><br><span class="line">    U-&gt;&gt;S: POST /chat &#123;query, top_k, categories, tags&#125;</span><br><span class="line">    S-&gt;&gt;W: assistant.answer(...)</span><br><span class="line">    W--&gt;&gt;S: (answer, candidates, index_stale)</span><br><span class="line">    S--&gt;&gt;U: JSON &#123;answer, candidates, index_stale&#125;</span><br><span class="line">    U-&gt;&gt;U: 渲染回答 + 引用 + 过期提示</span><br></pre></td></tr></table></figure>
+
+<p><strong>安全</strong>：页面复用现有 <code>/chat</code> 的鉴权。当前无 <code>BRIDGE_TOKEN</code> 时，<code>/chat</code> 报错 → 页面兜底显示”服务端未配置提问口令”。</p>
+<hr>
+<h3 id="2-2-P1-—-GET-dashboard（导航工作台）"><a href="#2-2-P1-—-GET-dashboard（导航工作台）" class="headerlink" title="2.2 P1 — GET /dashboard（导航工作台）"></a>2.2 P1 — <code>GET /dashboard</code>（导航工作台）</h3><p><strong>目标</strong>：<code>serve</code> 之后一个入口看到”这个库能干嘛、谁在用、还健康吗”。</p>
+<p><strong>页面内容</strong>：</p>
+<ul>
+<li>顶部：库名 &#x2F; 仓库路径 &#x2F; 文档数（来自 <code>kb-index.json</code>）</li>
+<li>通道状态卡片（来自 <code>/healthz</code>）：<ul>
+<li>iLink → 去 <code>/ilink/webui</code> 绑定；已连接则显示 ✔</li>
+<li>通用问答 → 去 <code>/webui/chat</code></li>
+<li>可展示: WeCom &#x2F; Feishu &#x2F; Telegram 的配置状态</li>
+</ul>
+</li>
+<li>索引健康：索引新鲜度（<code>check_freshness()</code> → 过期提示”<code>llmwiki index</code>“）、入口到 <code>llmwiki lint</code> 说明</li>
+<li>底部：API 说明（<code>/api/</code> 待收拢）、安全模型说明</li>
+</ul>
+<p><strong>实现</strong>：也是一页自包含 HTML（复用 <code>/ilink/webui</code> 的零依赖风格），数据从 <code>/healthz</code> + 一个轻量状态聚合端点（可先内联在 dashboard 视图里）。</p>
+<hr>
+<h3 id="2-3-P2-—-路由收敛（✅-已实施，语义见上）"><a href="#2-3-P2-—-路由收敛（✅-已实施，语义见上）" class="headerlink" title="2.3 P2 — 路由收敛（✅ 已实施，语义见上）"></a>2.3 P2 — 路由收敛（✅ 已实施，语义见上）</h3><table>
+<thead>
+<tr>
+<th>动作</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/chat</code> → 保留别名</td>
+<td>保持可用，作为 <code>POST /api/chat</code> 的兼容别名</td>
+</tr>
+<tr>
+<td><code>/recall</code> → 保留别名</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>新增 <code>/api/*</code></td>
+<td>文档化的机器接口前缀，用于未来脚本&#x2F;第三方</td>
+</tr>
+<tr>
+<td><code>/ilink/*</code></td>
+<td>保持通道专属，不进 <code>/api/</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>收敛已同步更新 README &#x2F; docs 中的调用示例，旧 URL 不破坏（别名 + 兼容）。</p>
+</blockquote>
+<hr>
+<h3 id="2-4-P3-—-SSE-流式（✅-已实施）"><a href="#2-4-P3-—-SSE-流式（✅-已实施）" class="headerlink" title="2.4 P3 — SSE 流式（✅ 已实施）"></a>2.4 P3 — SSE 流式（✅ 已实施）</h3><ul>
+<li><code>POST /api/chat</code> 在 <code>Accept: text/event-stream</code> 或 <code>?stream=1</code> 时走 SSE 流式</li>
+<li>事件序列：<code>meta</code>（索引过期告警）→ <code>candidates</code>（引用卡）→ <code>delta*</code>（回答增量）→ <code>done</code>（全文）</li>
+<li>网页问答页已接入打字机效果 + 「停止」按钮（<code>AbortController</code> 中断）；无 <code>ReadableStream</code> 时降级 JSON</li>
+<li>依赖 <code>assistant.answer_stream</code>（新增，<code>call_llm_stream</code> 对 urllib 做 stream&#x3D;True 逐 chunk 读取；<br>未配置 key &#x2F; 端点异常时降级为一次性片段预览，与 <code>answer()</code> 同语义）</li>
+<li>好处：长时间 LLM 生成时用户有反馈、可中断；成本：改造了 assistant（+stream 方法）+ bridge（+SSE 分流）+ 前端（打字机）</li>
+</ul>
+<hr>
+<h2 id="3-暴露形态（A-B）与安全模型"><a href="#3-暴露形态（A-B）与安全模型" class="headerlink" title="3. 暴露形态（A &#x2F; B）与安全模型"></a>3. 暴露形态（A &#x2F; B）与安全模型</h2><h3 id="3-1-形态定义（只支持这两种，暂不做第三种）"><a href="#3-1-形态定义（只支持这两种，暂不做第三种）" class="headerlink" title="3.1 形态定义（只支持这两种，暂不做第三种）"></a>3.1 形态定义（只支持这两种，暂不做第三种）</h3><table>
+<thead>
+<tr>
+<th>形态</th>
+<th>场景</th>
+<th>示例</th>
+<th>认证层</th>
+<th>套件侧配置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>A · 仅自己</strong></td>
+<td>个人知识库</td>
+<td>Tailscale &#x2F; ZeroTier</td>
+<td>设备级认证（组网即身份）</td>
+<td><code>--host 127.0.0.1</code></td>
+</tr>
+<tr>
+<td><strong>B · 团队内网</strong></td>
+<td>十来人团队</td>
+<td>内网 IP + 反向代理（Caddy&#x2F;Nginx）</td>
+<td>网关 Basic Auth &#x2F; 内网 SSO</td>
+<td><code>--host 127.0.0.1</code></td>
+</tr>
+</tbody></table>
+<h3 id="3-2-架构：llmwiki-不直连公网"><a href="#3-2-架构：llmwiki-不直连公网" class="headerlink" title="3.2 架构：llmwiki 不直连公网"></a>3.2 架构：llmwiki 不直连公网</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">公网 / 外网</span><br><span class="line">   │</span><br><span class="line">   ▼</span><br><span class="line">【网关 / 反代】  Caddy / Nginx / Tailscale</span><br><span class="line">  • HTTPS 证书（仅在 B 形态需要）</span><br><span class="line">  • 认证收口（Basic Auth / 组网设备）</span><br><span class="line">  • 速率限制 / 路径过滤（可配）</span><br><span class="line">   │  （仅内网回环）</span><br><span class="line">   ▼</span><br><span class="line">【llmwiki serve】 --host 127.0.0.1:8000</span><br><span class="line">   • /webui/*  页面</span><br><span class="line">   • /chat /recall 接口（BRIDGE_TOKEN 仅内网可信段流通）</span><br><span class="line">   • /ilink/*  通道</span><br></pre></td></tr></table></figure>
+
+<p><strong>为什么 <code>/webui/*</code> 需要继承”已过网关”信任</strong>：</p>
+<ul>
+<li>形态 A（Tailscale）：操作系统&#x2F;设备级认证已强于任何套件 session 方案</li>
+<li>形态 B（内网反代）：网关 Basic Auth 一行解决认证，套件无需重复造轮子</li>
+<li>因此：<strong>当前两种形态下套件系统不做登录态</strong>，<code>/webui/*</code> 依赖网关层隔离公网</li>
+</ul>
+<h3 id="3-3-安全模型（3-条原则）"><a href="#3-3-安全模型（3-条原则）" class="headerlink" title="3.3 安全模型（3 条原则）"></a>3.3 安全模型（3 条原则）</h3><ol>
+<li><strong>身份分层</strong>：网关认”人&#x2F;设备”（账号 &#x2F; 组网），套件认”机器”（<code>BRIDGE_TOKEN</code>），接口层与页面层预期保持互通但互相兜底。</li>
+<li><strong><code>/api/*</code> 只对内</strong>：若未来收敛后暴露公网，网关必须把 <code>/api/*</code> 路径给挡住（<code>/webui/*</code> 放行）。</li>
+<li><strong>成本意识</strong>：问答提供 LLM 是有成本、有内容的。A&#x2F;B 形态下（尤其 B）<strong>一定要网关侧限流</strong>，否则被爬会把 token 烧光。</li>
+</ol>
+<blockquote>
+<p>补一句：P4”会话保护”经评审确认<strong>不做</strong>。真到未来需要对公产品化（形态 C），再另行引入网关级 SSO &#x2F; OIDC，超套件定位范围。</p>
+</blockquote>
+<hr>
+<h2 id="4-实施计划（分阶段，可独立验收）"><a href="#4-实施计划（分阶段，可独立验收）" class="headerlink" title="4. 实施计划（分阶段，可独立验收）"></a>4. 实施计划（分阶段，可独立验收）</h2><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>内容</th>
+<th>验收标准</th>
+<th>依赖</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>P0</strong></td>
+<td><code>GET /webui/chat</code> 自包含问答页</td>
+<td>浏览器打开即问答，回答带引用列表</td>
+<td>现有 <code>/chat</code></td>
+<td>不引入鉴权、不碰既有路由</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td><code>GET /dashboard</code> 工作台</td>
+<td>一眼看到各入口 + 通道健康</td>
+<td>P0</td>
+<td>复用 <code>/healthz</code></td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>路由收敛到 <code>/api/*</code>（+ 保留别名）</td>
+<td>旧 URL 仍可用、文档同步</td>
+<td>无</td>
+<td>只做迁移类改动</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td><code>POST /api/chat</code> SSE 流式</td>
+<td>打字机回答，可中断</td>
+<td>P2</td>
+<td>✅ 已实施</td>
+</tr>
+<tr>
+<td><del>P4</del></td>
+<td><del>会话保护</del></td>
+<td>—</td>
+<td>—</td>
+<td><strong>取消</strong>（确认 A&#x2F;B 形态下不做）</td>
+</tr>
+</tbody></table>
+<h3 id="验收清单（P0-完成时）"><a href="#验收清单（P0-完成时）" class="headerlink" title="验收清单（P0 完成时）"></a>验收清单（P0 完成时）</h3><ul>
+<li><input disabled="" type="checkbox"> <code>GET /webui/chat</code> 返回自包含 HTML（无外部依赖）</li>
+<li><input disabled="" type="checkbox"> 页面输入问题 → 调用 <code>POST /chat</code> → 展示回答 + 引用</li>
+<li><input disabled="" type="checkbox"> 无 <code>BRIDGE_TOKEN</code> 时页面明确提示</li>
+<li><input disabled="" type="checkbox"> <code>index_stale</code> 时页面显示”建议 <code>llmwiki index</code>“</li>
+<li><input disabled="" type="checkbox"> 现有 <code>/ilink/webui</code>、<code>/healthz</code>、<code>/chat</code> 行为不变（回归）</li>
+</ul>
+<hr>
+<h2 id="5-实施完成后要联动的文档（本设计未提交远程，实施后更新这些）"><a href="#5-实施完成后要联动的文档（本设计未提交远程，实施后更新这些）" class="headerlink" title="5. 实施完成后要联动的文档（本设计未提交远程，实施后更新这些）"></a>5. 实施完成后要联动的文档（本设计未提交远程，实施后更新这些）</h2><table>
+<thead>
+<tr>
+<th>文档</th>
+<th>联动内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>docs/llmwiki-architecture.md</code></td>
+<td>在”传输&#x2F;编排”层补 <code>/webui/chat</code> 与 <code>/dashboard</code> 端点；分层章节补 <code>/webui/*</code> 约定</td>
+</tr>
+<tr>
+<td><code>docs/llmwiki-channel-verify.md</code></td>
+<td>新端点验证样例（<code>/webui/chat</code> 页可用性）、<code>/dashboard</code> 验证步骤</td>
+</tr>
+<tr>
+<td><code>docs/getting-started.md</code></td>
+<td>快速上手补”网页问答”入口：<code>localhost:8000/webui/chat</code>、<code>/dashboard</code></td>
+</tr>
+<tr>
+<td><code>README.md</code> &#x2F; <code>README.en.md</code></td>
+<td>使用示例（如有）补网页问答链接</td>
+</tr>
+<tr>
+<td><code>docs/llmwiki-evolution-roadmap.md</code></td>
+<td>若实施到 P1+，把 <code>serve</code> 行”已有 UI”状态补全</td>
+</tr>
+<tr>
+<td><code>CHANGELOG.md</code>（若发版 0.1.5）</td>
+<td>新端点条目 + SSE 支持说明</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>本设计文档在实施完成且联动物档更新后，可保留为套件 docs 的<strong>演进记录</strong>（按需并入或归档）。当前：<strong>仅本地参考，不 git 提交</strong>。</p>
+</blockquote>
+<hr>
+<h2 id="6-开放问题-决策留白"><a href="#6-开放问题-决策留白" class="headerlink" title="6. 开放问题 &#x2F; 决策留白"></a>6. 开放问题 &#x2F; 决策留白</h2><ul>
+<li>A&#x2F;B 形态下 <code>BRIDGE_TOKEN</code> 是否需要轮换？→ 建议：形态 B 中网关认证充裕时，可考虑不再依赖 token（只内网回环），待网关方案确定后定。</li>
+<li><code>/dashboard</code> 是否要展示 <code>llm index</code> 的调用路径（给运维用）？→ 先不做交互，只展示操作提示。</li>
+<li>P2 <code>/api/*</code> 收敛是否要在 0.1.5 一次性做？→ 与发版计划对齐后定，不影响 P0&#x2F;P1 落地。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/81a48d54/">https://voidvec.github.io/posts/81a48d54/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/architecture/">architecture</a><a class="post-meta__tags" href="/tags/llmwiki/">llmwiki</a><a class="post-meta__tags" href="/tags/webui/">webui</a><a class="post-meta__tags" href="/tags/dashboard/">dashboard</a><a class="post-meta__tags" href="/tags/serve/">serve</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/31c7485d/"><span class="pj-related__name">llmwiki 项目定位、业务背景与边界</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/44f2733a/"><span class="pj-related__name">llmwiki 系统架构、模块与依赖关系</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/b412c93a/"><span class="pj-related__name">llmwiki-suite：把 Markdown 笔记编译成会生长的知识库</span><span class="pj-related__type">项目概览</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4c33d9ed/"><span class="pj-related__name">飞书 / Telegram 通道本地验证手册</span><span class="pj-related__type">测试与基准</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/603c3e7c/"><span class="pj-related__name">发布到 PyPI 操作指南</span><span class="pj-related__type">数据与运维</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/89ba81b5/" title="在另一台电脑接入 llmwiki-suite"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">在另一台电脑接入 llmwiki-suite</div></div><div class="info-2"><div class="info-item-1">目标：在任意新机器上，把别人的 Markdown 笔记目录变成可检索、可问答、可自维护的知识库，全程与套件零耦合、无需拷贝旧引擎。</div></div></div></a><a class="pagination-related" href="/posts/4c33d9ed/" title="飞书 / Telegram 通道本地验证手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">飞书 / Telegram 通道本地验证手册</div></div><div class="info-2"><div class="info-item-1">只讲本机验证：不依赖真实消息，用 curl 模拟平台回调，即可确认</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/0f971999/" title="llmwiki 架构梳理：分层与微信通道"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">llmwiki 架构梳理：分层与微信通道</div></div><div class="info-2"><div class="info-item-1">重新梳理本地知识库服务的完整架构：索引/召回/应答编排/通道/传输五层，并把腾讯 iLink Bot API 定为个人微信首选通道（替代 Wechaty 商业 puppet）。</div></div></div></a><a class="pagination-related" href="/posts/cde0a889/" title="LLMWiki 渠道接入：把知识库接到微信等聊天渠道"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 渠道接入：把知识库接到微信等聊天渠道</div></div><div class="info-2"><div class="info-item-1">把本地 LLMWiki 知识库接入微信做问答：装 serve extras → 起桥接服务 → 个人微信(iLink 官方 Bot API)扫码授权 → 企业微信(可选) → 微信端直接查知识库。</div></div></div></a><a class="pagination-related" href="/posts/9fd5cea0/" title="Web API 错误系统设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-13</div><div class="info-item-2">Web API 错误系统设计</div></div><div class="info-2"><div class="info-item-1">用错误目录、稳定错误码、数值分段和错误上下文实现结构化的 Web API 错误响应</div></div></div></a><a class="pagination-related" href="/posts/630213fd/" title="llmwiki 知识库重建流程"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-11</div><div class="info-item-2">llmwiki 知识库重建流程</div></div><div class="info-2"><div class="info-item-1">这是「用户资产」：llmwiki.toml / evalqueries.json / README.md / 全部 .md —— 千万别删！</div></div></div></a><a class="pagination-related" href="/posts/ab54f5ad/" title="CMake 函数式共享模块模式"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-13</div><div class="info-item-2">CMake 函数式共享模块模式</div></div><div class="info-2"><div class="info-item-1">用函数式 CMake 模块统一管理编译选项，实现零足迹的 SDK 消费者体验</div></div></div></a><a class="pagination-related" href="/posts/603c3e7c/" title="发布到 PyPI 操作指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-25</div><div class="info-item-2">发布到 PyPI 操作指南</div></div><div class="info-2"><div class="info-item-1">从 pypi.org 注册、开 2FA、建 API Token，到本地 twine upload 的完整发布流程</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#0-TL-DR%EF%BC%88%E7%BB%93%E8%AE%BA%E5%85%88%E8%A1%8C%EF%BC%89"><span class="toc-number">1.</span> <span class="toc-text">0. TL;DR（结论先行）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E7%8E%B0%E7%8A%B6%E7%9B%98%E7%82%B9%EF%BC%88%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E8%BF%99%E4%B8%AA%E8%AE%BE%E8%AE%A1%EF%BC%89"><span class="toc-number">2.</span> <span class="toc-text">1. 现状盘点（为什么需要这个设计）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E7%8E%B0%E6%9C%89%E7%AB%AF%E7%82%B9%EF%BC%88serve-%E5%86%85%EF%BC%89"><span class="toc-number">2.1.</span> <span class="toc-text">1.1 现有端点（serve 内）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E6%A0%B8%E5%BF%83%E7%BC%BA%E5%8F%A3"><span class="toc-number">2.2.</span> <span class="toc-text">1.2 核心缺口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E5%88%86%E5%B1%82%E5%8E%9F%E5%88%99%EF%BC%88%E5%86%99%E8%BF%9B%E5%A5%97%E4%BB%B6%E7%BA%A6%E5%AE%9A%EF%BC%89"><span class="toc-number">2.3.</span> <span class="toc-text">1.3 分层原则（写进套件约定）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%AB%AF%E7%82%B9%E8%AE%BE%E8%AE%A1"><span class="toc-number">3.</span> <span class="toc-text">2. 端点设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-P0-%E2%80%94-GET-webui-chat%EF%BC%88%E7%BD%91%E9%A1%B5%E9%97%AE%E7%AD%94%E9%A1%B5%EF%BC%89"><span class="toc-number">3.1.</span> <span class="toc-text">2.1 P0 — GET &#x2F;webui&#x2F;chat（网页问答页）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-P1-%E2%80%94-GET-dashboard%EF%BC%88%E5%AF%BC%E8%88%AA%E5%B7%A5%E4%BD%9C%E5%8F%B0%EF%BC%89"><span class="toc-number">3.2.</span> <span class="toc-text">2.2 P1 — GET &#x2F;dashboard（导航工作台）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-P2-%E2%80%94-%E8%B7%AF%E7%94%B1%E6%94%B6%E6%95%9B%EF%BC%88%E2%9C%85-%E5%B7%B2%E5%AE%9E%E6%96%BD%EF%BC%8C%E8%AF%AD%E4%B9%89%E8%A7%81%E4%B8%8A%EF%BC%89"><span class="toc-number">3.3.</span> <span class="toc-text">2.3 P2 — 路由收敛（✅ 已实施，语义见上）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-P3-%E2%80%94-SSE-%E6%B5%81%E5%BC%8F%EF%BC%88%E2%9C%85-%E5%B7%B2%E5%AE%9E%E6%96%BD%EF%BC%89"><span class="toc-number">3.4.</span> <span class="toc-text">2.4 P3 — SSE 流式（✅ 已实施）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%9A%B4%E9%9C%B2%E5%BD%A2%E6%80%81%EF%BC%88A-B%EF%BC%89%E4%B8%8E%E5%AE%89%E5%85%A8%E6%A8%A1%E5%9E%8B"><span class="toc-number">4.</span> <span class="toc-text">3. 暴露形态（A &#x2F; B）与安全模型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%BD%A2%E6%80%81%E5%AE%9A%E4%B9%89%EF%BC%88%E5%8F%AA%E6%94%AF%E6%8C%81%E8%BF%99%E4%B8%A4%E7%A7%8D%EF%BC%8C%E6%9A%82%E4%B8%8D%E5%81%9A%E7%AC%AC%E4%B8%89%E7%A7%8D%EF%BC%89"><span class="toc-number">4.1.</span> <span class="toc-text">3.1 形态定义（只支持这两种，暂不做第三种）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%9E%B6%E6%9E%84%EF%BC%9Allmwiki-%E4%B8%8D%E7%9B%B4%E8%BF%9E%E5%85%AC%E7%BD%91"><span class="toc-number">4.2.</span> <span class="toc-text">3.2 架构：llmwiki 不直连公网</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%AE%89%E5%85%A8%E6%A8%A1%E5%9E%8B%EF%BC%883-%E6%9D%A1%E5%8E%9F%E5%88%99%EF%BC%89"><span class="toc-number">4.3.</span> <span class="toc-text">3.3 安全模型（3 条原则）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%AE%9E%E6%96%BD%E8%AE%A1%E5%88%92%EF%BC%88%E5%88%86%E9%98%B6%E6%AE%B5%EF%BC%8C%E5%8F%AF%E7%8B%AC%E7%AB%8B%E9%AA%8C%E6%94%B6%EF%BC%89"><span class="toc-number">5.</span> <span class="toc-text">4. 实施计划（分阶段，可独立验收）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AA%8C%E6%94%B6%E6%B8%85%E5%8D%95%EF%BC%88P0-%E5%AE%8C%E6%88%90%E6%97%B6%EF%BC%89"><span class="toc-number">5.1.</span> <span class="toc-text">验收清单（P0 完成时）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E6%96%BD%E5%AE%8C%E6%88%90%E5%90%8E%E8%A6%81%E8%81%94%E5%8A%A8%E7%9A%84%E6%96%87%E6%A1%A3%EF%BC%88%E6%9C%AC%E8%AE%BE%E8%AE%A1%E6%9C%AA%E6%8F%90%E4%BA%A4%E8%BF%9C%E7%A8%8B%EF%BC%8C%E5%AE%9E%E6%96%BD%E5%90%8E%E6%9B%B4%E6%96%B0%E8%BF%99%E4%BA%9B%EF%BC%89"><span class="toc-number">6.</span> <span class="toc-text">5. 实施完成后要联动的文档（本设计未提交远程，实施后更新这些）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%BC%80%E6%94%BE%E9%97%AE%E9%A2%98-%E5%86%B3%E7%AD%96%E7%95%99%E7%99%BD"><span class="toc-number">7.</span> <span class="toc-text">6. 开放问题 &#x2F; 决策留白</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

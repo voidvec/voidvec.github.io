@@ -1,0 +1,398 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>OpenMAIC 导出能力矩阵与交付包生成 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PPTX &#x2F; 单文件 HTML &#x2F; .maic.zip &#x2F; MP4 四条导出线的实现位置、体积上限与降级策略，以及交付包的二次组装">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OpenMAIC 导出能力矩阵与交付包生成">
+<meta property="og:url" content="https://voidvec.github.io/posts/beea70fc/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="PPTX &#x2F; 单文件 HTML &#x2F; .maic.zip &#x2F; MP4 四条导出线的实现位置、体积上限与降级策略，以及交付包的二次组装">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-12T07:00:00.000Z">
+<meta property="article:modified_time" content="2026-11-12T07:00:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="nextjs">
+<meta property="article:tag" content="openmaic">
+<meta property="article:tag" content="typescript">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "OpenMAIC 导出能力矩阵与交付包生成",
+  "url": "https://voidvec.github.io/posts/beea70fc/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-12T07:00:00.000Z",
+  "dateModified": "2026-11-12T07:00:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/beea70fc/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'OpenMAIC 导出能力矩阵与交付包生成',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">OpenMAIC 导出能力矩阵与交付包生成</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">OpenMAIC 导出能力矩阵与交付包生成</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-12T07:00:00.000Z" title="发表于 2026-11-12 15:00:00">2026-11-12</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-12T07:00:00.000Z" title="更新于 2026-11-12 15:00:00">2026-11-12</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E6%99%BA%E8%83%BD%E4%BD%93%E5%BA%94%E7%94%A8/">智能体应用</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/openmaic/">OpenMAIC</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">核心知识</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#13c2c2">OpenMAIC</span><span class="pj-badge">模块参考</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p><strong>结论</strong>：产品导出的是<strong>零散文件</strong>，客户拿到的是<strong>按 SKU 重新编号的交付包</strong>——这是两个不同的层，<br>中间隔着 <code>lib/export/delivery-bundle.ts</code>。不要把「导出成功」当成「交付完成」。</p>
+<h2 id="1-四条导出线"><a href="#1-四条导出线" class="headerlink" title="1. 四条导出线"></a>1. 四条导出线</h2><table>
+<thead>
+<tr>
+<th>线</th>
+<th>入口 &#x2F; 实现</th>
+<th>产物</th>
+<th>关键限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PPTX</td>
+<td><code>use-export-pptx.ts</code> + <code>pptxgenjs</code>；占位页 <code>pptx-scene-placeholders.ts</code></td>
+<td>可编辑 deck</td>
+<td>「仅幻灯片」&#x3D; <code>slidesOnlyDeck(slideCount)</code>；含占位页版本会把 quiz&#x2F;interactive&#x2F;PBL 变成索引页</td>
+</tr>
+<tr>
+<td>单文件 HTML</td>
+<td><code>buildStandaloneHtmlExport</code>（<code>standalone-html/build-standalone-html.ts</code>），<code>format:&#39;auto&#39;</code></td>
+<td>离线整课连播页</td>
+<td>单文件上限 <strong>400 MB</strong>、警告阈值 100 MB；超限自动回退 zip；<code>includeNarration</code> 决定是否嵌音视频</td>
+</tr>
+<tr>
+<td><code>.maic.zip</code></td>
+<td><code>buildClassroomExportZip</code>（JSZip，<code>manifest.json</code> + files）</td>
+<td>课程资源包</td>
+<td><code>buildClassroomExportSnapshot</code> 让 HTML 与 zip <strong>共用同一快照</strong>（<code>mediaIndex</code>、媒体&#x2F;视频封面收集），避免二次生成漂移</td>
+</tr>
+<tr>
+<td>MP4</td>
+<td><code>buildExportZip</code>：<code>compileVideoTimeline → emitHyperframes → collectVideoAssets → packageVideoZip</code></td>
+<td>渲染用 ZIP &#x2F; 成片</td>
+<td><code>useExportVideo</code> 下 ZIP 给本地 CLI；<code>useRenderVideo</code> 上传 render-service 出片</td>
+</tr>
+</tbody></table>
+<p>导出菜单入口在 <code>components/stage/header-controls.tsx</code>（不在 <code>lib/export/</code>）。</p>
+<h2 id="2-体积与降级"><a href="#2-体积与降级" class="headerlink" title="2. 体积与降级"></a>2. 体积与降级</h2><p><code>lib/export/standalone-html/limits.ts</code>：</p>
+<ul>
+<li><code>STANDALONE_HTML_MAX_BYTES = 400 MB</code>；超过 → 自动转 zip 变体（<code>classroom.html</code> + media 目录，4 GiB 上限）。</li>
+<li><strong>zip 变体里的 <code>classroom.html</code> 自身仍受 400 MB 限制</strong>（交互媒体内联），不是「转 zip 就无限」。</li>
+<li><code>StandaloneHtmlTooLargeError</code> 带 <code>kind: &#39;single-file&#39; | &#39;page&#39; | &#39;archive&#39;</code>，用于区分是哪一层超了。</li>
+<li>交付编排层对 <code>06</code> 单文件采取 best-effort：超限时回退 zip 就干脆不出（zip 套 zip 要解两层），<br>见 [[13-delivery-package-spec]]。</li>
+</ul>
+<h2 id="3-视频相关-API"><a href="#3-视频相关-API" class="headerlink" title="3. 视频相关 API"></a>3. 视频相关 API</h2><table>
+<thead>
+<tr>
+<th>路由</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>POST /api/export-video/render</code></td>
+<td>multipart 流式转发，<code>MAX_UPLOAD_BYTES = 300 MB</code>，<code>SUBMIT_TIMEOUT_MS</code></td>
+</tr>
+<tr>
+<td><code>GET / DELETE /api/export-video/render/[jobId]</code></td>
+<td>轮询（<code>pollIntervalMs 3000</code>）&#x2F; 取消</td>
+</tr>
+<tr>
+<td><code>GET .../download</code></td>
+<td><code>redirect:&#39;manual&#39;</code>：优先 302 预签名直传，否则流式 <code>video/mp4</code></td>
+</tr>
+<tr>
+<td><code>GET /api/export-video/capability</code></td>
+<td>能力探测</td>
+</tr>
+<tr>
+<td><code>POST /api/deliver/upload</code></td>
+<td><strong>raw body</strong>（非 multipart，避免 40 MB <code>formData()</code> 缓冲）；MP4 不走这里，由 render 代理按 jobId 入队</td>
+</tr>
+</tbody></table>
+<h2 id="4-成片从哪来"><a href="#4-成片从哪来" class="headerlink" title="4. 成片从哪来"></a>4. 成片从哪来</h2><p>render-service 只保留内存 job + 临时目录，重启即丢。<strong>浏览器交付包链路</strong>因此把成片存进<br>IndexedDB <code>renderedVideos</code>（<code>lib/device-storage/rendered-video.ts</code> 的 <code>saveRenderedVideo</code>，<br>调用点 <code>lib/store/video-render.ts</code>）：导出时用 <code>loadRenderedVideo(stage.id)</code> 取回塞进 bundle<br>（<code>use-export-pptx.ts</code>），按 stageId 一门课一条。<br>自动上云链路（<code>DELIVER_ENABLED</code>）不走这里：<code>lib/server/deliver/pipeline.ts</code> 轮询 render-service<br>下载 MP4 写进服务端 <code>dataRoot</code>，页面提交 job 后即无关。<br>详见 [[04-data-model-and-three-tier-storage]] 与 [[10-video-rendering-and-cloud-delivery]]。</p>
+<h2 id="5-交付包是「二次组装」"><a href="#5-交付包是「二次组装」" class="headerlink" title="5. 交付包是「二次组装」"></a>5. 交付包是「二次组装」</h2><p><code>lib/export/delivery-bundle.ts</code>（已抽查注释）：</p>
+<ul>
+<li>定位：把应用各自为政的导出文件，组装成买家能直接打开的<strong>一个编号文件夹</strong>；<br>是 <code>bench/pack-delivery.py</code> 的浏览器等价物。纯函数、无 store&#x2F;i18n&#x2F;DOM，可在 worker 里跑。</li>
+<li><code>DeliverySku = &#39;lesson&#39; | &#39;contest&#39;</code>；<strong>唯一差异是有无成片</strong>：<code>lesson</code> 卖成片，<br><code>contest</code> 不含成片，因为赛区要求教师本人出镜，纯 AI 成片过不了初审。</li>
+<li><code>singleHtml</code>（带旁白单文件）<strong>只给不含视频的档</strong>：那档客户要自己录人像，唯一不能给的东西是<br>「能自己播放并说话」的东西，而带旁白的单文件恰好就是这个；教学档的旁白已烧进 MP4。</li>
+<li>常量：<code>DEFAULT_PAGES_DIR = &#39;交互页面&#39;</code>、<code>DEFAULT_FORMAT_DIR = &#39;格式件&#39;</code>、<br><code>DEFAULT_USAGE_NOTE_NAME = &#39;00_使用说明.txt&#39;</code>、<code>MAX_TITLE_LENGTH = 60</code>；<br><code>bundleTitle()</code> 清洗 Windows&#x2F;macOS&#x2F;云盘 CLI 的非法字符。</li>
+<li>资源包里页面在 <code>interactive/</code>、<code>quiz/</code>，bundle 里归到 <code>交互页面/</code>；deck 的超链仍指向包内原路径，<br>所以有 <code>relinkDeck</code> 重写——<strong>光用相对路径不够</strong>。</li>
+<li><code>formatFiles</code> 两档都出，但内容不同：有视频档写 ffprobe 实测参数，无视频档写录制目标参数。</li>
+</ul>
+<p>双档编号语义见 [[13-delivery-package-spec]]；件数、QA、云盘链接回 <code>.workbuddy/xianyu-kejian/README.md</code> 查。</p>
+<h2 id="6-PPTX-占位页：两条链路"><a href="#6-PPTX-占位页：两条链路" class="headerlink" title="6. PPTX 占位页：两条链路"></a>6. PPTX 占位页：两条链路</h2><p>两条导出链路，不是两个互相矛盾的口径：</p>
+<table>
+<thead>
+<tr>
+<th>链路</th>
+<th>形态</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>产品「导出交付包」</td>
+<td><strong>带占位页 + 强制相对链接</strong>，不画二维码 &#x2F; 在线按钮</td>
+<td><code>use-export-pptx.ts:1873-1878</code> 的 <code>buildPack(includePlaceholders, true)</code></td>
+</tr>
+<tr>
+<td>散件 PPTX &#x2F; 教学资源包（<code>bench/export-artifacts.mjs</code>）</td>
+<td>「仅幻灯片」</td>
+<td><code>export-artifacts.mjs:147,155</code></td>
+</tr>
+</tbody></table>
+<p>旧铁律「必须选仅幻灯片否则 localhost 二维码死链」<strong>只对散件或独立 PPTX 的在线模式成立</strong><br>（<code>lib/config/export-link-preference.ts</code> 默认在线、占位页会画 QR）；产品交付包已硬性改为相对链接，<br>菜单默认项也是「含占位页（推荐）」。两条链路属分层差异，见 [[15-source-of-truth-and-layering-rules]]。</p>
+<h2 id="来源与可信度"><a href="#来源与可信度" class="headerlink" title="来源与可信度"></a>来源与可信度</h2><p><code>lib/export/delivery-bundle.ts:1-107</code> 已抽查；其余来自 <code>use-export-{pptx,html,classroom}.ts</code>、<br><code>pptx-scene-placeholders.ts</code>、<code>standalone-html/{build-standalone-html,limits}.ts</code>、<br><code>video-export-app/build-export-zip.ts</code>、<code>app/api/export-video/**</code> 的静态阅读。<br>PPTX 占位页冲突为文档事实（不是代码结论），已在 §6 显式标注。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/beea70fc/">https://voidvec.github.io/posts/beea70fc/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/openmaic/">openmaic</a><a class="post-meta__tags" href="/tags/nextjs/">nextjs</a><a class="post-meta__tags" href="/tags/typescript/">typescript</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pj-snav"><div class="pj-snav__head"><i class="fas fa-layer-group"></i><span class="pj-snav__series">OpenMAIC 核心知识库</span><b class="pj-snav__pos">7 / 14</b></div><div class="pj-snav__links"><a class="pj-snav__item pj-snav__item--prev" href="/posts/3c4caba5/"><span class="pj-snav__label"><i class="fas fa-angle-left"></i> 上一篇</span><span class="pj-snav__title">OpenMAIC 回放动作与多智能体编排</span></a><a class="pj-snav__item pj-snav__item--next" href="/posts/229efb8d/"><span class="pj-snav__label">下一篇 <i class="fas fa-angle-right"></i></span><span class="pj-snav__title">OpenMAIC 部署拓扑与配置分层</span></a></div></nav><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/openmaic/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/a36c12f2/"><span class="pj-related__name">OpenMAIC 产品定位与端到端业务链路</span><span class="pj-related__type">项目概览</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/08d02c43/"><span class="pj-related__name">OpenMAIC 代码地图与包依赖</span><span class="pj-related__type">模块参考</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/1c2eba1b/"><span class="pj-related__name">OpenMAIC 课堂生成管线与异步任务契约</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/768c3d03/"><span class="pj-related__name">OpenMAIC 数据模型与三层存储</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/12f40788/"><span class="pj-related__name">OpenMAIC Provider 与 Slot 配置体系</span><span class="pj-related__type">实践指南</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/229efb8d/" title="OpenMAIC 部署拓扑与配置分层"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">OpenMAIC 部署拓扑与配置分层</div></div><div class="info-2"><div class="info-item-1">compose 服务与 profile、端口与挂载、构建期变量与运行期变量的分界，以及改配置后该重启还是重建</div></div></div></a><a class="pagination-related" href="/posts/3c4caba5/" title="OpenMAIC 回放动作与多智能体编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">OpenMAIC 回放动作与多智能体编排</div></div><div class="info-2"><div class="info-item-1">21 类 Action 的同步语义、回放状态机与游标、Pi 导演循环工具集，以及 PBL 三个版本的导航图</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/74807f90/" title="OpenMAIC 交付包规格"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-14</div><div class="info-item-2">OpenMAIC 交付包规格</div></div><div class="info-2"><div class="info-item-1">lesson / contest 双档不同构的编号语义、05/06 不重排的设计原因，以及产品导出与交付组装的分界</div></div></div></a><a class="pagination-related" href="/posts/94f091d2/" title="OpenMAIC 测试、CI 与质量门禁"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-13</div><div class="info-item-2">OpenMAIC 测试、CI 与质量门禁</div></div><div class="info-2"><div class="info-item-1">单测 / e2e / eval 三条独立轨道、8 个 CI 工作流与静态门禁，以及本机测试通道的注意事项</div></div></div></a><a class="pagination-related" href="/posts/860fa4f2/" title="OpenMAIC 白标与 AIGC 标识合规"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-13</div><div class="info-item-2">OpenMAIC 白标与 AIGC 标识合规</div></div><div class="info-2"><div class="info-item-1">brand 的双通道配置与渲染降级、i18n 占位符处理、AIGC 标识在各导出载体上的落点</div></div></div></a><a class="pagination-related" href="/posts/c4b5f764/" title="OpenMAIC 业务线与档位映射"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-13</div><div class="info-item-2">OpenMAIC 业务线与档位映射</div></div><div class="info-2"><div class="info-item-1">两条业务线的边界、真源位置，以及产品菜单名与业务档位最容易搞混的对照；具体价格不在此维护</div></div></div></a><a class="pagination-related" href="/posts/bbcb0ba7/" title="OpenMAIC 运营合规边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-14</div><div class="info-item-2">OpenMAIC 运营合规边界</div></div><div class="info-2"><div class="info-item-1">闲鱼两条业务线的风控口径边界与唯一真源；具体禁词、图片规格与处罚条款不在此维护</div></div></div></a><a class="pagination-related" href="/posts/12f40788/" title="OpenMAIC Provider 与 Slot 配置体系"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">OpenMAIC Provider 与 Slot 配置体系</div></div><div class="info-2"><div class="info-item-1">openmaic.yml 的 strict schema、两层覆盖优先级、slot 树、models allowlist，以及新增服务商要动哪些地方</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%9B%9B%E6%9D%A1%E5%AF%BC%E5%87%BA%E7%BA%BF"><span class="toc-number">1.</span> <span class="toc-text">1. 四条导出线</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%BD%93%E7%A7%AF%E4%B8%8E%E9%99%8D%E7%BA%A7"><span class="toc-number">2.</span> <span class="toc-text">2. 体积与降级</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E8%A7%86%E9%A2%91%E7%9B%B8%E5%85%B3-API"><span class="toc-number">3.</span> <span class="toc-text">3. 视频相关 API</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%88%90%E7%89%87%E4%BB%8E%E5%93%AA%E6%9D%A5"><span class="toc-number">4.</span> <span class="toc-text">4. 成片从哪来</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E4%BA%A4%E4%BB%98%E5%8C%85%E6%98%AF%E3%80%8C%E4%BA%8C%E6%AC%A1%E7%BB%84%E8%A3%85%E3%80%8D"><span class="toc-number">5.</span> <span class="toc-text">5. 交付包是「二次组装」</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-PPTX-%E5%8D%A0%E4%BD%8D%E9%A1%B5%EF%BC%9A%E4%B8%A4%E6%9D%A1%E9%93%BE%E8%B7%AF"><span class="toc-number">6.</span> <span class="toc-text">6. PPTX 占位页：两条链路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%8F%AF%E4%BF%A1%E5%BA%A6"><span class="toc-number">7.</span> <span class="toc-text">来源与可信度</span></a></li></ol></div></div><div class="card-widget card-post-series"><div class="item-headline"><i class="fa-solid fa-layer-group"></i><span>系列文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a36c12f2/" title="OpenMAIC 产品定位与端到端业务链路">OpenMAIC 产品定位与端到端业务链路</a><time datetime="2026-11-11T01:00:00.000Z" title="发表于 2026-11-11 09:00:00">2026-11-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/08d02c43/" title="OpenMAIC 代码地图与包依赖">OpenMAIC 代码地图与包依赖</a><time datetime="2026-11-11T04:00:00.000Z" title="发表于 2026-11-11 12:00:00">2026-11-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1c2eba1b/" title="OpenMAIC 课堂生成管线与异步任务契约">OpenMAIC 课堂生成管线与异步任务契约</a><time datetime="2026-11-11T07:00:00.000Z" title="发表于 2026-11-11 15:00:00">2026-11-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/768c3d03/" title="OpenMAIC 数据模型与三层存储">OpenMAIC 数据模型与三层存储</a><time datetime="2026-11-11T10:00:00.000Z" title="发表于 2026-11-11 18:00:00">2026-11-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/12f40788/" title="OpenMAIC Provider 与 Slot 配置体系">OpenMAIC Provider 与 Slot 配置体系</a><time datetime="2026-11-12T01:00:00.000Z" title="发表于 2026-11-12 09:00:00">2026-11-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/3c4caba5/" title="OpenMAIC 回放动作与多智能体编排">OpenMAIC 回放动作与多智能体编排</a><time datetime="2026-11-12T04:00:00.000Z" title="发表于 2026-11-12 12:00:00">2026-11-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/beea70fc/" title="OpenMAIC 导出能力矩阵与交付包生成">OpenMAIC 导出能力矩阵与交付包生成</a><time datetime="2026-11-12T07:00:00.000Z" title="发表于 2026-11-12 15:00:00">2026-11-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/229efb8d/" title="OpenMAIC 部署拓扑与配置分层">OpenMAIC 部署拓扑与配置分层</a><time datetime="2026-11-12T10:00:00.000Z" title="发表于 2026-11-12 18:00:00">2026-11-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/94f091d2/" title="OpenMAIC 测试、CI 与质量门禁">OpenMAIC 测试、CI 与质量门禁</a><time datetime="2026-11-13T01:00:00.000Z" title="发表于 2026-11-13 09:00:00">2026-11-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/e8b5fc69/" title="OpenMAIC 视频渲染与自动上云交付">OpenMAIC 视频渲染与自动上云交付</a><time datetime="2026-11-13T04:00:00.000Z" title="发表于 2026-11-13 12:00:00">2026-11-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/860fa4f2/" title="OpenMAIC 白标与 AIGC 标识合规">OpenMAIC 白标与 AIGC 标识合规</a><time datetime="2026-11-13T07:00:00.000Z" title="发表于 2026-11-13 15:00:00">2026-11-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/c4b5f764/" title="OpenMAIC 业务线与档位映射">OpenMAIC 业务线与档位映射</a><time datetime="2026-11-13T10:00:00.000Z" title="发表于 2026-11-13 18:00:00">2026-11-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/74807f90/" title="OpenMAIC 交付包规格">OpenMAIC 交付包规格</a><time datetime="2026-11-14T01:00:00.000Z" title="发表于 2026-11-14 09:00:00">2026-11-14</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/bbcb0ba7/" title="OpenMAIC 运营合规边界">OpenMAIC 运营合规边界</a><time datetime="2026-11-14T04:00:00.000Z" title="发表于 2026-11-14 12:00:00">2026-11-14</time></div></div></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

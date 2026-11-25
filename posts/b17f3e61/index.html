@@ -1,0 +1,571 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>监控和告警配置指南 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Pay Plugin提供了完整的监控能力，支持Prometheus指标采集和Grafana可视化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="监控和告警配置指南">
+<meta property="og:url" content="https://voidvec.github.io/posts/b17f3e61/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="Pay Plugin提供了完整的监控能力，支持Prometheus指标采集和Grafana可视化。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-09-19T01:08:00.000Z">
+<meta property="article:modified_time" content="2026-09-19T01:08:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="deployment">
+<meta property="article:tag" content="drogon">
+<meta property="article:tag" content="pay-plugin">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "监控和告警配置指南",
+  "url": "https://voidvec.github.io/posts/b17f3e61/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-09-19T01:08:00.000Z",
+  "dateModified": "2026-09-19T01:08:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/b17f3e61/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '监控和告警配置指南',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">监控和告警配置指南</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">监控和告警配置指南</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-09-19T01:08:00.000Z" title="发表于 2026-09-19 09:08:00">2026-09-19</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-09-19T01:08:00.000Z" title="更新于 2026-09-19 09:08:00">2026-09-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F%E8%BF%90%E7%BB%B4/">云原生运维</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F%E8%BF%90%E7%BB%B4/%E5%AE%B9%E5%99%A8%E5%8C%96/">容器化</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/pay-plugin/">drogon-pay</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">部署运维</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#2ea44f">drogon-pay</span><span class="pj-badge">数据与运维</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p><strong>目标环境：</strong> Production</p>
+<hr>
+<h2 id="📊-概述"><a href="#📊-概述" class="headerlink" title="📊 概述"></a>📊 概述</h2><p>Pay Plugin提供了完整的监控能力，支持Prometheus指标采集和Grafana可视化。</p>
+<h3 id="监控架构"><a href="#监控架构" class="headerlink" title="监控架构"></a>监控架构</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────┐      ┌─────────────┐      ┌─────────────┐</span><br><span class="line">│  PayServer  │──────│ Prometheus  │──────│  Grafana    │</span><br><span class="line">│  :5566      │      │  :9090      │      │  :3000      │</span><br><span class="line">└─────────────┘      └─────────────┘      └─────────────┘</span><br><span class="line">      /metrics              scrape               visualize</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🔧-Prometheus配置"><a href="#🔧-Prometheus配置" class="headerlink" title="🔧 Prometheus配置"></a>🔧 Prometheus配置</h2><h3 id="1-安装Prometheus"><a href="#1-安装Prometheus" class="headerlink" title="1. 安装Prometheus"></a>1. 安装Prometheus</h3><p><strong>Linux (Ubuntu&#x2F;Debian):</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载Prometheus</span></span><br><span class="line">wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz</span><br><span class="line">tar xvfz prometheus-2.45.0.linux-amd64.tar.gz</span><br><span class="line"><span class="built_in">cd</span> prometheus-2.45.0.linux-amd64</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动Prometheus</span></span><br><span class="line">./prometheus --config.file=prometheus.yml</span><br></pre></td></tr></table></figure>
+
+<p><strong>Windows:</strong></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载Windows版本</span></span><br><span class="line"><span class="comment"># https://prometheus.io/download/</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 解压并编辑配置</span></span><br><span class="line">notepad prometheus.yml</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动Prometheus</span></span><br><span class="line">.\prometheus.exe</span><br></pre></td></tr></table></figure>
+
+<p><strong>Docker:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">docker run -d \</span><br><span class="line">  -p 9090:9090 \</span><br><span class="line">  -v $(<span class="built_in">pwd</span>)/prometheus.yml:/etc/prometheus/prometheus.yml \</span><br><span class="line">  prom/prometheus</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-配置Prometheus"><a href="#2-配置Prometheus" class="headerlink" title="2. 配置Prometheus"></a>2. 配置Prometheus</h3><p>使用提供的配置文件：<code>deploy/prometheus_config.yml</code></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">global:</span></span><br><span class="line">  <span class="attr">scrape_interval:</span> <span class="string">15s</span></span><br><span class="line">  <span class="attr">evaluation_interval:</span> <span class="string">15s</span></span><br><span class="line"></span><br><span class="line"><span class="attr">alerting:</span></span><br><span class="line">  <span class="attr">alertmanagers:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">static_configs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">targets:</span> []</span><br><span class="line"></span><br><span class="line"><span class="attr">rule_files:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">&#x27;alerts.yml&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">scrape_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">job_name:</span> <span class="string">&#x27;payserver&#x27;</span></span><br><span class="line">    <span class="attr">static_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">targets:</span> [<span class="string">&#x27;localhost:5566&#x27;</span>]</span><br><span class="line">    <span class="attr">metrics_path:</span> <span class="string">&#x27;/metrics&#x27;</span></span><br><span class="line">    <span class="attr">scrape_interval:</span> <span class="string">10s</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-配置告警规则"><a href="#3-配置告警规则" class="headerlink" title="3. 配置告警规则"></a>3. 配置告警规则</h3><p>创建 <code>deploy/alerts.yml</code>:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">groups:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">payserver_alerts</span></span><br><span class="line">    <span class="attr">interval:</span> <span class="string">30s</span></span><br><span class="line">    <span class="attr">rules:</span></span><br><span class="line">      <span class="comment"># 高响应时间告警</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">HighResponseTime</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">histogram_quantile(0.95,</span> <span class="string">http_request_duration_seconds_bucket)</span> <span class="string">&gt;</span> <span class="number">0.2</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">5m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">warning</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">&quot;High response time detected&quot;</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">&quot;P95 response time is above 200ms for 5 minutes&quot;</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 高错误率告警</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">HighErrorRate</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">rate(http_requests_total&#123;status=~&quot;5..&quot;&#125;[5m])</span> <span class="string">&gt;</span> <span class="number">0.05</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">5m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">critical</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">&quot;High error rate detected&quot;</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">&quot;Error rate is above 5% for 5 minutes&quot;</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 服务不可用告警</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">ServiceDown</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">up&#123;job=&quot;payserver&quot;&#125;</span> <span class="string">==</span> <span class="number">0</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">1m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">critical</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">&quot;PayServer is down&quot;</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">&quot;PayServer has been down for 1 minute&quot;</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 数据库连接池耗尽</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">DatabasePoolExhausted</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">db_connections_active</span> <span class="string">/</span> <span class="string">db_connections_max</span> <span class="string">&gt;</span> <span class="number">0.9</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">5m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">warning</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">&quot;Database connection pool nearly exhausted&quot;</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">&quot;Database connection usage is above 90%&quot;</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># Redis连接池耗尽</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">RedisPoolExhausted</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">redis_connections_active</span> <span class="string">/</span> <span class="string">redis_connections_max</span> <span class="string">&gt;</span> <span class="number">0.9</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">5m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">warning</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">&quot;Redis connection pool nearly exhausted&quot;</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">&quot;Redis connection usage is above 90%&quot;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="📈-Grafana仪表板"><a href="#📈-Grafana仪表板" class="headerlink" title="📈 Grafana仪表板"></a>📈 Grafana仪表板</h2><h3 id="1-安装Grafana"><a href="#1-安装Grafana" class="headerlink" title="1. 安装Grafana"></a>1. 安装Grafana</h3><p><strong>Linux:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 添加Grafana仓库</span></span><br><span class="line"><span class="built_in">sudo</span> apt-get install -y software-properties-common</span><br><span class="line"><span class="built_in">sudo</span> add-apt-repository <span class="string">&quot;deb https://packages.grafana.com/oss/deb stable main&quot;</span></span><br><span class="line">wget -q -O - https://packages.grafana.com/gpg.key | <span class="built_in">sudo</span> apt-key add -</span><br><span class="line"><span class="built_in">sudo</span> apt-get update</span><br><span class="line"><span class="built_in">sudo</span> apt-get install grafana</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动Grafana</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl start grafana-server</span><br><span class="line"><span class="built_in">sudo</span> systemctl <span class="built_in">enable</span> grafana-server</span><br></pre></td></tr></table></figure>
+
+<p><strong>Windows:</strong></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载Windows版本</span></span><br><span class="line"><span class="comment"># https://grafana.com/grafana/download?platform=windows</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 解压并启动</span></span><br><span class="line">.\bin\grafana<span class="literal">-server</span>.exe</span><br></pre></td></tr></table></figure>
+
+<p><strong>Docker:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">docker run -d \</span><br><span class="line">  -p 3000:3000 \</span><br><span class="line">  --name=grafana \</span><br><span class="line">  grafana/grafana</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-配置数据源"><a href="#2-配置数据源" class="headerlink" title="2. 配置数据源"></a>2. 配置数据源</h3><ol>
+<li>访问 <code>http://localhost:3000</code> (默认用户名&#x2F;密码: admin&#x2F;admin)</li>
+<li>添加Prometheus数据源：<ul>
+<li>URL: <code>http://localhost:9090</code></li>
+<li>Access: Server (default)</li>
+</ul>
+</li>
+</ol>
+<h3 id="3-导入仪表板"><a href="#3-导入仪表板" class="headerlink" title="3. 导入仪表板"></a>3. 导入仪表板</h3><p>导入提供的仪表板配置：<code>deploy/grafana_dashboard.json</code></p>
+<p>或者手动创建仪表板，包含以下面板：</p>
+<h4 id="关键指标面板"><a href="#关键指标面板" class="headerlink" title="关键指标面板"></a>关键指标面板</h4><p><strong>1. 请求吞吐量 (QPS)</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sum(rate(http_requests_total[1m]))</span><br></pre></td></tr></table></figure>
+
+<p><strong>2. P50&#x2F;P95&#x2F;P99延迟</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># P50</span><br><span class="line">histogram_quantile(0.50, http_request_duration_seconds_bucket)</span><br><span class="line"></span><br><span class="line"># P95</span><br><span class="line">histogram_quantile(0.95, http_request_duration_seconds_bucket)</span><br><span class="line"></span><br><span class="line"># P99</span><br><span class="line">histogram_quantile(0.99, http_request_duration_seconds_bucket)</span><br></pre></td></tr></table></figure>
+
+<p><strong>3. 错误率</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sum(rate(http_requests_total&#123;status=~&quot;5..&quot;&#125;[5m])) / sum(rate(http_requests_total[5m]))</span><br></pre></td></tr></table></figure>
+
+<p><strong>4. 数据库连接数</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">db_connections_active</span><br><span class="line">db_connections_idle</span><br></pre></td></tr></table></figure>
+
+<p><strong>5. Redis连接数</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis_connections_active</span><br><span class="line">redis_connections_idle</span><br></pre></td></tr></table></figure>
+
+<p><strong>6. 支付成功率</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sum(rate(payment_success_total[5m])) / sum(rate(payment_attempts_total[5m]))</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意：<code>payment_success_total</code> &#x2F; <code>payment_attempts_total</code> &#x2F;<br><code>refund_success_total</code> &#x2F; <code>refund_attempts_total</code> 并非插件默认导出的指标。<br>当前插件仅导出鉴权计数（见上方”业务指标（鉴权）”）。如需支付&#x2F;退款<br>成功率面板，需先在业务层实现这些计数器。</p>
+</blockquote>
+<h3 id="4-仪表板布局"><a href="#4-仪表板布局" class="headerlink" title="4. 仪表板布局"></a>4. 仪表板布局</h3><p>推荐的仪表板布局：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────┐</span><br><span class="line">│           PayServer 监控仪表板                    │</span><br><span class="line">├─────────────┬─────────────┬─────────────────────┤</span><br><span class="line">│  QPS        │  错误率      │  可用性              │</span><br><span class="line">│  (实时)     │  (5分钟)    │  (uptime)           │</span><br><span class="line">├─────────────┴─────────────┴─────────────────────┤</span><br><span class="line">│           P50/P95/P99 延迟                       │</span><br><span class="line">│           (时间序列图表)                          │</span><br><span class="line">├─────────────────────────────────────────────────┤</span><br><span class="line">│  请求量分布 (按endpoint)                         │</span><br><span class="line">│  (饼图)                                          │</span><br><span class="line">├─────────────────────┬───────────────────────────┤</span><br><span class="line">│  数据库连接池        │  Redis连接池              │</span><br><span class="line">│  (仪表盘)            │  (仪表盘)                 │</span><br><span class="line">├─────────────────────┴───────────────────────────┤</span><br><span class="line">│  支付/退款成功率                                 │</span><br><span class="line">│  (时间序列图表)                                   │</span><br><span class="line">└─────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="📊-可用指标"><a href="#📊-可用指标" class="headerlink" title="📊 可用指标"></a>📊 可用指标</h2><h3 id="HTTP指标"><a href="#HTTP指标" class="headerlink" title="HTTP指标"></a>HTTP指标</h3><table>
+<thead>
+<tr>
+<th>指标名称</th>
+<th>类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>http_requests_total</code></td>
+<td>Counter</td>
+<td>HTTP请求总数</td>
+</tr>
+<tr>
+<td><code>http_request_duration_seconds</code></td>
+<td>Histogram</td>
+<td>HTTP请求延迟</td>
+</tr>
+<tr>
+<td><code>http_requests_in_flight</code></td>
+<td>Gauge</td>
+<td>当前正在处理的请求数</td>
+</tr>
+</tbody></table>
+<h3 id="业务指标（鉴权）"><a href="#业务指标（鉴权）" class="headerlink" title="业务指标（鉴权）"></a>业务指标（鉴权）</h3><p>插件暴露的鉴权指标（见 <code>PayAuthMetrics</code>），在 <code>/api/pay/metrics/auth.prom</code><br>以及聚合的 <code>/metrics</code> 端点中以 Prometheus 文本格式输出：</p>
+<table>
+<thead>
+<tr>
+<th>指标名称</th>
+<th>类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pay_auth_missing_key_total</code></td>
+<td>Counter</td>
+<td>请求缺少 API Key 的次数</td>
+</tr>
+<tr>
+<td><code>pay_auth_invalid_key_total</code></td>
+<td>Counter</td>
+<td>API Key 无效的次数</td>
+</tr>
+<tr>
+<td><code>pay_auth_scope_denied_total</code></td>
+<td>Counter</td>
+<td>因 scope 不足被拒绝的次数</td>
+</tr>
+<tr>
+<td><code>pay_auth_not_configured_total</code></td>
+<td>Counter</td>
+<td>未配置任何 API Key 的命中次数</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>说明：<code>/metrics</code> 端点聚合了 Drogon PromExporter 的基础指标（路径<br><code>/metrics/base</code>）与上述鉴权指标。HTTP 吞吐 &#x2F; 延迟等通用指标来自 Drogon<br>自身的导出器。</p>
+</blockquote>
+<h3 id="数据库指标"><a href="#数据库指标" class="headerlink" title="数据库指标"></a>数据库指标</h3><table>
+<thead>
+<tr>
+<th>指标名称</th>
+<th>类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>db_connections_active</code></td>
+<td>Gauge</td>
+<td>活跃数据库连接数</td>
+</tr>
+<tr>
+<td><code>db_connections_idle</code></td>
+<td>Gauge</td>
+<td>空闲数据库连接数</td>
+</tr>
+<tr>
+<td><code>db_connections_max</code></td>
+<td>Gauge</td>
+<td>最大数据库连接数</td>
+</tr>
+<tr>
+<td><code>db_query_duration_seconds</code></td>
+<td>Histogram</td>
+<td>数据库查询延迟</td>
+</tr>
+</tbody></table>
+<h3 id="Redis指标"><a href="#Redis指标" class="headerlink" title="Redis指标"></a>Redis指标</h3><table>
+<thead>
+<tr>
+<th>指标名称</th>
+<th>类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>redis_connections_active</code></td>
+<td>Gauge</td>
+<td>活跃Redis连接数</td>
+</tr>
+<tr>
+<td><code>redis_connections_idle</code></td>
+<td>Gauge</td>
+<td>空闲Redis连接数</td>
+</tr>
+<tr>
+<td><code>redis_connections_max</code></td>
+<td>Gauge</td>
+<td>最大Redis连接数</td>
+</tr>
+<tr>
+<td><code>redis_command_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Redis命令延迟</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="🔔-告警通知"><a href="#🔔-告警通知" class="headerlink" title="🔔 告警通知"></a>🔔 告警通知</h2><h3 id="配置Alertmanager"><a href="#配置Alertmanager" class="headerlink" title="配置Alertmanager"></a>配置Alertmanager</h3><p>创建 <code>deploy/alertmanager.yml</code>:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">global:</span></span><br><span class="line">  <span class="attr">resolve_timeout:</span> <span class="string">5m</span></span><br><span class="line"></span><br><span class="line"><span class="attr">route:</span></span><br><span class="line">  <span class="attr">group_by:</span> [<span class="string">&#x27;alertname&#x27;</span>, <span class="string">&#x27;cluster&#x27;</span>, <span class="string">&#x27;service&#x27;</span>]</span><br><span class="line">  <span class="attr">group_wait:</span> <span class="string">10s</span></span><br><span class="line">  <span class="attr">group_interval:</span> <span class="string">10s</span></span><br><span class="line">  <span class="attr">repeat_interval:</span> <span class="string">12h</span></span><br><span class="line">  <span class="attr">receiver:</span> <span class="string">&#x27;default&#x27;</span></span><br><span class="line"></span><br><span class="line">  <span class="attr">routes:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">match:</span></span><br><span class="line">        <span class="attr">severity:</span> <span class="string">critical</span></span><br><span class="line">      <span class="attr">receiver:</span> <span class="string">&#x27;critical&#x27;</span></span><br><span class="line">      <span class="attr">continue:</span> <span class="literal">true</span></span><br><span class="line"></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">match:</span></span><br><span class="line">        <span class="attr">severity:</span> <span class="string">warning</span></span><br><span class="line">      <span class="attr">receiver:</span> <span class="string">&#x27;warning&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">receivers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&#x27;default&#x27;</span></span><br><span class="line">    <span class="attr">email_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">to:</span> <span class="string">&#x27;team@example.com&#x27;</span></span><br><span class="line">        <span class="attr">from:</span> <span class="string">&#x27;alertmanager@example.com&#x27;</span></span><br><span class="line">        <span class="attr">smarthost:</span> <span class="string">&#x27;smtp.example.com:587&#x27;</span></span><br><span class="line"></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&#x27;critical&#x27;</span></span><br><span class="line">    <span class="attr">webhook_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">&#x27;http://your-webhook-url/critical&#x27;</span></span><br><span class="line">    <span class="attr">email_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">to:</span> <span class="string">&#x27;oncall@example.com&#x27;</span></span><br><span class="line">        <span class="attr">from:</span> <span class="string">&#x27;alertmanager@example.com&#x27;</span></span><br><span class="line">        <span class="attr">smarthost:</span> <span class="string">&#x27;smtp.example.com:587&#x27;</span></span><br><span class="line"></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&#x27;warning&#x27;</span></span><br><span class="line">    <span class="attr">email_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">to:</span> <span class="string">&#x27;devops@example.com&#x27;</span></span><br><span class="line">        <span class="attr">from:</span> <span class="string">&#x27;alertmanager@example.com&#x27;</span></span><br><span class="line">        <span class="attr">smarthost:</span> <span class="string">&#x27;smtp.example.com:587&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>启动Alertmanager:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./alertmanager --config.file=alertmanager.yml</span><br></pre></td></tr></table></figure>
+
+<p>在Prometheus配置中添加Alertmanager:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">alerting:</span></span><br><span class="line">  <span class="attr">alertmanagers:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">static_configs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">targets:</span> [<span class="string">&#x27;localhost:9093&#x27;</span>]</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🔍-日志聚合"><a href="#🔍-日志聚合" class="headerlink" title="🔍 日志聚合"></a>🔍 日志聚合</h2><h3 id="配置日志输出"><a href="#配置日志输出" class="headerlink" title="配置日志输出"></a>配置日志输出</h3><p>Pay Server支持将日志输出到标准输出（stdout），便于容器化环境。</p>
+<p><strong>config.json配置:</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;log&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;log_path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;logfile_base_name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;log_size_limit&quot;</span><span class="punctuation">:</span> <span class="number">104857600</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;log_level&quot;</span><span class="punctuation">:</span> <span class="string">&quot;DEBUG&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="使用ELK-Stack"><a href="#使用ELK-Stack" class="headerlink" title="使用ELK Stack"></a>使用ELK Stack</h3><p><strong>1. 安装Filebeat:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt-get install filebeat</span><br></pre></td></tr></table></figure>
+
+<p><strong>2. 配置Filebeat (<code>filebeat.yml</code>):</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">filebeat.inputs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">type:</span> <span class="string">container</span></span><br><span class="line">    <span class="attr">paths:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/var/lib/docker/containers/*/*.log</span></span><br><span class="line"></span><br><span class="line"><span class="attr">processors:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">add_docker_metadata:</span></span><br><span class="line"></span><br><span class="line"><span class="attr">output.elasticsearch:</span></span><br><span class="line">  <span class="attr">hosts:</span> [<span class="string">&quot;localhost:9200&quot;</span>]</span><br><span class="line"></span><br><span class="line"><span class="attr">setup.kibana:</span></span><br><span class="line">  <span class="attr">host:</span> <span class="string">&quot;localhost:5601&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>3. 启动Filebeat:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> systemctl start filebeat</span><br><span class="line"><span class="built_in">sudo</span> systemctl <span class="built_in">enable</span> filebeat</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="📱-监控最佳实践"><a href="#📱-监控最佳实践" class="headerlink" title="📱 监控最佳实践"></a>📱 监控最佳实践</h2><h3 id="1-告警级别"><a href="#1-告警级别" class="headerlink" title="1. 告警级别"></a>1. 告警级别</h3><ul>
+<li><strong>P0 (Critical):</strong> 服务完全不可用，数据丢失风险</li>
+<li><strong>P1 (Warning):</strong> 性能下降，部分功能受影响</li>
+<li><strong>P2 (Info):</strong> 需要关注但不影响服务</li>
+</ul>
+<h3 id="2-告警阈值建议"><a href="#2-告警阈值建议" class="headerlink" title="2. 告警阈值建议"></a>2. 告警阈值建议</h3><table>
+<thead>
+<tr>
+<th>指标</th>
+<th>Warning</th>
+<th>Critical</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P95延迟</td>
+<td>&gt; 200ms</td>
+<td>&gt; 500ms</td>
+</tr>
+<tr>
+<td>P99延迟</td>
+<td>&gt; 500ms</td>
+<td>&gt; 1000ms</td>
+</tr>
+<tr>
+<td>错误率</td>
+<td>&gt; 1%</td>
+<td>&gt; 5%</td>
+</tr>
+<tr>
+<td>可用性</td>
+<td>&lt; 99.9%</td>
+<td>&lt; 99%</td>
+</tr>
+<tr>
+<td>DB连接池使用率</td>
+<td>&gt; 80%</td>
+<td>&gt; 95%</td>
+</tr>
+</tbody></table>
+<h3 id="3-监控检查清单"><a href="#3-监控检查清单" class="headerlink" title="3. 监控检查清单"></a>3. 监控检查清单</h3><ul>
+<li><input disabled="" type="checkbox"> Prometheus正常采集指标</li>
+<li><input disabled="" type="checkbox"> Grafana仪表板配置完成</li>
+<li><input disabled="" type="checkbox"> 告警规则配置完成</li>
+<li><input disabled="" type="checkbox"> Alertmanager配置完成</li>
+<li><input disabled="" type="checkbox"> 日志聚合配置完成</li>
+<li><input disabled="" type="checkbox"> 告警通知测试通过</li>
+<li><input disabled="" type="checkbox"> 监控数据备份配置</li>
+<li><input disabled="" type="checkbox"> 监控系统高可用配置</li>
+</ul>
+<hr>
+<h2 id="🛠️-故障排查"><a href="#🛠️-故障排查" class="headerlink" title="🛠️ 故障排查"></a>🛠️ 故障排查</h2><h3 id="Prometheus无法采集指标"><a href="#Prometheus无法采集指标" class="headerlink" title="Prometheus无法采集指标"></a>Prometheus无法采集指标</h3><p><strong>检查:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 验证/metrics端点可访问</span></span><br><span class="line">curl http://localhost:5566/metrics</span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查Prometheus配置</span></span><br><span class="line">./promtool check config prometheus.yml</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看Prometheus日志</span></span><br><span class="line"><span class="built_in">tail</span> -f /var/log/prometheus/prometheus.log</span><br></pre></td></tr></table></figure>
+
+<h3 id="告警未触发"><a href="#告警未触发" class="headerlink" title="告警未触发"></a>告警未触发</h3><p><strong>检查:</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看当前告警状态</span></span><br><span class="line">curl http://localhost:9090/api/v1/alerts</span><br><span class="line"></span><br><span class="line"><span class="comment"># 验证告警规则</span></span><br><span class="line">./promtool check rules alerts.yml</span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查Alertmanager连接</span></span><br><span class="line">curl http://localhost:9093/api/v1/status</span><br></pre></td></tr></table></figure>
+
+<h3 id="Grafana无法显示数据"><a href="#Grafana无法显示数据" class="headerlink" title="Grafana无法显示数据"></a>Grafana无法显示数据</h3><p><strong>检查:</strong></p>
+<ol>
+<li>数据源连接是否正常</li>
+<li>时间范围是否正确</li>
+<li>查询语法是否正确</li>
+<li>Prometheus是否正常采集数据</li>
+</ol>
+<hr>
+<h2 id="📚-参考资源"><a href="#📚-参考资源" class="headerlink" title="📚 参考资源"></a>📚 参考资源</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://prometheus.io/docs/">Prometheus官方文档</a></li>
+<li><a target="_blank" rel="noopener" href="https://grafana.com/docs/">Grafana官方文档</a></li>
+<li><a target="_blank" rel="noopener" href="https://prometheus.io/docs/alerting/latest/alertmanager/">Alertmanager配置指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL查询语言</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/b17f3e61/">https://voidvec.github.io/posts/b17f3e61/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/drogon/">drogon</a><a class="post-meta__tags" href="/tags/deployment/">deployment</a><a class="post-meta__tags" href="/tags/pay-plugin/">pay-plugin</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/pay-plugin/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/6175b51c/"><span class="pj-related__name">drogon-pay 部署指南</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/60b18499/"><span class="pj-related__name">drogon-pay 部署流水线</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/0f8547a8/"><span class="pj-related__name">健康检查接口实现</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/688d956c/"><span class="pj-related__name">drogon-pay 运维手册</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/e6187c70/"><span class="pj-related__name">运维与监控</span><span class="pj-related__type">数据与运维</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/0590e4ae/" title="安全检查清单和加固指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">安全检查清单和加固指南</div></div><div class="info-2"><div class="info-item-1">config.json 中通过 envvar:VARNAME 占位符引用上述环境变量</div></div></div></a><a class="pagination-related" href="/posts/a44d70d6/" title="环境变量配置指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">环境变量配置指南</div></div><div class="info-2"><div class="info-item-1">本项目使用环境变量来管理敏感配置信息，确保 config.json 可以安全提交到 Git 仓库，而敏感数据保留在本地。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/f6ce26b0/" title="drogon-pay 故障排查"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">drogon-pay 故障排查</div></div><div class="info-2"><div class="info-item-1">常见故障现象、定位路径与修复建议。</div></div></div></a><a class="pagination-related" href="/posts/0590e4ae/" title="安全检查清单和加固指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">安全检查清单和加固指南</div></div><div class="info-2"><div class="info-item-1">config.json 中通过 envvar:VARNAME 占位符引用上述环境变量</div></div></div></a><a class="pagination-related" href="/posts/688d956c/" title="drogon-pay 运维手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-27</div><div class="info-item-2">drogon-pay 运维手册</div></div><div class="info-2"><div class="info-item-1">使用NSSM (Non-Sucking Service Manager):</div></div></div></a><a class="pagination-related" href="/posts/60b18499/" title="drogon-pay 部署流水线"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">drogon-pay 部署流水线</div></div><div class="info-2"><div class="info-item-1">deploy.yml（v tag / workflowdispatch）：Docker Hub 镜像 + AWS ECS（us-east-1，payserver-staging / payserver-production 集群）。</div></div></div></a><a class="pagination-related" href="/posts/e6187c70/" title="运维与监控"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">运维与监控</div></div><div class="info-2"><div class="info-item-1">监控栈组成与运维要点：Prometheus 指标、Grafana 看板与告警阈值。</div></div></div></a><a class="pagination-related" href="/posts/0f8547a8/" title="健康检查接口实现"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-27</div><div class="info-item-2">健康检查接口实现</div></div><div class="info-2"><div class="info-item-1">健康检查端点的实现细节：探针语义、依赖探测与超时处理。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%8A-%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">📊 概述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E6%9E%B6%E6%9E%84"><span class="toc-number">1.1.</span> <span class="toc-text">监控架构</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%A7-Prometheus%E9%85%8D%E7%BD%AE"><span class="toc-number">2.</span> <span class="toc-text">🔧 Prometheus配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AE%89%E8%A3%85Prometheus"><span class="toc-number">2.1.</span> <span class="toc-text">1. 安装Prometheus</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E9%85%8D%E7%BD%AEPrometheus"><span class="toc-number">2.2.</span> <span class="toc-text">2. 配置Prometheus</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E9%85%8D%E7%BD%AE%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99"><span class="toc-number">2.3.</span> <span class="toc-text">3. 配置告警规则</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%88-Grafana%E4%BB%AA%E8%A1%A8%E6%9D%BF"><span class="toc-number">3.</span> <span class="toc-text">📈 Grafana仪表板</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AE%89%E8%A3%85Grafana"><span class="toc-number">3.1.</span> <span class="toc-text">1. 安装Grafana</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E9%85%8D%E7%BD%AE%E6%95%B0%E6%8D%AE%E6%BA%90"><span class="toc-number">3.2.</span> <span class="toc-text">2. 配置数据源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AF%BC%E5%85%A5%E4%BB%AA%E8%A1%A8%E6%9D%BF"><span class="toc-number">3.3.</span> <span class="toc-text">3. 导入仪表板</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E6%8C%87%E6%A0%87%E9%9D%A2%E6%9D%BF"><span class="toc-number">3.3.1.</span> <span class="toc-text">关键指标面板</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E4%BB%AA%E8%A1%A8%E6%9D%BF%E5%B8%83%E5%B1%80"><span class="toc-number">3.4.</span> <span class="toc-text">4. 仪表板布局</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%8A-%E5%8F%AF%E7%94%A8%E6%8C%87%E6%A0%87"><span class="toc-number">4.</span> <span class="toc-text">📊 可用指标</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#HTTP%E6%8C%87%E6%A0%87"><span class="toc-number">4.1.</span> <span class="toc-text">HTTP指标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%9A%E5%8A%A1%E6%8C%87%E6%A0%87%EF%BC%88%E9%89%B4%E6%9D%83%EF%BC%89"><span class="toc-number">4.2.</span> <span class="toc-text">业务指标（鉴权）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E6%8C%87%E6%A0%87"><span class="toc-number">4.3.</span> <span class="toc-text">数据库指标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Redis%E6%8C%87%E6%A0%87"><span class="toc-number">4.4.</span> <span class="toc-text">Redis指标</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%94-%E5%91%8A%E8%AD%A6%E9%80%9A%E7%9F%A5"><span class="toc-number">5.</span> <span class="toc-text">🔔 告警通知</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AEAlertmanager"><span class="toc-number">5.1.</span> <span class="toc-text">配置Alertmanager</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%8D-%E6%97%A5%E5%BF%97%E8%81%9A%E5%90%88"><span class="toc-number">6.</span> <span class="toc-text">🔍 日志聚合</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%97%A5%E5%BF%97%E8%BE%93%E5%87%BA"><span class="toc-number">6.1.</span> <span class="toc-text">配置日志输出</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8ELK-Stack"><span class="toc-number">6.2.</span> <span class="toc-text">使用ELK Stack</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%B1-%E7%9B%91%E6%8E%A7%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-number">7.</span> <span class="toc-text">📱 监控最佳实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%91%8A%E8%AD%A6%E7%BA%A7%E5%88%AB"><span class="toc-number">7.1.</span> <span class="toc-text">1. 告警级别</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%91%8A%E8%AD%A6%E9%98%88%E5%80%BC%E5%BB%BA%E8%AE%AE"><span class="toc-number">7.2.</span> <span class="toc-text">2. 告警阈值建议</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%9B%91%E6%8E%A7%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="toc-number">7.3.</span> <span class="toc-text">3. 监控检查清单</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%9B%A0%EF%B8%8F-%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5"><span class="toc-number">8.</span> <span class="toc-text">🛠️ 故障排查</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Prometheus%E6%97%A0%E6%B3%95%E9%87%87%E9%9B%86%E6%8C%87%E6%A0%87"><span class="toc-number">8.1.</span> <span class="toc-text">Prometheus无法采集指标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%91%8A%E8%AD%A6%E6%9C%AA%E8%A7%A6%E5%8F%91"><span class="toc-number">8.2.</span> <span class="toc-text">告警未触发</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Grafana%E6%97%A0%E6%B3%95%E6%98%BE%E7%A4%BA%E6%95%B0%E6%8D%AE"><span class="toc-number">8.3.</span> <span class="toc-text">Grafana无法显示数据</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9A-%E5%8F%82%E8%80%83%E8%B5%84%E6%BA%90"><span class="toc-number">9.</span> <span class="toc-text">📚 参考资源</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

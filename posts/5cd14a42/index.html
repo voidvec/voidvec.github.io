@@ -1,0 +1,514 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>RBAC 权限控制模型 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="三道门强制执行的三层访问控制模型，以及角色、权限与资源的映射关系。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RBAC 权限控制模型">
+<meta property="og:url" content="https://voidvec.github.io/posts/5cd14a42/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="三道门强制执行的三层访问控制模型，以及角色、权限与资源的映射关系。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-07T00:07:00.000Z">
+<meta property="article:modified_time" content="2026-11-07T00:07:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RBAC 权限控制模型",
+  "url": "https://voidvec.github.io/posts/5cd14a42/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-07T00:07:00.000Z",
+  "dateModified": "2026-11-07T00:07:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/5cd14a42/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'RBAC 权限控制模型',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">RBAC 权限控制模型</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">RBAC 权限控制模型</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-07T00:07:00.000Z" title="发表于 2026-11-07 08:07:00">2026-11-07</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-07T00:07:00.000Z" title="更新于 2026-11-07 08:07:00">2026-11-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>fulla 的访问控制是一个由<strong>三道门</strong>强制执行的<strong>三层模型</strong>（v1.6.0 起，P1-8，<br><a target="_blank" rel="noopener" href="https://fulla.dev/docs/adr/ADR-0014-rbac-permission-enforcement">ADR-0014</a> 含 Erratum 2）：<br>角色是粗粒度层，OAuth2 资源 scope 是细粒度层，而角色的<strong>权限集</strong>——两层之间的<br>桥——是该角色可携带的资源 scope 子集。本页描述该模型、schema、管理 API、<br>三道门各自的判定逻辑，以及配置与运维要点。</p>
+<blockquote>
+<p><strong>先读这一段</strong>：角色不再只是「是不是 admin」。<code>admin</code> 角色仍然全量放行，<br>但任何自定义角色都可以被授予资源 scope 权限的一个子集（委托管理——例如<br>只能读用户的 helpdesk 角色）。反过来，持有角色永远不会绕过 token-scope<br>或同意（consent）层：权限授予的是<strong>持有某个 scope 的资格</strong>，token 本身<br>仍必须携带该 scope。</p>
+</blockquote>
+<h2 id="1-核心概念"><a href="#1-核心概念" class="headerlink" title="1. 核心概念"></a>1. 核心概念</h2><table>
+<thead>
+<tr>
+<th>层</th>
+<th>是什么</th>
+<th>示例</th>
+<th>存在于</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>角色</strong>（粗）</td>
+<td>挂在用户身上的命名主体分组（M:N）</td>
+<td><code>admin</code>、<code>user</code>、<code>helpdesk</code></td>
+<td><code>roles</code> &#x2F; <code>user_roles</code></td>
+</tr>
+<tr>
+<td><strong>资源 scope</strong>（细）</td>
+<td>OAuth2 scope 词汇表；细粒度授权面</td>
+<td><code>users:read</code>、<code>clients:write</code>、<code>audit:read</code></td>
+<td><code>oauth2_scopes</code>（V023 家族）+ <code>ResourceScopeRegistry</code></td>
+</tr>
+<tr>
+<td><strong>权限</strong>（桥）</td>
+<td>角色持有某一个资源 scope 的资格——权限名即资源 scope 名</td>
+<td><code>helpdesk</code> 角色上的 <code>users:read</code></td>
+<td><code>permissions</code> &#x2F; <code>role_permissions</code></td>
+</tr>
+</tbody></table>
+<p>关系模型：</p>
+<ul>
+<li><code>User &lt;-&gt; Role</code>：多对多（<code>user_roles</code>）；注册时分配默认 <code>user</code> 角色，<br>日常管理走 <code>PUT /api/admin/users/{userId}/roles</code>。</li>
+<li><code>Role &lt;-&gt; Permission</code>：多对多（<code>role_permissions</code>）；即角色的资源 scope<br>集，经 <code>PUT /api/admin/roles/{roleId}/permissions</code> 管理。</li>
+<li>特殊权限 <strong><code>admin</code></strong> 是超级权限：<code>admin</code> 角色被播种为它加上全部资源<br>scope，且字面 <code>admin</code> 角色无论授予情况如何都直通三道门（链 ① 保留<br><code>hasAdminRole</code> 作为独立的旁路）。</li>
+</ul>
+<h2 id="2-数据库-Schema（V005-V043）"><a href="#2-数据库-Schema（V005-V043）" class="headerlink" title="2. 数据库 Schema（V005 + V043）"></a>2. 数据库 Schema（V005 + V043）</h2><p><code>V005__rbac_schema.sql</code> 建了四张 RBAC 表：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">roles              (id, name <span class="keyword">UNIQUE</span>, description, ...)          <span class="comment">-- 播种：&#x27;admin&#x27;、&#x27;user&#x27;</span></span><br><span class="line">permissions        (id, name <span class="keyword">UNIQUE</span>, description, ...)</span><br><span class="line">user_roles         (user_id FK users,  role_id FK roles,  PK(user_id, role_id))</span><br><span class="line">role_permissions   (role_id FK roles, permission_id FK permissions, PK(role_id, permission_id))</span><br></pre></td></tr></table></figure>
+
+<p><code>V043__rbac_permissions_seed.sql</code>（v1.6.0）向权限目录播种九个 V023 资源<br>scope 名加 <code>admin</code>，并给 <code>admin</code> 角色授予全量集合：</p>
+<table>
+<thead>
+<tr>
+<th>权限</th>
+<th>描述（播种值）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>users:read</code></td>
+<td>读取用户账号与角色</td>
+</tr>
+<tr>
+<td><code>users:write</code></td>
+<td>创建、更新、删除用户；分配角色</td>
+</tr>
+<tr>
+<td><code>clients:read</code></td>
+<td>查看 OAuth2 客户端注册</td>
+</tr>
+<tr>
+<td><code>clients:write</code></td>
+<td>创建、更新、删除 OAuth2 客户端</td>
+</tr>
+<tr>
+<td><code>tokens:read</code></td>
+<td>查看已签发的令牌</td>
+</tr>
+<tr>
+<td><code>tokens:write</code></td>
+<td>吊销与管理令牌</td>
+</tr>
+<tr>
+<td><code>roles:read</code></td>
+<td>查看角色与 scope 目录</td>
+</tr>
+<tr>
+<td><code>roles:write</code></td>
+<td>创建与更新角色、scope 及其映射</td>
+</tr>
+<tr>
+<td><code>audit:read</code></td>
+<td>读取与导出审计日志</td>
+</tr>
+<tr>
+<td><code>admin</code></td>
+<td>管理超级权限（蕴含全量集合）</td>
+</tr>
+</tbody></table>
+<p>注意：</p>
+<ul>
+<li>四个 V005 遗留名（<code>user:read</code>、<code>user:write</code>、<code>user:delete</code>、<br><code>admin:access</code>）已<strong>原地退役</strong>——V043 用 <code>[LEGACY: ...]</code> 标记改写其<br>描述（UPDATE，不 DELETE）。执行层只读 V023 形状的名字，因此遗留行<br>（例如 <code>user</code> 角色上的旧 <code>user:read</code> 授予）按设计是惰性的；请用新名<br>重新授予。</li>
+<li><strong>内存模式</strong>（<code>storage_type: memory</code>）没有 <code>role_permissions</code> 行；<br><code>RolePermissionResolver</code> 退回到镜像 V043 播种的编译期默认映射：<br><code>admin</code> → 全量十项权限，其它角色 → 空。</li>
+</ul>
+<h2 id="3-管理-API"><a href="#3-管理-API" class="headerlink" title="3. 管理 API"></a>3. 管理 API</h2><p>以下路由均为 admin 门控（<code>roles:read</code> &#x2F; <code>roles:write</code> &#x2F; <code>users:write</code><br>scope，各自带 <code>impliedBy: admin</code>）——见 API 参考：</p>
+<table>
+<thead>
+<tr>
+<th>方法与路径</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/admin/roles</code></td>
+<td>列出角色及用户数（<code>roles:read</code>）</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/roles</code></td>
+<td>创建角色——内置角色（<code>admin</code>、<code>user</code>）不可重复创建（<code>roles:write</code>）</td>
+</tr>
+<tr>
+<td><code>PUT /api/admin/roles/{roleId}</code></td>
+<td>更新角色描述（<code>roles:write</code>）</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/roles/{roleId}</code></td>
+<td>删除角色——内置角色不可删除（<code>roles:write</code>）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/roles/{roleId}/permissions</code></td>
+<td>该角色的权限名列表（<code>roles:read</code>）</td>
+</tr>
+<tr>
+<td><code>PUT /api/admin/roles/{roleId}/permissions</code></td>
+<td><strong>全量替换</strong>该角色的权限集（<code>roles:write</code>）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/users/{userId}/roles</code></td>
+<td>用户的角色（<code>users:read</code>）</td>
+</tr>
+<tr>
+<td><code>PUT /api/admin/users/{userId}/roles</code></td>
+<td>分配用户角色——若会剥掉最后一个活跃 admin 则 409（<code>users:write</code>）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/scopes</code></td>
+<td>OAuth2 scope 目录（<code>roles:read</code>）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/scopes/resources</code></td>
+<td>(path, method) → 所需 scope 矩阵（见 §5）</td>
+</tr>
+</tbody></table>
+<p><strong>PUT permissions 语义</strong>：请求体 <code>permissions</code> 数组即该角色的完整授予<br>集。每个列出的名字必须已存在于权限目录——一个未知名就使整个替换以<br>400 失败（不会部分授予）。变更在事务内完成，审计为<br><code>role_permissions_updated</code>，并在提交后失效角色-权限缓存条目（单实例部署<br>即时一致；多实例漂移是已知限制，待 P3 共享存储解决）。</p>
+<p><strong>首个 admin</strong>：<code>auth.bootstrap_admin.enabled</code>（默认 <code>true</code>）时，服务器<br>在启动阶段发现尚无用户持有 admin 角色，则创建 <code>admin</code> 用户——密码取自<br><code>FULLA_BOOTSTRAP_ADMIN_PASSWORD</code>，否则随机生成并仅在日志打印一次（见<br><a href="/posts/3aa359ed/">配置指南 §2</a>）。无论首个 admin 还是<br>权限授予，都不再需要手工 SQL。</p>
+<p>示例——给 helpdesk 角色授予只读用户权限：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 创建角色（token：admin scope）</span></span><br><span class="line">curl -X POST http://localhost:5555/api/admin/roles \</span><br><span class="line">  -H <span class="string">&quot;Authorization: Bearer <span class="variable">$ADMIN_TOKEN</span>&quot;</span> -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;&quot;name&quot;:&quot;helpdesk&quot;,&quot;description&quot;:&quot;Read-only user support&quot;&#125;&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 精确授予一项权限（全量替换）</span></span><br><span class="line">curl -X PUT http://localhost:5555/api/admin/roles/3/permissions \</span><br><span class="line">  -H <span class="string">&quot;Authorization: Bearer <span class="variable">$ADMIN_TOKEN</span>&quot;</span> -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;&quot;permissions&quot;:[&quot;users:read&quot;]&#125;&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 挂到某个用户身上（角色列表全量替换）</span></span><br><span class="line">curl -X PUT http://localhost:5555/api/admin/users/5/roles \</span><br><span class="line">  -H <span class="string">&quot;Authorization: Bearer <span class="variable">$ADMIN_TOKEN</span>&quot;</span> -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;&quot;roles&quot;:[&quot;user&quot;,&quot;helpdesk&quot;]&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="4-执行——三道门"><a href="#4-执行——三道门" class="headerlink" title="4. 执行——三道门"></a>4. 执行——三道门</h2><p>授权判定发生在三个独立位置。v1.6.0 把三者都改接到权限查询上；漏掉任何<br>一个，委托管理员都会因请求路径不同而得到不一致的判定。</p>
+<table>
+<thead>
+<tr>
+<th>门</th>
+<th>组件</th>
+<th>判定什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>① scope 分层</td>
+<td><code>ScopeDecisionEngine</code> 谓词链（libs&#x2F;oauth2）</td>
+<td>该用户<strong>请求的 scope</strong> 能否被签发&#x2F;使用</td>
+</tr>
+<tr>
+<td>② 身份检查</td>
+<td><code>IdentityService::validateUserRolesForScopes</code>（libs&#x2F;drogon services）</td>
+<td>登录&#x2F;两步流程上的同一问题（及所有直接调用方）</td>
+</tr>
+<tr>
+<td>③ HTTP 角色门</td>
+<td><code>AuthorizationFilter::checkAccess</code>（libs&#x2F;drogon filters）</td>
+<td>这条 <strong>HTTP 请求</strong>本身能否放行</td>
+</tr>
+</tbody></table>
+<p><strong>门 ①——scope 分层（签发）</strong>。在 <code>/oauth2/authorize</code>（及换 token）处，<br>每个请求的 scope 走三层：客户端允许清单 → admin 档检查 → 同意。哪些<br>scope 属于 <em>admin 档</em>来自数据库（<code>oauth2_scopes.requires_admin_role</code>，<br>启动时由 <code>OAuth2Plugin</code> 加载进 <code>AuthorizationService</code> 与<br><code>IdentityService</code>——弃用列，读到 v2.0）。用户是否<em>通过</em>则基于权限：<br>admin 档 scope 在用户的角色→权限并集覆盖它时通过，<strong>或者</strong>用户持有字面<br><code>admin</code> 角色。分类与判定刻意解耦——授予权限永远不会让一个 scope 降档。</p>
+<p><strong>门 ②——IdentityService</strong>。登录路径（<code>/oauth2/login</code> 与两步门户流程）<br>在签发授权码之前用同一套逻辑对请求的 scope 分层：admin 档 scope 要求<br>字面 <code>admin</code> 角色，或权限并集覆盖<strong>每一个</strong>请求的 admin 档 scope。</p>
+<p><strong>门 ③——AuthorizationFilter（每请求）</strong>。在每条 admin 路由上，过滤器：</p>
+<ol>
+<li><strong>只</strong>从 <code>Authorization: Bearer</code> 头提取 token（v1.6.0 移除了<br>query&#x2F;form 回退——RFC 9700 禁止）。</li>
+<li>校验 access token（不透明引用 token 对照存储做内省），并把主体<br>（<code>userId</code>、<code>scope</code>、<code>clientId</code>、<code>orgId</code>）钉到请求属性上。</li>
+<li><strong>先查 scope 门</strong>：在 <code>ResourceScopeRegistry</code>——集中的<br>(path, method) → 所需 scope 矩阵——里查该路由，token 的 scope 集<br>不满足则以 <code>403 insufficient_scope</code> 拒绝（附 RFC 6750<br><code>WWW-Authenticate</code> 挑战）。</li>
+<li><strong>角色&#x2F;权限门</strong>：从数据库重新解析用户角色（token 响应里的 roles<br>仅供展示——访问判定绝不信任它），经 <code>RolePermissionResolver</code> 解析<br>角色→权限并集，再拿请求路径匹配 <code>rbac_rules</code>（§5）。失败 → <code>403</code><br><code>AUTHZ_INSUFFICIENT_PERMISSIONS</code>；没有规则命中且不是公开路径 →<br><strong>DEFAULT DENY</strong>。</li>
+</ol>
+<h2 id="5-Scope-体系：OIDC-scope-与资源-scope"><a href="#5-Scope-体系：OIDC-scope-与资源-scope" class="headerlink" title="5. Scope 体系：OIDC scope 与资源 scope"></a>5. Scope 体系：OIDC scope 与资源 scope</h2><p><code>oauth2_scopes</code> 里并存两个 scope 家族：</p>
+<ul>
+<li><strong>OIDC &#x2F; 身份 scope</strong>——<code>openid</code>、<code>profile</code>、<code>email</code>（外加 v1.4.0 的<br><code>org</code>）：描述客户端能看到哪些身份数据。由用户同意授予；永不属于<br>admin 档。</li>
+<li><strong>资源 scope</strong>——V023 家族（<code>users:read</code> … <code>audit:read</code>，全部<br><code>requires_admin_role = TRUE</code>）：门控 admin API 面，<code>ResourceScopeRegistry</code><br>中每条路由一个 (path, method) 条目。</li>
+</ul>
+<p>实践中重要的蕴含规则：</p>
+<ul>
+<li>携带 <strong><code>admin</code></strong> 的 token 满足任何资源 scope 要求——每条 admin 路由都<br>声明 <code>impliedBy: [&quot;admin&quot;]</code>（蕴含按路由声明，不是全局图）。</li>
+<li><code>admin</code> <strong>永不</strong>蕴含 <code>openid</code> &#x2F; <code>profile</code> &#x2F; <code>email</code>——这些要求带空的<br><code>impliedBy</code>，所以 userinfo 调用永远需要一枚真正携带 <code>openid</code> 的用户<br>token。同样，<code>/api/me</code> 家族要求 <code>profile</code> 且<strong>无</strong> impliedBy：admin<br>token 不能满足用户自助服务。</li>
+<li>角色的权限集决定该用户<strong>可以被签发</strong>哪些资源 scope；token 仍必须携带<br>该 scope（客户端请求它、门 ①&#x2F;② 校验它、同意被记录）。</li>
+</ul>
+<p>发现实时矩阵（只读，无 DB 访问）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:5555/api/admin/scopes/resources \</span><br><span class="line">  -H <span class="string">&quot;Authorization: Bearer <span class="variable">$ADMIN_TOKEN</span>&quot;</span></span><br><span class="line"><span class="comment"># → &#123;&quot;resources&quot;:[&#123;&quot;path&quot;:&quot;/api/admin/users&quot;,&quot;method&quot;:&quot;GET&quot;,</span></span><br><span class="line"><span class="comment">#    &quot;required_scopes&quot;:[&quot;users:read&quot;],&quot;implied_by&quot;:[&quot;admin&quot;]&#125;, ...]&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>注册表在启动时从各控制器的 OpenAPI 端点声明一次性构建；启动一致性检查<br>会在 admin 门控路由缺少条目时中止进程（防静默缺口）。</p>
+<h2 id="6-委托管理员（v1-6-0）"><a href="#6-委托管理员（v1-6-0）" class="headerlink" title="6. 委托管理员（v1.6.0）"></a>6. 委托管理员（v1.6.0）</h2><p>三道门模型解锁了 v1.6 之前「字面 admin 角色」门无法表达的能力：<strong>持有<br>受限权限子集的自定义角色</strong>。完整示例——§3 那个只持 <code>users:read</code> 的<br><code>helpdesk</code> 角色：</p>
+<ul>
+<li><code>GET /api/admin/users</code> 可用：门 ③ 的 <code>/api/admin/users.*</code> 规则<br>（<code>{&quot;permissions&quot;:[&quot;users:read&quot;]}</code>）先于 <code>/api/admin/.*</code> 兜底规则命中；<br>门 ① 允许为 helpdesk 用户签发 <code>users:read</code>（token 必须携带它且同意已<br>记录）。</li>
+<li>其它一切 admin 操作都被拒绝：兜底 <code>&quot;/api/admin/.*&quot;: [&quot;admin&quot;]</code> 要求<br>字面角色，且门 ①&#x2F;② 拒绝其它 admin 档 scope（没有权限覆盖它们）。</li>
+<li>红线（安全评审 H2）：helpdesk 授予永远不会让 scope <em>降档</em>——<br><code>users:write</code> 仍是 admin 档；helpdesk 只是在它的权限检查上失败。</li>
+</ul>
+<p>运维注意：</p>
+<ul>
+<li>权限与角色-权限写入都走管理 API，提交时失效进程内角色-权限缓存——<br>单节点部署即时生效；多实例部署的其它节点在重启前会继续提供过期授予<br>（已知限制，由 P3 共享存储工作包解决）。</li>
+<li>内存模式部署使用编译期默认映射（§2），无法表达委托角色。</li>
+</ul>
+<h2 id="7-配置速查"><a href="#7-配置速查" class="headerlink" title="7. 配置速查"></a>7. 配置速查</h2><p><code>rbac_rules</code> 位于 <code>config.json</code> 的 <code>custom_config</code> 下，把<strong>正则路径模式</strong><br>映射到要求。出厂默认（<code>apps/server/config.json</code>）同时展示了两种形式：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;rbac_rules&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;/api/admin/users.*&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;permissions&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;users:read&quot;</span><span class="punctuation">]</span> <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;/api/admin/.*&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;admin&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;/api/user/.*&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;user&quot;</span><span class="punctuation">,</span> <span class="string">&quot;admin&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;/oauth2/register&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;admin&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;/oauth2/device/approve&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;admin&quot;</span><span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>数组形式</strong>（遗留，语义不变）：角色名 OR——持有列表中任一角色即通过。</li>
+<li><strong>对象形式</strong> <code>{&quot;roles&quot;: [...], &quot;permissions&quot;: [...]}</code>（v1.6.0）：调用方<br>的角色→权限并集必须覆盖<strong>每一个</strong>列出的权限名；只写 permissions 的<br>条目就是委托管理形态。</li>
+<li><strong>匹配</strong>：最具体优先——加载时按模式长度降序排序，<strong>第一个</strong>命中路径<br>的规则生效。把具体规则放在兜底规则之前（加载器已强制如此，但 JSON<br>里也建议保持这个顺序以便阅读）。</li>
+<li><strong>DEFAULT DENY</strong>：不命中任何规则、又不在 <code>public_paths</code>（可选的正则<br>数组，默认未设置）里的路径一律拒绝。</li>
+<li>出厂的 <code>/api/user/.*</code> 条目是遗留残迹——<code>/api/user/</code> 下没有任何注册<br>路由（面向用户的家族是 <code>/api/me/*</code>，由 <code>OAuth2AuthFilter</code> 用 <code>profile</code><br>scope 门控，不走 rbac_rules）。无害，但不要把它当模板抄。</li>
+</ul>
+<p>相关阅读：<a href="/posts/3aa359ed/">配置指南 §15</a>（RBAC 执行<br>开关）、<a href="/posts/9808bae6/">多租户</a>（角色为何是全局的、不按组织划分）、<br><a href="/posts/47d52779/">架构总览</a>。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/5cd14a42/">https://voidvec.github.io/posts/5cd14a42/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4916bf40/"><span class="pj-related__name">刷新令牌与撤销的生效边界</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9808bae6/"><span class="pj-related__name">多租户组织模型设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4434d0a3/"><span class="pj-related__name">OIDC 集成指南：从 id_token 到用户信息</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/9518940e/" title="自定义 Claims 映射"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">自定义 Claims 映射</div></div><div class="info-2"><div class="info-item-1">自 v1.6.0（P1-3，#280）起，fulla 可以把按用户维护的自定义声明发布进</div></div></div></a><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/875ba3c2/" title="Docker 部署与容器编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Docker 部署与容器编排</div></div><div class="info-2"><div class="info-item-1">用 Docker Compose 拉起完整 OAuth2 服务栈：镜像、编排与生产环境差异。</div></div></div></a><a class="pagination-related" href="/posts/1a7e5d4e/" title="Windows 部署验证：端点测试与踩坑排查"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows 部署验证：端点测试与踩坑排查</div></div><div class="info-2"><div class="info-item-1">端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。</div></div></div></a><a class="pagination-related" href="/posts/a3ad6b97/" title="无人工参与的自动化授权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">无人工参与的自动化授权</div></div><div class="info-2"><div class="info-item-1">Fulla 说标准 OAuth 2.0，脚本、CLI 与服务间集成使用与浏览器相同的协议。</div></div></div></a><a class="pagination-related" href="/posts/712a4a7b/" title="上线前的安全加固清单"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">上线前的安全加固清单</div></div><div class="info-2"><div class="info-item-1">本文件面向Fulla的安全加固，覆盖输入验证与清理（SQL注入、XSS、命令注入）、依赖包安全更新与漏洞扫描、敏感信息保护（配置加密、密钥管理、日志脱敏）、安全审计与监控（登录尝试记录、权限变更追踪、异常行为检测）、安全配置基线（生产模板与</div></div></div></a><a class="pagination-related" href="/posts/47d52779/" title="Fulla 架构总览：技术栈、模块布局与授权码流程"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Fulla 架构总览：技术栈、模块布局与授权码流程</div></div><div class="info-2"><div class="info-item-1">本文从技术栈、模块布局、请求流转与部署形态四个视角，概括 fulla 的整体架构。</div></div></div></a><a class="pagination-related" href="/posts/f69881e8/" title="授权模型安全：从 scope 到 RBAC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">授权模型安全：从 scope 到 RBAC</div></div><div class="info-2"><div class="info-item-1">授权安全能力全景：scope 收敛、RBAC 落地与越权防护。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-number">1.</span> <span class="toc-text">1. 核心概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%95%B0%E6%8D%AE%E5%BA%93-Schema%EF%BC%88V005-V043%EF%BC%89"><span class="toc-number">2.</span> <span class="toc-text">2. 数据库 Schema（V005 + V043）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%AE%A1%E7%90%86-API"><span class="toc-number">3.</span> <span class="toc-text">3. 管理 API</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%89%A7%E8%A1%8C%E2%80%94%E2%80%94%E4%B8%89%E9%81%93%E9%97%A8"><span class="toc-number">4.</span> <span class="toc-text">4. 执行——三道门</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-Scope-%E4%BD%93%E7%B3%BB%EF%BC%9AOIDC-scope-%E4%B8%8E%E8%B5%84%E6%BA%90-scope"><span class="toc-number">5.</span> <span class="toc-text">5. Scope 体系：OIDC scope 与资源 scope</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%A7%94%E6%89%98%E7%AE%A1%E7%90%86%E5%91%98%EF%BC%88v1-6-0%EF%BC%89"><span class="toc-number">6.</span> <span class="toc-text">6. 委托管理员（v1.6.0）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E9%85%8D%E7%BD%AE%E9%80%9F%E6%9F%A5"><span class="toc-number">7.</span> <span class="toc-text">7. 配置速查</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

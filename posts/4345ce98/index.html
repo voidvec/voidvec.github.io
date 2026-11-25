@@ -1,0 +1,384 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>账号锁定机制 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="账号锁定机制">
+<meta property="og:url" content="https://voidvec.github.io/posts/4345ce98/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-10T00:27:00.000Z">
+<meta property="article:modified_time" content="2026-11-10T00:27:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="deployment">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "账号锁定机制",
+  "url": "https://voidvec.github.io/posts/4345ce98/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-10T00:27:00.000Z",
+  "dateModified": "2026-11-10T00:27:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/4345ce98/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '账号锁定机制',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">账号锁定机制</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">账号锁定机制</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-10T00:27:00.000Z" title="发表于 2026-11-10 08:27:00">2026-11-10</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-10T00:27:00.000Z" title="更新于 2026-11-10 08:27:00">2026-11-10</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F%E8%BF%90%E7%BB%B4/">云原生运维</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F%E8%BF%90%E7%BB%B4/%E5%AE%B9%E5%99%A8%E5%8C%96/">容器化</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">部署运维</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">实践指南</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><h2 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h2><p>OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</p>
+<h2 id="锁定规则"><a href="#锁定规则" class="headerlink" title="锁定规则"></a>锁定规则</h2><p>根据 <code>AuthService.cc</code> 中的实现，锁定规则如下：</p>
+<table>
+<thead>
+<tr>
+<th>失败次数</th>
+<th>锁定时长</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>5-9次</td>
+<td>1分钟</td>
+</tr>
+<tr>
+<td>10-14次</td>
+<td>5分钟</td>
+</tr>
+<tr>
+<td>15-19次</td>
+<td>30分钟</td>
+</tr>
+<tr>
+<td>20次以上</td>
+<td>1小时</td>
+</tr>
+</tbody></table>
+<h2 id="常见场景"><a href="#常见场景" class="headerlink" title="常见场景"></a>常见场景</h2><h3 id="场景1：测试脚本重复执行导致锁定"><a href="#场景1：测试脚本重复执行导致锁定" class="headerlink" title="场景1：测试脚本重复执行导致锁定"></a>场景1：测试脚本重复执行导致锁定</h3><p><strong>症状</strong>：</p>
+<ul>
+<li>第一次运行测试脚本成功</li>
+<li>第二次运行时所有测试失败</li>
+<li>后端日志显示：<code>Account locked for user: admin until 1779441748</code></li>
+</ul>
+<p><strong>原因</strong>：<br>测试脚本中某个测试用例登录失败（例如使用了错误的凭证），累积失败次数达到阈值。</p>
+<p><strong>解决方案</strong>：<br>测试脚本已自动在结束时重置账号锁定状态。如果仍然遇到问题，可以手动重置。</p>
+<h2 id="手动重置账号锁定"><a href="#手动重置账号锁定" class="headerlink" title="手动重置账号锁定"></a>手动重置账号锁定</h2><h3 id="方法1：使用重置脚本（推荐）"><a href="#方法1：使用重置脚本（推荐）" class="headerlink" title="方法1：使用重置脚本（推荐）"></a>方法1：使用重置脚本（推荐）</h3><h4 id="本地PostgreSQL数据库"><a href="#本地PostgreSQL数据库" class="headerlink" title="本地PostgreSQL数据库"></a>本地PostgreSQL数据库</h4><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 默认使用config.json中的配置（fulla_user/fulla_db/123456）</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-account</span><span class="literal">-lockout</span>.ps1</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重置特定用户</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-account</span><span class="literal">-lockout</span>.ps1 <span class="literal">-Username</span> admin</span><br><span class="line"></span><br><span class="line"><span class="comment"># 自定义数据库连接</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-account</span><span class="literal">-lockout</span>.ps1 <span class="literal">-DbHost</span> localhost <span class="literal">-DbUser</span> fulla_user <span class="literal">-DbPassword</span> <span class="number">123456</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="Docker数据库"><a href="#Docker数据库" class="headerlink" title="Docker数据库"></a>Docker数据库</h4><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 脚本会自动检测Docker容器</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-account</span><span class="literal">-lockout</span>.ps1</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重置特定用户</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-account</span><span class="literal">-lockout</span>.ps1 <span class="literal">-Username</span> admin</span><br></pre></td></tr></table></figure>
+
+<h3 id="方法2：重置admin密码"><a href="#方法2：重置admin密码" class="headerlink" title="方法2：重置admin密码"></a>方法2：重置admin密码</h3><p>如果admin账号密码被意外修改或升级为PBKDF2后无法登录，使用此脚本重置为默认密码：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 重置admin密码为默认值 &#x27;admin&#x27;</span></span><br><span class="line">.\scripts\backend\<span class="built_in">reset-admin</span><span class="literal">-password</span>.ps1</span><br></pre></td></tr></table></figure>
+
+<p>脚本直接把开发密码 <code>admin</code> 写成当前 <code>$pbkdf2-sha256$310000$...</code> 格式，并清空<br>旧 salt 与锁定字段。它不会写入 SHA-256 密码，也不依赖首次登录自动升级。旧哈希<br>默认被拒绝；单独配置的迁移窗口不是此处的恢复流程。</p>
+<p>只在隔离的开发&#x2F;测试数据库使用这种默认密码重置。脚本在存在匹配容器时会自动选取<br>第一个正在运行、名称含 PostgreSQL 的 Docker 容器，执行前必须核对所选数据库。<br>生产恢复应走获准的特权流程并使用新的秘密，不能套用这些公开开发凭据。重启服务<br>也不会重置已有管理员密码。</p>
+<h3 id="方法3：直接使用SQL"><a href="#方法3：直接使用SQL" class="headerlink" title="方法3：直接使用SQL"></a>方法3：直接使用SQL</h3><p>下面命令只清除锁定，不修改密码。开发密码重置使用方法 2。不要把 PBKDF2 摘要<br>嵌入会被 shell 展开的 SQL 字符串，<code>$</code> 是存储格式的一部分，必须保持字面值。</p>
+<h4 id="本地PostgreSQL"><a href="#本地PostgreSQL" class="headerlink" title="本地PostgreSQL"></a>本地PostgreSQL</h4><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Windows PowerShell - 重置锁定状态</span></span><br><span class="line"><span class="variable">$env:PGPASSWORD</span> = <span class="string">&quot;123456&quot;</span></span><br><span class="line">psql <span class="literal">-U</span> fulla_user <span class="literal">-d</span> fulla_db <span class="literal">-h</span> localhost <span class="literal">-c</span> <span class="string">&quot;UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username=&#x27;admin&#x27;;&quot;</span></span><br><span class="line"><span class="variable">$env:PGPASSWORD</span> = <span class="variable">$null</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Linux/Mac - 重置锁定状态</span></span><br><span class="line">PGPASSWORD=123456 psql -U fulla_user -d fulla_db -h localhost -c <span class="string">&quot;UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username=&#x27;admin&#x27;;&quot;</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h4 id="Docker数据库-1"><a href="#Docker数据库-1" class="headerlink" title="Docker数据库"></a>Docker数据库</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 重置锁定状态</span></span><br><span class="line">docker <span class="built_in">exec</span> &lt;container_name&gt; psql -U fulla_user -d fulla_db -c <span class="string">&quot;UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username=&#x27;admin&#x27;;&quot;</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h3 id="方法4：查看锁定状态"><a href="#方法4：查看锁定状态" class="headerlink" title="方法4：查看锁定状态"></a>方法4：查看锁定状态</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 查看所有用户的锁定状态</span></span><br><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    username, </span><br><span class="line">    failed_login_count, </span><br><span class="line">    locked_until,</span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> locked_until <span class="operator">&gt;</span> <span class="built_in">EXTRACT</span>(EPOCH <span class="keyword">FROM</span> NOW()) <span class="keyword">THEN</span> <span class="string">&#x27;LOCKED&#x27;</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="string">&#x27;UNLOCKED&#x27;</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">as</span> status,</span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> locked_until <span class="operator">&gt;</span> <span class="built_in">EXTRACT</span>(EPOCH <span class="keyword">FROM</span> NOW()) </span><br><span class="line">        <span class="keyword">THEN</span> TO_TIMESTAMP(locked_until) <span class="operator">-</span> NOW()</span><br><span class="line">        <span class="keyword">ELSE</span> <span class="type">INTERVAL</span> <span class="string">&#x27;0&#x27;</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">as</span> remaining_time</span><br><span class="line"><span class="keyword">FROM</span> users</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> username;</span><br></pre></td></tr></table></figure>
+
+<h2 id="测试脚本自动清理"><a href="#测试脚本自动清理" class="headerlink" title="测试脚本自动清理"></a>测试脚本自动清理</h2><p><code>test-admin-endpoints.ps1</code> 已经在测试结束时自动重置admin账号的锁定状态：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 测试脚本会在结束时执行：</span></span><br><span class="line"><span class="comment"># 1. 尝试连接Docker容器</span></span><br><span class="line"><span class="comment"># 2. 如果没有Docker，尝试连接本地PostgreSQL</span></span><br><span class="line"><span class="comment"># 3. 重置admin账号的 failed_login_count 和 locked_until</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>注意</strong>：如果使用本地PostgreSQL，需要在脚本中配置数据库密码：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 编辑 test-admin-endpoints.ps1，找到这一行：</span></span><br><span class="line"><span class="variable">$env:PGPASSWORD</span> = <span class="string">&quot;your_password&quot;</span>  <span class="comment"># 修改为你的数据库密码</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="预防措施"><a href="#预防措施" class="headerlink" title="预防措施"></a>预防措施</h2><h3 id="1-测试环境使用专用账号"><a href="#1-测试环境使用专用账号" class="headerlink" title="1. 测试环境使用专用账号"></a>1. 测试环境使用专用账号</h3><p>不要在测试中使用生产环境的admin账号。创建专门的测试账号：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">INSERT INTO</span> users (username, password_hash, salt, email, email_verified)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="string">&#x27;test_admin&#x27;</span>, <span class="string">&#x27;&lt;hash&gt;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;test@example.com&#x27;</span>, <span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">INSERT INTO</span> user_roles (user_id, role_id)</span><br><span class="line"><span class="keyword">SELECT</span> u.id, r.id <span class="keyword">FROM</span> users u, roles r </span><br><span class="line"><span class="keyword">WHERE</span> u.username <span class="operator">=</span> <span class="string">&#x27;test_admin&#x27;</span> <span class="keyword">AND</span> r.name <span class="operator">=</span> <span class="string">&#x27;admin&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-测试后自动清理"><a href="#2-测试后自动清理" class="headerlink" title="2. 测试后自动清理"></a>2. 测试后自动清理</h3><p>在所有测试脚本的末尾添加清理代码：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Cleanup</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment"># 重置测试账号</span></span><br><span class="line">    psql <span class="literal">-U</span> fulla_user <span class="literal">-d</span> fulla_db <span class="literal">-h</span> localhost <span class="literal">-c</span> <span class="string">&quot;UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username=&#x27;test_admin&#x27;;&quot;</span></span><br><span class="line">&#125; <span class="keyword">catch</span> &#123;</span><br><span class="line">    <span class="built_in">Write-Host</span> <span class="string">&quot;Warning: Failed to reset test account&quot;</span> <span class="literal">-ForegroundColor</span> Yellow</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-使用正确的凭证"><a href="#3-使用正确的凭证" class="headerlink" title="3. 使用正确的凭证"></a>3. 使用正确的凭证</h3><p>确保测试脚本中使用的用户名和密码与数据库中的一致：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 检查数据库中的用户</span></span><br><span class="line">psql <span class="literal">-U</span> fulla_user <span class="literal">-d</span> fulla_db <span class="literal">-h</span> localhost <span class="literal">-c</span> <span class="string">&quot;SELECT username FROM users;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 如果需要重置密码（使用PBKDF2）</span></span><br><span class="line"><span class="comment"># 需要通过应用程序的注册接口或直接调用PasswordHasher</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="生产环境建议"><a href="#生产环境建议" class="headerlink" title="生产环境建议"></a>生产环境建议</h2><h3 id="1-监控锁定事件"><a href="#1-监控锁定事件" class="headerlink" title="1. 监控锁定事件"></a>1. 监控锁定事件</h3><p>在生产环境中监控账号锁定事件：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 查找最近被锁定的账号</span></span><br><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    username, </span><br><span class="line">    failed_login_count,</span><br><span class="line">    TO_TIMESTAMP(locked_until) <span class="keyword">as</span> locked_until_time,</span><br><span class="line">    TO_TIMESTAMP(last_failed_login) <span class="keyword">as</span> last_failed_time</span><br><span class="line"><span class="keyword">FROM</span> users</span><br><span class="line"><span class="keyword">WHERE</span> locked_until <span class="operator">&gt;</span> <span class="built_in">EXTRACT</span>(EPOCH <span class="keyword">FROM</span> NOW())</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> locked_until <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-设置告警"><a href="#2-设置告警" class="headerlink" title="2. 设置告警"></a>2. 设置告警</h3><p>当关键账号（如admin）被锁定时发送告警：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 可以通过定时任务检查</span></span><br><span class="line"><span class="keyword">SELECT</span> <span class="built_in">COUNT</span>(<span class="operator">*</span>) <span class="keyword">FROM</span> users </span><br><span class="line"><span class="keyword">WHERE</span> username <span class="keyword">IN</span> (<span class="string">&#x27;admin&#x27;</span>, <span class="string">&#x27;superuser&#x27;</span>) </span><br><span class="line"><span class="keyword">AND</span> locked_until <span class="operator">&gt;</span> <span class="built_in">EXTRACT</span>(EPOCH <span class="keyword">FROM</span> NOW());</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-审计日志"><a href="#3-审计日志" class="headerlink" title="3. 审计日志"></a>3. 审计日志</h3><p>后端日志会记录所有锁定事件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">WARN  Account locked for user: admin until 1779441748</span><br><span class="line">INFO  [METRIC] oauth2_login_failures_total reason=bad_credentials</span><br></pre></td></tr></table></figure>
+
+<p>建议将这些日志发送到集中式日志系统（如ELK、Grafana Loki）进行分析。</p>
+<h2 id="安全注意事项"><a href="#安全注意事项" class="headerlink" title="安全注意事项"></a>安全注意事项</h2><ol>
+<li><strong>不要禁用锁定机制</strong>：这是防止暴力破解的重要安全措施</li>
+<li><strong>不要在代码中硬编码数据库密码</strong>：使用环境变量或密钥管理系统</li>
+<li><strong>限制重置权限</strong>：只有管理员应该能够重置账号锁定状态</li>
+<li><strong>记录重置操作</strong>：在生产环境中，所有重置操作都应该被审计</li>
+</ol>
+<h2 id="相关文件"><a href="#相关文件" class="headerlink" title="相关文件"></a>相关文件</h2><ul>
+<li><code>libs/drogon/src/AuthService.cc</code> - 账号锁定逻辑实现</li>
+<li><code>scripts/backend/test-admin-endpoints.ps1</code> - 测试脚本（含自动清理）</li>
+<li><code>scripts/backend/reset-account-lockout.ps1</code> - 手动重置脚本</li>
+<li>数据库表：<code>users</code> (字段: <code>failed_login_count</code>, <code>locked_until</code>, <code>last_failed_login</code>)</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/4345ce98/">https://voidvec.github.io/posts/4345ce98/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/deployment/">deployment</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/d1522b35/"><span class="pj-related__name">PostgreSQL 15 → 17 大版本升级实战</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3aa359ed/"><span class="pj-related__name">配置项设计与默认值</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/875ba3c2/"><span class="pj-related__name">Docker 部署与容器编排</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/1a7e5d4e/"><span class="pj-related__name">Windows 部署验证：端点测试与踩坑排查</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3964c8d1/"><span class="pj-related__name">Windows Docker Desktop 部署实录：从零到服务可用</span><span class="pj-related__type">实践指南</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/a36c12f2/" title="OpenMAIC 产品定位与端到端业务链路"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">OpenMAIC 产品定位与端到端业务链路</div></div><div class="info-2"><div class="info-item-1">OpenMAIC 把主题或文档转成互动课堂；从输入到交付物的一次完整旅程及代码实体映射</div></div></div></a><a class="pagination-related" href="/posts/9808bae6/" title="多租户组织模型设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">多租户组织模型设计</div></div><div class="info-2"><div class="info-item-1">组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/11796283/" title="OAuth2 可观测性设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-23</div><div class="info-item-2">OAuth2 可观测性设计</div></div><div class="info-2"><div class="info-item-1">本系统通过 IMetrics 适配器提供 Prometheus 指标，并提供带上下文的结构化指标日志，供监控与问题排查使用。</div></div></div></a><a class="pagination-related" href="/posts/1a7e5d4e/" title="Windows 部署验证：端点测试与踩坑排查"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows 部署验证：端点测试与踩坑排查</div></div><div class="info-2"><div class="info-item-1">端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。</div></div></div></a><a class="pagination-related" href="/posts/3964c8d1/" title="Windows Docker Desktop 部署实录：从零到服务可用"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows Docker Desktop 部署实录：从零到服务可用</div></div><div class="info-2"><div class="info-item-1">在 Windows + Docker Desktop 上把 Fulla 全栈跑起来的完整步骤：前置依赖、密钥生成、环境变量与容器编排。</div></div></div></a><a class="pagination-related" href="/posts/d1522b35/" title="PostgreSQL 15 → 17 大版本升级实战"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">PostgreSQL 15 → 17 大版本升级实战</div></div><div class="info-2"><div class="info-item-1">适用范围：使用本仓库 deploy/docker/docker-compose.prod.yml（或 Helm chart）</div></div></div></a><a class="pagination-related" href="/posts/875ba3c2/" title="Docker 部署与容器编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Docker 部署与容器编排</div></div><div class="info-2"><div class="info-item-1">用 Docker Compose 拉起完整 OAuth2 服务栈：镜像、编排与生产环境差异。</div></div></div></a><a class="pagination-related" href="/posts/3aa359ed/" title="配置项设计与默认值"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">配置项设计与默认值</div></div><div class="info-2"><div class="info-item-1">配置项清单与默认值、环境变量覆盖顺序，以及常见误配的后果。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">问题描述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%94%81%E5%AE%9A%E8%A7%84%E5%88%99"><span class="toc-number">2.</span> <span class="toc-text">锁定规则</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E5%9C%BA%E6%99%AF"><span class="toc-number">3.</span> <span class="toc-text">常见场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%BA%E6%99%AF1%EF%BC%9A%E6%B5%8B%E8%AF%95%E8%84%9A%E6%9C%AC%E9%87%8D%E5%A4%8D%E6%89%A7%E8%A1%8C%E5%AF%BC%E8%87%B4%E9%94%81%E5%AE%9A"><span class="toc-number">3.1.</span> <span class="toc-text">场景1：测试脚本重复执行导致锁定</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%89%8B%E5%8A%A8%E9%87%8D%E7%BD%AE%E8%B4%A6%E5%8F%B7%E9%94%81%E5%AE%9A"><span class="toc-number">4.</span> <span class="toc-text">手动重置账号锁定</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%951%EF%BC%9A%E4%BD%BF%E7%94%A8%E9%87%8D%E7%BD%AE%E8%84%9A%E6%9C%AC%EF%BC%88%E6%8E%A8%E8%8D%90%EF%BC%89"><span class="toc-number">4.1.</span> <span class="toc-text">方法1：使用重置脚本（推荐）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%AC%E5%9C%B0PostgreSQL%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="toc-number">4.1.1.</span> <span class="toc-text">本地PostgreSQL数据库</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Docker%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="toc-number">4.1.2.</span> <span class="toc-text">Docker数据库</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%952%EF%BC%9A%E9%87%8D%E7%BD%AEadmin%E5%AF%86%E7%A0%81"><span class="toc-number">4.2.</span> <span class="toc-text">方法2：重置admin密码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%953%EF%BC%9A%E7%9B%B4%E6%8E%A5%E4%BD%BF%E7%94%A8SQL"><span class="toc-number">4.3.</span> <span class="toc-text">方法3：直接使用SQL</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%AC%E5%9C%B0PostgreSQL"><span class="toc-number">4.3.1.</span> <span class="toc-text">本地PostgreSQL</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Docker%E6%95%B0%E6%8D%AE%E5%BA%93-1"><span class="toc-number">4.3.2.</span> <span class="toc-text">Docker数据库</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%954%EF%BC%9A%E6%9F%A5%E7%9C%8B%E9%94%81%E5%AE%9A%E7%8A%B6%E6%80%81"><span class="toc-number">4.4.</span> <span class="toc-text">方法4：查看锁定状态</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E8%84%9A%E6%9C%AC%E8%87%AA%E5%8A%A8%E6%B8%85%E7%90%86"><span class="toc-number">5.</span> <span class="toc-text">测试脚本自动清理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%84%E9%98%B2%E6%8E%AA%E6%96%BD"><span class="toc-number">6.</span> <span class="toc-text">预防措施</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%B5%8B%E8%AF%95%E7%8E%AF%E5%A2%83%E4%BD%BF%E7%94%A8%E4%B8%93%E7%94%A8%E8%B4%A6%E5%8F%B7"><span class="toc-number">6.1.</span> <span class="toc-text">1. 测试环境使用专用账号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%B5%8B%E8%AF%95%E5%90%8E%E8%87%AA%E5%8A%A8%E6%B8%85%E7%90%86"><span class="toc-number">6.2.</span> <span class="toc-text">2. 测试后自动清理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E4%BD%BF%E7%94%A8%E6%AD%A3%E7%A1%AE%E7%9A%84%E5%87%AD%E8%AF%81"><span class="toc-number">6.3.</span> <span class="toc-text">3. 使用正确的凭证</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%BB%BA%E8%AE%AE"><span class="toc-number">7.</span> <span class="toc-text">生产环境建议</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%9B%91%E6%8E%A7%E9%94%81%E5%AE%9A%E4%BA%8B%E4%BB%B6"><span class="toc-number">7.1.</span> <span class="toc-text">1. 监控锁定事件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%AE%BE%E7%BD%AE%E5%91%8A%E8%AD%A6"><span class="toc-number">7.2.</span> <span class="toc-text">2. 设置告警</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AE%A1%E8%AE%A1%E6%97%A5%E5%BF%97"><span class="toc-number">7.3.</span> <span class="toc-text">3. 审计日志</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-number">8.</span> <span class="toc-text">安全注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E6%96%87%E4%BB%B6"><span class="toc-number">9.</span> <span class="toc-text">相关文件</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

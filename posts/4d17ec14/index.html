@@ -1,0 +1,567 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>llmwiki eval：召回质量评估命令参考 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="llmwiki eval 的完整参考文档——全部命令行选项、评估集 schema、报告文件格式与字段、指标解读（recall@K&#x2F;MRR&#x2F;生产等价口径）与基线回归用法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="llmwiki eval：召回质量评估命令参考">
+<meta property="og:url" content="https://voidvec.github.io/posts/4d17ec14/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="llmwiki eval 的完整参考文档——全部命令行选项、评估集 schema、报告文件格式与字段、指标解读（recall@K&#x2F;MRR&#x2F;生产等价口径）与基线回归用法。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-08-25T01:38:00.000Z">
+<meta property="article:modified_time" content="2026-08-25T01:38:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cli">
+<meta property="article:tag" content="eval">
+<meta property="article:tag" content="llmwiki">
+<meta property="article:tag" content="mrr">
+<meta property="article:tag" content="recall">
+<meta property="article:tag" content="reference">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "llmwiki eval：召回质量评估命令参考",
+  "url": "https://voidvec.github.io/posts/4d17ec14/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-25T01:38:00.000Z",
+  "dateModified": "2026-08-25T01:38:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/4d17ec14/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'llmwiki eval：召回质量评估命令参考',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">llmwiki eval：召回质量评估命令参考</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">llmwiki eval：召回质量评估命令参考</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-25T01:38:00.000Z" title="发表于 2026-08-25 09:38:00">2026-08-25</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-25T01:38:00.000Z" title="更新于 2026-08-25 09:38:00">2026-08-25</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">评估与质量</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">测试与基准</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><blockquote>
+<p>面向：想量化检索质量、对比调参效果、或把召回基线接入 CI&#x2F;pre-commit 的用户。<br>教程向（为什么评估、怎么建评估集、怎么调参）见 [[llmwiki-tutorial-03-quality-tuning-guide]]；<br>本文是<strong>参考向</strong>——命令选项、文件格式、字段含义，一次查全。</p>
+</blockquote>
+<hr>
+<h2 id="1-一句话"><a href="#1-一句话" class="headerlink" title="1. 一句话"></a>1. 一句话</h2><p><code>llmwiki eval</code> 对<strong>评估集</strong>中每条 query 跑召回，产出 recall@K &#x2F; MRR 指标 +<br>Markdown 报告 + JSON 快照。它是「调参前先留基线、调完后对比」的数字工具。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">llmwiki eval [--repo &lt;kb&gt;] [--queries &lt;file.json&gt;] [--demo] [--seed [--seed-limit N]]</span><br><span class="line">             [--top-k N]</span><br><span class="line">             [--min-score F] [--min-score-per-term F] [--prod-top-k N]</span><br><span class="line">             [--out-dir &lt;dir&gt;] [--tag &lt;label&gt;]</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="2-全部选项"><a href="#2-全部选项" class="headerlink" title="2. 全部选项"></a>2. 全部选项</h2><table>
+<thead>
+<tr>
+<th>选项</th>
+<th>默认</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--repo &lt;path&gt;</code></td>
+<td>当前目录（解析链）</td>
+<td>知识库根目录</td>
+</tr>
+<tr>
+<td><code>--queries &lt;file.json&gt;</code></td>
+<td><code>&lt;repo&gt;/eval_queries.json</code>（<strong>缺失则不评估</strong>，见 §7）</td>
+<td>评估集路径</td>
+</tr>
+<tr>
+<td><code>--demo</code></td>
+<td>关</td>
+<td>显式演示模式：用<strong>套件内置示例评测集</strong>（expected 指向套件 testkb&#x2F;demo 库，分数与你的库无关，仅供套件自测&#x2F;演示）</td>
+</tr>
+<tr>
+<td><code>--seed</code></td>
+<td>关</td>
+<td>从索引采样自动生成首版 <code>eval_queries.json</code> 后立即评估</td>
+</tr>
+<tr>
+<td><code>--seed-limit N</code></td>
+<td><strong>20</strong></td>
+<td><code>--seed</code> 采样上限</td>
+</tr>
+<tr>
+<td><code>--top-k N</code></td>
+<td>评估集 <code>top_k</code> 字段；再缺省 <strong>4</strong></td>
+<td>召回截断 K（与生产 <code>build_context(max_chapters=4)</code> 同 K）</td>
+</tr>
+<tr>
+<td><code>--min-score F</code></td>
+<td><strong>0.15</strong></td>
+<td>绝对分数门槛（BM25 量纲），过滤无关键候选</td>
+</tr>
+<tr>
+<td><code>--min-score-per-term F</code></td>
+<td>套件&#x2F;<code>llmwiki.toml</code> 配置值</td>
+<td>每词阈值（查询长度感知），<code>0</code> 关闭</td>
+</tr>
+<tr>
+<td><code>--prod-top-k N</code></td>
+<td><strong>4</strong></td>
+<td>生产等价口径的截断 K（见 §4.2）</td>
+</tr>
+<tr>
+<td><code>--out-dir &lt;dir&gt;</code></td>
+<td><code>&lt;repo&gt;/eval_reports/</code></td>
+<td>报告输出目录</td>
+</tr>
+<tr>
+<td><code>--tag &lt;label&gt;</code></td>
+<td><code>baseline-YYYY-MM-DD</code></td>
+<td>报告&#x2F;快照文件名标签（用于 before&#x2F;after 对比）</td>
+</tr>
+<tr>
+<td><code>--retriever-desc &lt;str&gt;</code></td>
+<td>内置检索器描述</td>
+<td>覆盖 meta 中的检索器描述（记录用）</td>
+</tr>
+<tr>
+<td><code>--chart</code></td>
+<td>关</td>
+<td>额外生成自包含 SVG 评估图表（指标卡 + 逐条命中）</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="3-评估集-JSON-格式（schema）"><a href="#3-评估集-JSON-格式（schema）" class="headerlink" title="3. 评估集 JSON 格式（schema）"></a>3. 评估集 JSON 格式（schema）</h2><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;top_k&quot;</span><span class="punctuation">:</span> <span class="number">4</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;queries&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;query&quot;</span><span class="punctuation">:</span> <span class="string">&quot;检索引擎用了什么方案&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;expected&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;notes/weekly-sync.md&quot;</span><span class="punctuation">,</span> <span class="string">&quot;notes/bm25-tuning-log.md&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;note&quot;</span><span class="punctuation">:</span> <span class="string">&quot;任一路径命中即算 hit&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>字段：</p>
+<ul>
+<li>**<code>top_k</code>**（可选）：本次评估的 K，覆盖 CLI <code>--top-k</code> 的缺省值；</li>
+<li>**<code>queries</code>**：query 数组，至少 1 条；<ul>
+<li>**<code>query</code>**：用户视角的问法；</li>
+<li><strong><code>expected</code><strong>：期望命中的真实路径数组（必须都在检索索引内，启动时校验；</strong>任一路径出现在 Top-K 即算命中</strong>）；</li>
+<li>**<code>note</code>**（可选）：说明文字，写进报告（如「同义改写挑战」「库外主题，预期 0 命中」）。</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>位置：放在知识库根目录 <code>eval_queries.json</code>，或任意路径用 <code>--queries</code> 指定。<br>编写要点（过拟合防护、库外负例）见 [[llmwiki-tutorial-03-quality-tuning-guide]] §3.1。</p>
+</blockquote>
+<hr>
+<h2 id="3-输出文件"><a href="#3-输出文件" class="headerlink" title="3. 输出文件"></a>3. 输出文件</h2><p>默认落在 <code>&lt;repo&gt;/eval_reports/</code>（该目录被套件默认排除，<strong>不会进检索索引、不触发 lint</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>recall-eval-&lt;tag&gt;.md</code></td>
+<td>人读报告：meta + 汇总表 + 逐条命中&#x2F;未命中 + 未命中 Top-K 明细</td>
+<td>调参 review</td>
+</tr>
+<tr>
+<td><code>recall-eval-&lt;tag&gt;.json</code></td>
+<td>机器快照：<code>{meta, summary, per_query}</code></td>
+<td>before&#x2F;after diff、基线回归断言</td>
+</tr>
+</tbody></table>
+<p>控制台同时打印一条汇总与逐条结果（<code>+</code>&#x2F;<code>-</code> 标记命中情况）。</p>
+<p>快照 <code>meta</code> 关键字段（<code>--retriever-desc</code> 可覆盖检索器描述）：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>queries_path</code></td>
+<td>本次使用的评估集路径</td>
+</tr>
+<tr>
+<td><strong><code>queries_source</code></strong></td>
+<td>评估集来源：<code>repo</code>（库根文件）&#x2F; <code>explicit</code>（<code>--queries</code> 指定）&#x2F; <code>seed</code>（<code>--seed</code> 生成）&#x2F; <code>demo-builtin</code>（<code>--demo</code> 内置示例集）</td>
+</tr>
+<tr>
+<td><code>top_k</code></td>
+<td>本次 K 值</td>
+</tr>
+<tr>
+<td><code>retriever</code> &#x2F; <code>retriever_desc</code></td>
+<td>检索器标识与描述</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="4-指标解读"><a href="#4-指标解读" class="headerlink" title="4. 指标解读"></a>4. 指标解读</h2><h3 id="4-1-summary-全部字段"><a href="#4-1-summary-全部字段" class="headerlink" title="4.1 summary 全部字段"></a>4.1 summary 全部字段</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>count</code></td>
+<td>评估 query 总数</td>
+</tr>
+<tr>
+<td><code>hit_count</code></td>
+<td>命中 query 数</td>
+</tr>
+<tr>
+<td><strong><code>contextual_recall</code></strong></td>
+<td>recall@K &#x3D; 命中数 &#x2F; 总数。<strong>「能不能找到」</strong></td>
+</tr>
+<tr>
+<td><code>prod_top_k</code></td>
+<td>生产等价截断数（默认 4）</td>
+</tr>
+<tr>
+<td><code>contextual_recall_prod</code></td>
+<td>命中且 rank ≤ <code>prod_top_k</code> 的占比——防「评估 K 能命中、生产截断后漏掉」的错位</td>
+</tr>
+<tr>
+<td><strong><code>mrr</code></strong></td>
+<td>命中条平均倒数排名（1&#x2F;rank）。1.0 &#x3D; 全部第 1 位。<strong>「排得多靠前」</strong></td>
+</tr>
+<tr>
+<td><code>avg_rank_of_hits</code></td>
+<td>命中条的平均排名（仅命中条）</td>
+</tr>
+<tr>
+<td><code>missed_queries</code></td>
+<td>未命中 query 列表（定位根因入口）</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-判断顺序"><a href="#4-2-判断顺序" class="headerlink" title="4.2 判断顺序"></a>4.2 判断顺序</h3><ol>
+<li>先看 <strong>recall@K</strong>：找不到 → 检索&#x2F;索引问题（R2&#x2F;R3&#x2F;R5，见 tutorial-03 §2）；</li>
+<li>再看 <strong>MRR</strong>：排得靠后 → 排序问题（R1&#x2F;R4）；</li>
+<li>看 <strong>missed_queries</strong> 明细：逐条对照「期望 vs 实际召回」，归类根因；</li>
+<li>偶尔看 <strong>prod-equiv recall</strong>：生产截断会不会漏（正常应 ≥ recall@K）。</li>
+</ol>
+<h3 id="4-3-基线口径（与回归脚本一致）"><a href="#4-3-基线口径（与回归脚本一致）" class="headerlink" title="4.3 基线口径（与回归脚本一致）"></a>4.3 基线口径（与回归脚本一致）</h3><ul>
+<li>历史基线（套件 <code>testkb</code> 实测）：<strong>recall@4 &#x3D; 100%，MRR@4 &#x3D; 1.0</strong>；</li>
+<li>CI &#x2F; pre-commit 通用回调：<strong>recall ≥ 0.95 &#x2F; MRR ≥ 0.90</strong>（防 flaky 下限）。</li>
+</ul>
+<hr>
+<h2 id="5-常见用法"><a href="#5-常见用法" class="headerlink" title="5. 常见用法"></a>5. 常见用法</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 评估你的知识库（需先在库根放置 eval_queries.json）</span></span><br><span class="line">llmwiki <span class="built_in">eval</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 首版评估集：从索引自动采样生成（新库无需手写）</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --seed            <span class="comment"># 采样最多 20 条，写入 eval_queries.json 后立即评估</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --seed-limit 40   <span class="comment"># 调整采样上限</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 套件演示/自测（内置示例集，分数与你的库无关）</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --demo</span><br><span class="line"></span><br><span class="line"><span class="comment"># 自定义评估集 + 关于 K</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --queries my-eval.json --top-k 4</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打标签存快照（调参前留基线）</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --tag before-tune</span><br><span class="line"></span><br><span class="line"><span class="comment"># 改 min_score 后对比</span></span><br><span class="line">llmwiki <span class="built_in">eval</span> --min-score 0.10 --tag try-010</span><br><span class="line"></span><br><span class="line"><span class="comment"># 对比两个快照</span></span><br><span class="line">python -c <span class="string">&quot;</span></span><br><span class="line"><span class="string">import json</span></span><br><span class="line"><span class="string">b = json.load(open(&#x27;eval_reports/recall-eval-before-tune.json&#x27;))</span></span><br><span class="line"><span class="string">a = json.load(open(&#x27;eval_reports/recall-eval-try-010.json&#x27;))</span></span><br><span class="line"><span class="string">print(&#x27;before:&#x27;, b[&#x27;summary&#x27;][&#x27;contextual_recall&#x27;], b[&#x27;summary&#x27;][&#x27;mrr&#x27;])</span></span><br><span class="line"><span class="string">print(&#x27;after :&#x27;, a[&#x27;summary&#x27;][&#x27;contextual_recall&#x27;], a[&#x27;summary&#x27;][&#x27;mrr&#x27;])</span></span><br><span class="line"><span class="string">&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 基线回归（不经 pytest，供 CI / pre-commit）：低于阈值退出码非 0</span></span><br><span class="line">python scripts/check_recall_baseline.py --repo &lt;kb&gt; --build --recall 0.95 --mrr 0.9</span><br><span class="line"></span><br><span class="line"><span class="comment"># 对套件自带库做基线断言（内部演示集）</span></span><br><span class="line">python scripts/check_recall_baseline.py --demo --repo testkb</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="7-退出码语义（供-CI-pre-commit-判断）"><a href="#7-退出码语义（供-CI-pre-commit-判断）" class="headerlink" title="7. 退出码语义（供 CI &#x2F; pre-commit 判断）"></a>7. 退出码语义（供 CI &#x2F; pre-commit 判断）</h2><table>
+<thead>
+<tr>
+<th>退出码</th>
+<th>含义</th>
+<th>典型场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td>评估完成且达标</td>
+<td>有评估集、索引正常、指标达基线</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td>评估完成但未达标</td>
+<td>有评估集但 recall&#x2F;MRR 低于阈值（回归）</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>无评估集，<strong>未评估</strong>（不提供假分数）</td>
+<td>库根无 <code>eval_queries.json</code>、未用 <code>--queries</code>&#x2F;<code>--demo</code>&#x2F;<code>--seed</code></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>无法评估（索引缺失）</td>
+<td>无 <code>kb-index.json</code>（先跑 <code>llmwiki index</code>）</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>设计原则：<strong>「无法评估」绝不伪装成「评估了且满分」</strong>。历史上 0.1.3 会在无评估集时<br>回退套件内置示例集并打出「100%」——那是与你的库无关的幻读分数；<br>0.1.4 起改为显式退出码 2 + 引导（<code>--seed</code> &#x2F; 放置文件），内置示例集仅经 <code>--demo</code> 显式调用。</p>
+</blockquote>
+<hr>
+<h2 id="7-1-expected-路径自愈（ingest-改名后不必手改评估集）"><a href="#7-1-expected-路径自愈（ingest-改名后不必手改评估集）" class="headerlink" title="7.1 expected 路径自愈（ingest 改名后不必手改评估集）"></a>7.1 expected 路径自愈（ingest 改名后不必手改评估集）</h2><p><code>ingest</code> 的文件名归一（全角 <code>：</code> → <code>-</code> 等）会改变文档真实路径。若 <code>eval_queries.json</code><br>里的 <code>expected</code> 还是旧路径，<code>eval</code> 精确比对将全部 miss——<strong>不是检索变差，是对答案的卷子没同步</strong>。</p>
+<p>从 0.1.4 起 <code>llmwiki eval</code> 会拿<strong>索引真实路径</strong>对 <code>expected</code> 做归一化重定向（全角标点 → 半角），<br>自动匹配到改名后的文档；若发生重定向，stderr 会提示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">⚠ 8 条 expected 路径已按 ingest 归一化重定向（改名导致）</span><br></pre></td></tr></table></figure>
+
+<p>要点：</p>
+<ul>
+<li><strong>不需要手改评估集</strong>：改名后直接评估，分数不会被陈旧路径拖低；</li>
+<li><strong>建集建议</strong>：用 <code>--seed</code> 或从 <code>kb-index.json</code> 复制真实路径（勿手抄全角标点）；</li>
+<li>与 <code>--seed</code> 叠加最省心：<code>--seed</code> 从索引采样，天然就是新路径，未来改名也有自愈兜底。</li>
+</ul>
+<hr>
+<h2 id="8-与其它命令的关系"><a href="#8-与其它命令的关系" class="headerlink" title="8. 与其它命令的关系"></a>8. 与其它命令的关系</h2><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>llmwiki index</code></td>
+<td><strong>前置</strong>。评估基于索引；改文档后必须重建再评估（索引不自动刷新）；缺失时 eval 退出码 3</td>
+</tr>
+<tr>
+<td><code>llmwiki lint</code></td>
+<td>互补。lint 查结构（断链&#x2F;词表&#x2F;命名），eval 查检索质量</td>
+</tr>
+<tr>
+<td><code>scripts/check_recall_baseline.py</code></td>
+<td>eval 的<strong>断言化入口</strong>（退出码 0&#x2F;1&#x2F;2&#x2F;3），供 CI 与 pre-commit 集成</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="相关文档"><a href="#相关文档" class="headerlink" title="相关文档"></a>相关文档</h2><ul>
+<li>[[llmwiki-tutorial-03-quality-tuning-guide]]（教程：评估集设计、调参循环、六类失效）</li>
+<li>[[llmwiki-tutorial-01-system]]（体系搭建）</li>
+<li>[[llmwiki-architecture]]（检索机制与性能细节）</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/4d17ec14/">https://voidvec.github.io/posts/4d17ec14/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cli/">cli</a><a class="post-meta__tags" href="/tags/llmwiki/">llmwiki</a><a class="post-meta__tags" href="/tags/eval/">eval</a><a class="post-meta__tags" href="/tags/recall/">recall</a><a class="post-meta__tags" href="/tags/mrr/">mrr</a><a class="post-meta__tags" href="/tags/reference/">reference</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/4c33d9ed/"><span class="pj-related__name">飞书 / Telegram 通道本地验证手册</span><span class="pj-related__type">测试与基准</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/552f8dfa/"><span class="pj-related__name">llmwiki health：知识库健康分参考</span><span class="pj-related__type">测试与基准</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/630213fd/"><span class="pj-related__name">llmwiki 知识库重建流程</span><span class="pj-related__type">测试与基准</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/31c7485d/"><span class="pj-related__name">llmwiki 项目定位、业务背景与边界</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/44f2733a/"><span class="pj-related__name">llmwiki 系统架构、模块与依赖关系</span><span class="pj-related__type">架构设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/603c3e7c/" title="发布到 PyPI 操作指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">发布到 PyPI 操作指南</div></div><div class="info-2"><div class="info-item-1">从 pypi.org 注册、开 2FA、建 API Token，到本地 twine upload 的完整发布流程</div></div></div></a><a class="pagination-related" href="/posts/87ad07fc/" title="五步接入你已有的笔记库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">五步接入你已有的笔记库</div></div><div class="info-2"><div class="info-item-1">llmwiki-suite 的快速上手入口：装包 → init → ingest → index → query。把任意 Markdown 笔记目录变成可检索、可问答、可自维护的个人知识库。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/9431c497/" title="LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 体系搭建：从零打造会生长、能问答的个人知识库</div></div><div class="info-2"><div class="info-item-1">从零开始用 llmwiki-suite 工具链（Karpathy incremental wiki 方法论），打造可检索、可问答、可自维护的个人知识库。</div></div></div></a><a class="pagination-related" href="/posts/75a89736/" title="用 Obsidian 编辑 llmwiki 知识库"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-20</div><div class="info-item-2">用 Obsidian 编辑 llmwiki 知识库</div></div><div class="info-2"><div class="info-item-1">LLMWiki 体系零编辑器依赖，Obsidian 只是可选的 Markdown 前端工具。</div></div></div></a><a class="pagination-related" href="/posts/81a48d54/" title="llmwiki 网页问答与工作台设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-27</div><div class="info-item-2">llmwiki 网页问答与工作台设计</div></div><div class="info-2"><div class="info-item-1">为 llmwiki-suite 补齐浏览器侧交互：一个自包含的网页问答页 /webui/chat、一个导航工作台 /dashboard，与现有 /chat JSON 接口、/ilink/webui 扫码页的分层关系，以及服务暴露形态（仅自己</div></div></div></a><a class="pagination-related" href="/posts/3abaf54f/" title="LLMWiki 检索质量调优：评估、诊断与调参"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-18</div><div class="info-item-2">LLMWiki 检索质量调优：评估、诊断与调参</div></div><div class="info-2"><div class="info-item-1">当知识库问答检索质量不满足时（答非所问、明明有却查不到、命中一堆无关文档），如何用评估集量化问题、对照根因归类定位、按测-改-测循环调参（BM25/minscore/停用词/正文索引/wikilink 图）。</div></div></div></a><a class="pagination-related" href="/posts/552f8dfa/" title="llmwiki health：知识库健康分参考"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-31</div><div class="info-item-2">llmwiki health：知识库健康分参考</div></div><div class="info-2"><div class="info-item-1">llmwiki health 的定性健康分口径：评什么、不评什么，以及怎么读分数。</div></div></div></a><a class="pagination-related" href="/posts/603c3e7c/" title="发布到 PyPI 操作指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-25</div><div class="info-item-2">发布到 PyPI 操作指南</div></div><div class="info-2"><div class="info-item-1">从 pypi.org 注册、开 2FA、建 API Token，到本地 twine upload 的完整发布流程</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%B8%80%E5%8F%A5%E8%AF%9D"><span class="toc-number">1.</span> <span class="toc-text">1. 一句话</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E5%85%A8%E9%83%A8%E9%80%89%E9%A1%B9"><span class="toc-number">2.</span> <span class="toc-text">2. 全部选项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E8%AF%84%E4%BC%B0%E9%9B%86-JSON-%E6%A0%BC%E5%BC%8F%EF%BC%88schema%EF%BC%89"><span class="toc-number">3.</span> <span class="toc-text">3. 评估集 JSON 格式（schema）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E8%BE%93%E5%87%BA%E6%96%87%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">3. 输出文件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%8C%87%E6%A0%87%E8%A7%A3%E8%AF%BB"><span class="toc-number">5.</span> <span class="toc-text">4. 指标解读</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-summary-%E5%85%A8%E9%83%A8%E5%AD%97%E6%AE%B5"><span class="toc-number">5.1.</span> <span class="toc-text">4.1 summary 全部字段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%88%A4%E6%96%AD%E9%A1%BA%E5%BA%8F"><span class="toc-number">5.2.</span> <span class="toc-text">4.2 判断顺序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%9F%BA%E7%BA%BF%E5%8F%A3%E5%BE%84%EF%BC%88%E4%B8%8E%E5%9B%9E%E5%BD%92%E8%84%9A%E6%9C%AC%E4%B8%80%E8%87%B4%EF%BC%89"><span class="toc-number">5.3.</span> <span class="toc-text">4.3 基线口径（与回归脚本一致）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%B8%B8%E8%A7%81%E7%94%A8%E6%B3%95"><span class="toc-number">6.</span> <span class="toc-text">5. 常见用法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E9%80%80%E5%87%BA%E7%A0%81%E8%AF%AD%E4%B9%89%EF%BC%88%E4%BE%9B-CI-pre-commit-%E5%88%A4%E6%96%AD%EF%BC%89"><span class="toc-number">7.</span> <span class="toc-text">7. 退出码语义（供 CI &#x2F; pre-commit 判断）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-1-expected-%E8%B7%AF%E5%BE%84%E8%87%AA%E6%84%88%EF%BC%88ingest-%E6%94%B9%E5%90%8D%E5%90%8E%E4%B8%8D%E5%BF%85%E6%89%8B%E6%94%B9%E8%AF%84%E4%BC%B0%E9%9B%86%EF%BC%89"><span class="toc-number">8.</span> <span class="toc-text">7.1 expected 路径自愈（ingest 改名后不必手改评估集）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E4%B8%8E%E5%85%B6%E5%AE%83%E5%91%BD%E4%BB%A4%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">9.</span> <span class="toc-text">8. 与其它命令的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E6%96%87%E6%A1%A3"><span class="toc-number">10.</span> <span class="toc-text">相关文档</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

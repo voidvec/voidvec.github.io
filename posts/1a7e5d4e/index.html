@@ -1,0 +1,642 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Windows 部署验证：端点测试与踩坑排查 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Windows 部署验证：端点测试与踩坑排查">
+<meta property="og:url" content="https://voidvec.github.io/posts/1a7e5d4e/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-09-14T00:31:00.000Z">
+<meta property="article:modified_time" content="2026-09-14T00:31:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="deployment">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Windows 部署验证：端点测试与踩坑排查",
+  "url": "https://voidvec.github.io/posts/1a7e5d4e/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-09-14T00:31:00.000Z",
+  "dateModified": "2026-09-14T00:31:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/1a7e5d4e/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Windows 部署验证：端点测试与踩坑排查',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">Windows 部署验证：端点测试与踩坑排查</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Windows 部署验证：端点测试与踩坑排查</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-09-14T00:31:00.000Z" title="发表于 2026-09-14 08:31:00">2026-09-14</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-09-14T00:31:00.000Z" title="更新于 2026-09-14 08:31:00">2026-09-14</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%B3%BB%E7%BB%9F%E7%BA%A7%E7%BC%96%E7%A8%8B/">系统级编程</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%B3%BB%E7%BB%9F%E7%BA%A7%E7%BC%96%E7%A8%8B/Windows%E7%B3%BB%E7%BB%9F/">Windows系统</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">部署运维</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">实践指南</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><blockquote>
+<p>承接上文《Windows Docker Desktop 部署实录》。服务起来只是第一步，这篇记录怎么证明它真的能跑，以及踩过的坑。</p>
+</blockquote>
+<h2 id="执行端点测试"><a href="#执行端点测试" class="headerlink" title="执行端点测试"></a>执行端点测试</h2><p>项目包含完整的端点测试套件，用于验证 OAuth2 核心功能和管理后台 API。</p>
+<h3 id="推荐方式：Git-Bash"><a href="#推荐方式：Git-Bash" class="headerlink" title="推荐方式：Git Bash"></a>推荐方式：Git Bash</h3><p><strong>优势</strong>：原生支持 shell 脚本、路径处理正确、与 Linux 环境一致</p>
+<h4 id="1-执行-OAuth2-核心端点测试"><a href="#1-执行-OAuth2-核心端点测试" class="headerlink" title="1. 执行 OAuth2 核心端点测试"></a>1. 执行 OAuth2 核心端点测试</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入项目目录</span></span><br><span class="line"><span class="built_in">cd</span> /path/to/repo-root</span><br><span class="line"></span><br><span class="line"><span class="comment"># 确保测试脚本有执行权限</span></span><br><span class="line"><span class="built_in">chmod</span> +x scripts/backend/test-oauth2-endpoints.sh</span><br><span class="line"></span><br><span class="line"><span class="comment"># 执行测试（55个测试）</span></span><br><span class="line">./scripts/backend/test-oauth2-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试覆盖</strong>：</p>
+<ul>
+<li>健康检查、JWKS 端点</li>
+<li>OAuth2 登录、令牌交换、刷新令牌</li>
+<li>令牌内省、撤销</li>
+<li>用户注册、登录、个人资料</li>
+<li>密码重置、修改</li>
+<li>MFA 设置、验证、禁用</li>
+<li>动态客户端注册（RFC 7591）</li>
+<li>WebAuthn 认证</li>
+<li>设备授权流程</li>
+<li>外部认证（GitHub、Google、微信）</li>
+</ul>
+<h4 id="2-执行管理后台-API-测试"><a href="#2-执行管理后台-API-测试" class="headerlink" title="2. 执行管理后台 API 测试"></a>2. 执行管理后台 API 测试</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> +x scripts/backend/test-admin-endpoints.sh</span><br><span class="line">./scripts/backend/test-admin-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试覆盖</strong>：</p>
+<ul>
+<li>管理员登录、仪表板统计</li>
+<li>用户管理（CRUD 操作）</li>
+<li>客户端应用管理</li>
+<li>Scope 管理</li>
+<li>Token 管理</li>
+<li>授权用户管理</li>
+<li>角色权限管理</li>
+</ul>
+<h3 id="备选方式：WSL2-Ubuntu"><a href="#备选方式：WSL2-Ubuntu" class="headerlink" title="备选方式：WSL2 Ubuntu"></a>备选方式：WSL2 Ubuntu</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 启动 WSL2</span></span><br><span class="line">wsl</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 进入项目目录（注意路径转换）</span></span><br><span class="line"><span class="built_in">cd</span> /path/to/repo-root</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 执行测试</span></span><br><span class="line">./scripts/backend/test-oauth2-endpoints.sh http://localhost:5555</span><br><span class="line">./scripts/backend/test-admin-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<h3 id="PowerShell-混合方式"><a href="#PowerShell-混合方式" class="headerlink" title="PowerShell 混合方式"></a>PowerShell 混合方式</h3><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在 PowerShell 中调用 Git Bash 执行测试</span></span><br><span class="line">bash ./scripts/backend/<span class="built_in">test-oauth2</span><span class="literal">-endpoints</span>.sh http://localhost:<span class="number">5555</span></span><br><span class="line">bash ./scripts/backend/<span class="built_in">test-admin</span><span class="literal">-endpoints</span>.sh http://localhost:<span class="number">5555</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="测试结果解读"><a href="#测试结果解读" class="headerlink" title="测试结果解读"></a>测试结果解读</h3><h4 id="预期输出"><a href="#预期输出" class="headerlink" title="预期输出"></a>预期输出</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">========================================</span><br><span class="line">OAuth2 Endpoints Tests (59 tests)</span><br><span class="line">========================================</span><br><span class="line">Base URL: http://localhost:5555</span><br><span class="line"></span><br><span class="line">[Test 1/59] Test 1: Health Check</span><br><span class="line">    Status: ok</span><br><span class="line">    [+] PASS (0.1s)</span><br><span class="line"></span><br><span class="line">[Test 10/59] Test 10: Client Credentials</span><br><span class="line">    AT: eyJhbGciOiJSUzI1Ni..., Scope: <span class="built_in">read</span></span><br><span class="line">    [+] PASS (0.2s)</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">========================================</span><br><span class="line">Test Results: 59/59 passed, 0 failed</span><br><span class="line">========================================</span><br></pre></td></tr></table></figure>
+
+<h4 id="失败排查"><a href="#失败排查" class="headerlink" title="失败排查"></a>失败排查</h4><p><strong>端点测试应全部通过（当前口径：OAuth2 侧 59、Admin 侧 52）</strong>。若出现失败，按以下已知环境依赖排查：</p>
+<ol>
+<li><p><strong>Test 10 失败</strong>：<code>no access_token</code></p>
+<ul>
+<li><strong>原因</strong>：缺少测试客户端 <code>backend-svc</code></li>
+<li><strong>解决</strong>：执行 <code>dev_backend_client.sql</code> 创建测试客户端</li>
+</ul>
+</li>
+<li><p><strong>Test 20&#x2F;20b 失败</strong>：<code>missing field: .client_id</code> 或 <code>Expected HTTP 400, got 403</code></p>
+<ul>
+<li><strong>原因</strong>：RBAC 权限控制正确工作，动态客户端注册需要特殊配置</li>
+<li><strong>影响</strong>：无（这是预期行为）</li>
+</ul>
+</li>
+<li><p><strong>连锁失败</strong>：<code>skipped: no token</code></p>
+<ul>
+<li><strong>原因</strong>：前序测试撤销令牌导致后续测试无令牌可用</li>
+<li><strong>影响</strong>：无（测试脚本设计如此）</li>
+</ul>
+</li>
+</ol>
+<h4 id="成功标准"><a href="#成功标准" class="headerlink" title="成功标准"></a>成功标准</h4><p><strong>59&#x2F;52 全部通过才算部署验证成功</strong>。个别失败若出现，先核对是否为上述已知的脚本环境依赖（数据库重置、种子数据、端口占用）；不要把『部分通过』当作部署成功标准。</p>
+<h3 id="测试前准备"><a href="#测试前准备" class="headerlink" title="测试前准备"></a>测试前准备</h3><h4 id="1-确保数据库种子数据"><a href="#1-确保数据库种子数据" class="headerlink" title="1. 确保数据库种子数据"></a>1. 确保数据库种子数据</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 执行必需的 seed 脚本</span></span><br><span class="line">docker <span class="built_in">exec</span> -i fulla-postgres psql -U fulla_user -d fulla_db &lt; apps/server/seed/dev_admin_user.sql</span><br><span class="line">docker <span class="built_in">exec</span> -i fulla-postgres psql -U fulla_user -d fulla_db &lt; apps/server/seed/dev_admin_console_client.sql</span><br><span class="line">docker <span class="built_in">exec</span> -i fulla-postgres psql -U fulla_user -d fulla_db &lt; apps/server/seed/dev_vue_client.sql</span><br><span class="line"></span><br><span class="line"><span class="comment"># 可选：创建测试客户端（提高测试通过率）</span></span><br><span class="line">docker <span class="built_in">exec</span> -i fulla-postgres psql -U fulla_user -d fulla_db &lt; apps/server/seed/dev_backend_client.sql</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-验证基础服务"><a href="#2-验证基础服务" class="headerlink" title="2. 验证基础服务"></a>2. 验证基础服务</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 检查容器状态</span></span><br><span class="line">docker ps</span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查后端健康</span></span><br><span class="line">curl http://localhost:5555/health</span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查数据库连接</span></span><br><span class="line">docker <span class="built_in">exec</span> fulla-postgres pg_isready -U fulla_user</span><br></pre></td></tr></table></figure>
+
+<h3 id="快速验证命令"><a href="#快速验证命令" class="headerlink" title="快速验证命令"></a>快速验证命令</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 一键执行所有测试</span></span><br><span class="line"><span class="built_in">cd</span> /path/to/repo-root &amp;&amp; \</span><br><span class="line"><span class="built_in">chmod</span> +x scripts/backend/*.sh &amp;&amp; \</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[+] 执行 OAuth2 核心测试...&quot;</span> &amp;&amp; \</span><br><span class="line">./scripts/backend/test-oauth2-endpoints.sh http://localhost:5555 &amp;&amp; \</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;&quot;</span> &amp;&amp; \</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[+] 执行管理后台 API 测试...&quot;</span> &amp;&amp; \</span><br><span class="line">./scripts/backend/test-admin-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="功能测试清单"><a href="#功能测试清单" class="headerlink" title="功能测试清单"></a>功能测试清单</h2><h3 id="核心-OAuth2-流程"><a href="#核心-OAuth2-流程" class="headerlink" title="核心 OAuth2 流程"></a>核心 OAuth2 流程</h3><table>
+<thead>
+<tr>
+<th>测试项</th>
+<th>测试方法</th>
+<th>预期结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户注册</td>
+<td>前端注册页面</td>
+<td>注册成功，可登录</td>
+</tr>
+<tr>
+<td>用户登录</td>
+<td>POST &#x2F;oauth2&#x2F;login（授权码 + PKCE 流程第一步）</td>
+<td>返回授权码 code</td>
+</tr>
+<tr>
+<td>刷新令牌</td>
+<td>POST &#x2F;oauth2&#x2F;token (refresh_token grant)</td>
+<td>返回新的 access_token</td>
+</tr>
+<tr>
+<td>令牌校验</td>
+<td>POST &#x2F;oauth2&#x2F;introspect</td>
+<td>返回 token 有效信息</td>
+</tr>
+<tr>
+<td>令牌撤销</td>
+<td>POST &#x2F;oauth2&#x2F;revoke</td>
+<td>返回 200 OK</td>
+</tr>
+<tr>
+<td>授权码流程</td>
+<td>&#x2F;oauth2&#x2F;authorize → &#x2F;callback</td>
+<td>完整 OAuth2 流程</td>
+</tr>
+<tr>
+<td>客户端管理</td>
+<td>Admin Console 创建&#x2F;删除客户端</td>
+<td>操作成功</td>
+</tr>
+</tbody></table>
+<h3 id="API-端点测试"><a href="#API-端点测试" class="headerlink" title="API 端点测试"></a>API 端点测试</h3><h4 id="方法-1：使用现有测试脚本（推荐）"><a href="#方法-1：使用现有测试脚本（推荐）" class="headerlink" title="方法 1：使用现有测试脚本（推荐）"></a>方法 1：使用现有测试脚本（推荐）</h4><p>项目包含完整的端点测试脚本，推荐使用 Git Bash 执行：</p>
+<p><strong>执行 OAuth2 核心端点测试（59 个测试）</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 进入项目目录（Git Bash）</span></span><br><span class="line"><span class="built_in">cd</span> /path/to/repo-root</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 确保测试脚本有执行权限</span></span><br><span class="line"><span class="built_in">chmod</span> +x scripts/backend/test-oauth2-endpoints.sh</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 执行测试</span></span><br><span class="line">./scripts/backend/test-oauth2-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<p><strong>执行管理后台 API 测试（52 个测试）</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> +x scripts/backend/test-admin-endpoints.sh</span><br><span class="line">./scripts/backend/test-admin-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<p><strong>预期输出示例</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">========================================</span><br><span class="line">OAuth2 Endpoints Tests (59 tests)</span><br><span class="line">========================================</span><br><span class="line">Base URL: http://localhost:5555</span><br><span class="line"></span><br><span class="line">[Test 1/59] Test 1: Health Check</span><br><span class="line">    Status: ok</span><br><span class="line">    [+] PASS (0.1s)</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">========================================</span><br><span class="line">Test Results: 59/59 passed, 0 failed</span><br><span class="line">========================================</span><br></pre></td></tr></table></figure>
+
+<p><strong>成功标准</strong>：全部通过（59&#x2F;52）。个别失败先按上文「失败排查」核对环境依赖；不要把『部分通过』当作部署成功标准。</p>
+<h4 id="方法-2：使用-PowerShell-脚本测试"><a href="#方法-2：使用-PowerShell-脚本测试" class="headerlink" title="方法 2：使用 PowerShell 脚本测试"></a>方法 2：使用 PowerShell 脚本测试</h4><p><code>fulla-admin-console</code> 是 PUBLIC 客户端（PKCE 强制、无 secret、无 password grant），手工构造令牌流程较繁琐，推荐直接使用仓库自带的 PowerShell 测试脚本（内部已实现 PKCE 登录）：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 执行管理后台端点测试（含 PKCE 登录 + 52 项断言）</span></span><br><span class="line">.\scripts\backend\<span class="built_in">test-admin</span><span class="literal">-endpoints</span>.ps1 <span class="literal">-BaseUrl</span> <span class="string">&quot;http://localhost:5555&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 若已从其他途径拿到 access_token，可直接手工调用受保护 API 验证：</span></span><br><span class="line"><span class="variable">$headers</span> = <span class="selector-tag">@</span>&#123; Authorization = <span class="string">&quot;Bearer &lt;access_token&gt;&quot;</span> &#125;</span><br><span class="line"><span class="built_in">Invoke-RestMethod</span> <span class="literal">-Uri</span> <span class="string">&quot;http://localhost:5555/api/admin/users&quot;</span> <span class="literal">-Headers</span> <span class="variable">$headers</span></span><br><span class="line"><span class="comment"># 预期：用户列表 JSON</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="方法-3：使用-WSL2-Ubuntu（推荐）"><a href="#方法-3：使用-WSL2-Ubuntu（推荐）" class="headerlink" title="方法 3：使用 WSL2 Ubuntu（推荐）"></a>方法 3：使用 WSL2 Ubuntu（推荐）</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 启动 WSL2</span></span><br><span class="line">wsl</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 进入项目目录</span></span><br><span class="line"><span class="built_in">cd</span> /path/to/repo-root</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 执行测试</span></span><br><span class="line">./scripts/backend/test-oauth2-endpoints.sh http://localhost:5555</span><br><span class="line">./scripts/backend/test-admin-endpoints.sh http://localhost:5555</span><br></pre></td></tr></table></figure>
+
+<h3 id="前端路由测试"><a href="#前端路由测试" class="headerlink" title="前端路由测试"></a>前端路由测试</h3><table>
+<thead>
+<tr>
+<th>路径</th>
+<th>预期页面</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8080/">http://localhost:8080/</a></td>
+<td>用户登录页</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8080/register">http://localhost:8080/register</a></td>
+<td>用户注册页</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8080/profile">http://localhost:8080/profile</a></td>
+<td>个人资料页（需登录）</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8080/callback">http://localhost:8080/callback</a></td>
+<td>OAuth2 回调页</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8081/admin/">http://localhost:8081/admin/</a></td>
+<td>管理后台（需登录）</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="http://localhost:8081/admin/apps">http://localhost:8081/admin/apps</a></td>
+<td>应用管理页</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="常见问题排查"><a href="#常见问题排查" class="headerlink" title="常见问题排查"></a>常见问题排查</h2><h3 id="Docker-Desktop-启动失败"><a href="#Docker-Desktop-启动失败" class="headerlink" title="Docker Desktop 启动失败"></a>Docker Desktop 启动失败</h3><p><strong>症状</strong>：<code>docker ps</code> 报错 “Cannot connect to the Docker daemon”</p>
+<p><strong>解决</strong>：</p>
+<ol>
+<li>检查 Docker Desktop 是否正在运行（系统托盘图标）</li>
+<li>重启 Docker Desktop</li>
+<li>检查 Hyper-V 或 WSL2 是否启用：<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># WSL2</span></span><br><span class="line">wsl <span class="literal">--list</span> <span class="literal">--verbose</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Hyper-V</span></span><br><span class="line">dism /Online /<span class="built_in">Get-FeatureInformation</span> /FeatureName:Microsoft<span class="literal">-Hyper-V</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="端口冲突"><a href="#端口冲突" class="headerlink" title="端口冲突"></a>端口冲突</h3><p><strong>症状</strong>：容器启动失败，日志显示 “port is already allocated”</p>
+<p><strong>检查占用端口的进程</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 检查 8080 端口</span></span><br><span class="line">netstat <span class="literal">-ano</span> | findstr :<span class="number">8080</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查 5433 端口</span></span><br><span class="line">netstat <span class="literal">-ano</span> | findstr :<span class="number">5433</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>解决</strong>：</p>
+<ol>
+<li>停止冲突的服务</li>
+<li>或修改 <code>docker-compose.yml</code> 中的端口映射（如改为 <code>8082:80</code>）</li>
+</ol>
+<h3 id="数据库连接失败"><a href="#数据库连接失败" class="headerlink" title="数据库连接失败"></a>数据库连接失败</h3><p><strong>症状</strong>：后端日志显示 “Connection refused” 或 “Host unreachable”</p>
+<p><strong>排查</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 检查 postgres 容器状态</span></span><br><span class="line">docker <span class="built_in">ps</span> | findstr fulla<span class="literal">-postgres</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 检查 postgres 日志</span></span><br><span class="line">docker logs fulla<span class="literal">-postgres</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 测试数据库连接</span></span><br><span class="line">docker exec fulla<span class="literal">-postgres</span> pg_isready <span class="literal">-U</span> fulla_user</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. 从后端容器测试网络连通性</span></span><br><span class="line">docker exec fulla<span class="literal">-backend</span> <span class="built_in">curl</span> <span class="literal">-s</span> http://fulla<span class="literal">-postgres</span>:<span class="number">5432</span> <span class="number">2</span>&gt;&amp;<span class="number">1</span></span><br><span class="line">docker exec fulla<span class="literal">-backend</span> <span class="built_in">curl</span> <span class="literal">-s</span> http://fulla<span class="literal">-redis</span>:<span class="number">6379</span> <span class="number">2</span>&gt;&amp;<span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="构建失败"><a href="#构建失败" class="headerlink" title="构建失败"></a>构建失败</h3><p><strong>症状</strong>：<code>docker compose build</code> 报错 “failed to solve”</p>
+<p><strong>解决</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 清理构建缓存</span></span><br><span class="line">docker builder prune <span class="literal">-a</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 重新构建</span></span><br><span class="line">docker compose <span class="operator">-f</span> deploy/docker/docker<span class="literal">-compose</span>.yml <span class="literal">--env-file</span> .env.docker build <span class="literal">--no-cache</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 如果仍失败，检查磁盘空间</span></span><br><span class="line">docker system df</span><br></pre></td></tr></table></figure>
+
+<h3 id="Windows-路径问题"><a href="#Windows-路径问题" class="headerlink" title="Windows 路径问题"></a>Windows 路径问题</h3><p><strong>症状</strong>：卷挂载失败，错误 “invalid mount config”</p>
+<p><strong>原因</strong>：Windows 路径转换问题（<code>C:\</code> → <code>/c/</code>）</p>
+<p><strong>解决</strong>：</p>
+<ol>
+<li>使用 Git Bash 执行 Docker 命令（自动转换路径）</li>
+<li>或使用 WSL2 执行：<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wsl docker compose <span class="operator">-f</span> deploy/docker/docker<span class="literal">-compose</span>.yml up <span class="literal">-d</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<hr>
+<h2 id="与-Linux-生产部署的映射关系"><a href="#与-Linux-生产部署的映射关系" class="headerlink" title="与 Linux 生产部署的映射关系"></a>与 Linux 生产部署的映射关系</h2><h3 id="配置文件映射"><a href="#配置文件映射" class="headerlink" title="配置文件映射"></a>配置文件映射</h3><table>
+<thead>
+<tr>
+<th>Windows 本地</th>
+<th>Linux 生产</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.env.docker</code></td>
+<td><code>/root/fulla/.env.docker</code></td>
+<td>环境变量完全相同</td>
+</tr>
+<tr>
+<td><code>deploy/keys/signing.pem</code></td>
+<td><code>/root/fulla/deploy/keys/signing.pem</code></td>
+<td>JWT 密钥</td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code></td>
+<td><code>docker-compose.prod.yml</code></td>
+<td>端口和 TLS 配置差异</td>
+</tr>
+</tbody></table>
+<h3 id="部署命令映射"><a href="#部署命令映射" class="headerlink" title="部署命令映射"></a>部署命令映射</h3><table>
+<thead>
+<tr>
+<th>操作</th>
+<th>Windows Docker Desktop</th>
+<th>Linux 生产</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>启动</td>
+<td><code>docker compose --env-file .env.docker up -d</code></td>
+<td><code>docker compose --env-file .env.docker -f docker-compose.prod.yml up -d</code></td>
+</tr>
+<tr>
+<td>查看日志</td>
+<td><code>docker compose logs -f</code></td>
+<td><code>docker compose -f docker-compose.prod.yml logs -f</code></td>
+</tr>
+<tr>
+<td>重建</td>
+<td><code>docker compose up -d --build</code></td>
+<td><code>docker compose -f docker-compose.prod.yml up -d --build</code></td>
+</tr>
+<tr>
+<td>停止</td>
+<td><code>docker compose down</code></td>
+<td><code>docker compose -f docker-compose.prod.yml down</code></td>
+</tr>
+</tbody></table>
+<h3 id="访问地址映射"><a href="#访问地址映射" class="headerlink" title="访问地址映射"></a>访问地址映射</h3><table>
+<thead>
+<tr>
+<th>服务</th>
+<th>Windows 本地</th>
+<th>Linux 生产</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户前端</td>
+<td><a target="_blank" rel="noopener" href="http://localhost:8080/">http://localhost:8080</a></td>
+<td><a target="_blank" rel="noopener" href="https://your-domain.com/">https://your-domain.com/</a></td>
+</tr>
+<tr>
+<td>管理后台</td>
+<td><a target="_blank" rel="noopener" href="http://localhost:8081/">http://localhost:8081</a></td>
+<td><a target="_blank" rel="noopener" href="https://your-domain.com/admin/">https://your-domain.com/admin/</a></td>
+</tr>
+<tr>
+<td>后端 API</td>
+<td><a target="_blank" rel="noopener" href="http://localhost:5555/">http://localhost:5555</a></td>
+<td><a target="_blank" rel="noopener" href="https://your-domain.com/api/">https://your-domain.com/api/</a></td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td><a target="_blank" rel="noopener" href="http://localhost:9090/">http://localhost:9090</a></td>
+<td><a target="_blank" rel="noopener" href="http://your-server:9090/">http://your-server:9090</a></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="从本地验证到生产部署"><a href="#从本地验证到生产部署" class="headerlink" title="从本地验证到生产部署"></a>从本地验证到生产部署</h2><h3 id="验证通过后部署到-Linux"><a href="#验证通过后部署到-Linux" class="headerlink" title="验证通过后部署到 Linux"></a>验证通过后部署到 Linux</h3><ol>
+<li><p><strong>确保本地验证成功</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 运行完整测试</span></span><br><span class="line">.\scripts\backend\<span class="built_in">test-oauth2</span><span class="literal">-endpoints</span>.ps1</span><br><span class="line">.\scripts\backend\<span class="built_in">test-admin</span><span class="literal">-endpoints</span>.ps1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>提交代码</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git add .</span><br><span class="line">git commit <span class="literal">-m</span> <span class="string">&quot;feat: XXX (tested on Windows Docker Desktop)&quot;</span></span><br><span class="line">git push</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>在 Linux 服务器上部署</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 拉取代码</span></span><br><span class="line">git pull</span><br><span class="line"></span><br><span class="line"><span class="comment"># 复制环境变量（只复制一次）</span></span><br><span class="line"><span class="built_in">cp</span> deploy/env/docker.env.example .env.docker</span><br><span class="line"><span class="comment"># 编辑 .env.docker 设置生产密码</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用生产配置启动</span></span><br><span class="line">docker compose -f deploy/docker/docker-compose.prod.yml --env-file .env.docker up -d --build</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>配置 TLS</strong>（Linux 唯一额外步骤）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用 Let&#x27;s Encrypt</span></span><br><span class="line"><span class="built_in">sudo</span> certbot certonly --standalone -d your-domain.com</span><br><span class="line"><span class="built_in">cp</span> /etc/letsencrypt/live/your-domain.com/fullchain.pem deploy/nginx/ssl/</span><br><span class="line"><span class="built_in">cp</span> /etc/letsencrypt/live/your-domain.com/privkey.pem deploy/nginx/ssl/</span><br><span class="line">docker compose -f deploy/docker/docker-compose.prod.yml restart nginx</span><br></pre></td></tr></table></figure></li>
+</ol>
+<hr>
+<h2 id="性能对比"><a href="#性能对比" class="headerlink" title="性能对比"></a>性能对比</h2><table>
+<thead>
+<tr>
+<th>指标</th>
+<th>Windows Docker Desktop</th>
+<th>Linux 生产服务器</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>启动时间</td>
+<td>~45 秒（6 个容器）</td>
+<td>~30 秒（相同配置）</td>
+</tr>
+<tr>
+<td>内存占用</td>
+<td>~2.5 GB</td>
+<td>~1.8 GB</td>
+</tr>
+<tr>
+<td>API 响应时间</td>
+<td>~50ms</td>
+<td>~40ms</td>
+</tr>
+<tr>
+<td>数据库查询</td>
+<td>~10ms</td>
+<td>~8ms</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>差异主要来自 Windows 系统开销和 WSL2 虚拟化层，但功能完全一致。</p>
+</blockquote>
+<hr>
+<h2 id="下一步"><a href="#下一步" class="headerlink" title="下一步"></a>下一步</h2><ol>
+<li><strong>完成本地验证</strong>：确保所有核心功能正常</li>
+<li><strong>记录测试结果</strong>：在项目文档中标记”Windows Docker Desktop 已验证”</li>
+<li><strong>推送到 Linux</strong>：一次性部署成功</li>
+<li><strong>配置监控</strong>：设置 Prometheus + Grafana</li>
+</ol>
+<hr>
+<h2 id="附录：完整端口映射"><a href="#附录：完整端口映射" class="headerlink" title="附录：完整端口映射"></a>附录：完整端口映射</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────┐</span><br><span class="line">│                    Windows 宿主机                             │</span><br><span class="line">├─────────────────────────────────────────────────────────────┤</span><br><span class="line">│  Port 8080 ──→ fulla-frontend:80 (Vue 用户前端)              │</span><br><span class="line">│  Port 8081 ──→ fulla-admin:80 (Vue 管理后台)                 │</span><br><span class="line">│  Port 5555 ──→ fulla-backend:5555 (C++ API)                │</span><br><span class="line">│  Port 5433 ──→ fulla-postgres:5432 (PostgreSQL)            │</span><br><span class="line">│  Port 6380 ──→ fulla-redis:6379 (Redis)                    │</span><br><span class="line">│  Port 9090 ──→ fulla-prometheus:9090 (监控)                │</span><br><span class="line">└─────────────────────────────────────────────────────────────┘</span><br><span class="line">         │</span><br><span class="line">         ▼</span><br><span class="line">┌─────────────────────────────────────────────────────────────┐</span><br><span class="line">│                  Docker 内部网络 (oauth2-net)                 │</span><br><span class="line">│                                                               │</span><br><span class="line">│  所有容器通过内部 DNS 互相访问：                              │</span><br><span class="line">│  - fulla-backend → fulla-postgres:5432                     │</span><br><span class="line">│  - fulla-backend → fulla-redis:6379                        │</span><br><span class="line">│  - fulla-frontend → fulla-backend:5555                     │</span><br><span class="line">│  - fulla-admin → fulla-backend:5555                        │</span><br><span class="line">└─────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>✓ <strong>可行</strong>：Windows Docker Desktop 可以完全验证部署流程（除域名和 SSL）<br>✓ <strong>推荐</strong>：本地验证 → 推送代码 → Linux 部署，大幅减少调试时间<br>✓ <strong>一致性</strong>：数据库模式、API 接口、前端逻辑与生产环境 100% 一致  </p>
+<p><strong>适用场景</strong>：</p>
+<ul>
+<li>✓ 验证代码更改</li>
+<li>✓ 测试数据库迁移</li>
+<li>✓ 调试 API 端点</li>
+<li>✓ 验证前端路由</li>
+<li>✓ 测试 OAuth2 流程</li>
+</ul>
+<p><strong>不适用场景</strong>：</p>
+<ul>
+<li>✗ TLS&#x2F;SSL 测试（使用自签名证书可部分替代）</li>
+<li>✗ 性能压测（使用 Linux 服务器）</li>
+<li>✗ 高可用配置（需要多台服务器）</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/1a7e5d4e/">https://voidvec.github.io/posts/1a7e5d4e/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/deployment/">deployment</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/d1522b35/"><span class="pj-related__name">PostgreSQL 15 → 17 大版本升级实战</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4345ce98/"><span class="pj-related__name">账号锁定机制</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3aa359ed/"><span class="pj-related__name">配置项设计与默认值</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/875ba3c2/"><span class="pj-related__name">Docker 部署与容器编排</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/3964c8d1/"><span class="pj-related__name">Windows Docker Desktop 部署实录：从零到服务可用</span><span class="pj-related__type">实践指南</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/a3ad6b97/" title="无人工参与的自动化授权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">无人工参与的自动化授权</div></div><div class="info-2"><div class="info-item-1">Fulla 说标准 OAuth 2.0，脚本、CLI 与服务间集成使用与浏览器相同的协议。</div></div></div></a><a class="pagination-related" href="/posts/3964c8d1/" title="Windows Docker Desktop 部署实录：从零到服务可用"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Windows Docker Desktop 部署实录：从零到服务可用</div></div><div class="info-2"><div class="info-item-1">在 Windows + Docker Desktop 上把 Fulla 全栈跑起来的完整步骤：前置依赖、密钥生成、环境变量与容器编排。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/3964c8d1/" title="Windows Docker Desktop 部署实录：从零到服务可用"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows Docker Desktop 部署实录：从零到服务可用</div></div><div class="info-2"><div class="info-item-1">在 Windows + Docker Desktop 上把 Fulla 全栈跑起来的完整步骤：前置依赖、密钥生成、环境变量与容器编排。</div></div></div></a><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/d1522b35/" title="PostgreSQL 15 → 17 大版本升级实战"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">PostgreSQL 15 → 17 大版本升级实战</div></div><div class="info-2"><div class="info-item-1">适用范围：使用本仓库 deploy/docker/docker-compose.prod.yml（或 Helm chart）</div></div></div></a><a class="pagination-related" href="/posts/3aa359ed/" title="配置项设计与默认值"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">配置项设计与默认值</div></div><div class="info-2"><div class="info-item-1">配置项清单与默认值、环境变量覆盖顺序，以及常见误配的后果。</div></div></div></a><a class="pagination-related" href="/posts/11796283/" title="OAuth2 可观测性设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-23</div><div class="info-item-2">OAuth2 可观测性设计</div></div><div class="info-2"><div class="info-item-1">本系统通过 IMetrics 适配器提供 Prometheus 指标，并提供带上下文的结构化指标日志，供监控与问题排查使用。</div></div></div></a><a class="pagination-related" href="/posts/875ba3c2/" title="Docker 部署与容器编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Docker 部署与容器编排</div></div><div class="info-2"><div class="info-item-1">用 Docker Compose 拉起完整 OAuth2 服务栈：镜像、编排与生产环境差异。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%89%A7%E8%A1%8C%E7%AB%AF%E7%82%B9%E6%B5%8B%E8%AF%95"><span class="toc-number">1.</span> <span class="toc-text">执行端点测试</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%A8%E8%8D%90%E6%96%B9%E5%BC%8F%EF%BC%9AGit-Bash"><span class="toc-number">1.1.</span> <span class="toc-text">推荐方式：Git Bash</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E6%89%A7%E8%A1%8C-OAuth2-%E6%A0%B8%E5%BF%83%E7%AB%AF%E7%82%B9%E6%B5%8B%E8%AF%95"><span class="toc-number">1.1.1.</span> <span class="toc-text">1. 执行 OAuth2 核心端点测试</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-%E6%89%A7%E8%A1%8C%E7%AE%A1%E7%90%86%E5%90%8E%E5%8F%B0-API-%E6%B5%8B%E8%AF%95"><span class="toc-number">1.1.2.</span> <span class="toc-text">2. 执行管理后台 API 测试</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%87%E9%80%89%E6%96%B9%E5%BC%8F%EF%BC%9AWSL2-Ubuntu"><span class="toc-number">1.2.</span> <span class="toc-text">备选方式：WSL2 Ubuntu</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PowerShell-%E6%B7%B7%E5%90%88%E6%96%B9%E5%BC%8F"><span class="toc-number">1.3.</span> <span class="toc-text">PowerShell 混合方式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C%E8%A7%A3%E8%AF%BB"><span class="toc-number">1.4.</span> <span class="toc-text">测试结果解读</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%A2%84%E6%9C%9F%E8%BE%93%E5%87%BA"><span class="toc-number">1.4.1.</span> <span class="toc-text">预期输出</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%A4%B1%E8%B4%A5%E6%8E%92%E6%9F%A5"><span class="toc-number">1.4.2.</span> <span class="toc-text">失败排查</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%88%90%E5%8A%9F%E6%A0%87%E5%87%86"><span class="toc-number">1.4.3.</span> <span class="toc-text">成功标准</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E5%89%8D%E5%87%86%E5%A4%87"><span class="toc-number">1.5.</span> <span class="toc-text">测试前准备</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E7%A1%AE%E4%BF%9D%E6%95%B0%E6%8D%AE%E5%BA%93%E7%A7%8D%E5%AD%90%E6%95%B0%E6%8D%AE"><span class="toc-number">1.5.1.</span> <span class="toc-text">1. 确保数据库种子数据</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-%E9%AA%8C%E8%AF%81%E5%9F%BA%E7%A1%80%E6%9C%8D%E5%8A%A1"><span class="toc-number">1.5.2.</span> <span class="toc-text">2. 验证基础服务</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BF%AB%E9%80%9F%E9%AA%8C%E8%AF%81%E5%91%BD%E4%BB%A4"><span class="toc-number">1.6.</span> <span class="toc-text">快速验证命令</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8A%9F%E8%83%BD%E6%B5%8B%E8%AF%95%E6%B8%85%E5%8D%95"><span class="toc-number">2.</span> <span class="toc-text">功能测试清单</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83-OAuth2-%E6%B5%81%E7%A8%8B"><span class="toc-number">2.1.</span> <span class="toc-text">核心 OAuth2 流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#API-%E7%AB%AF%E7%82%B9%E6%B5%8B%E8%AF%95"><span class="toc-number">2.2.</span> <span class="toc-text">API 端点测试</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%B9%E6%B3%95-1%EF%BC%9A%E4%BD%BF%E7%94%A8%E7%8E%B0%E6%9C%89%E6%B5%8B%E8%AF%95%E8%84%9A%E6%9C%AC%EF%BC%88%E6%8E%A8%E8%8D%90%EF%BC%89"><span class="toc-number">2.2.1.</span> <span class="toc-text">方法 1：使用现有测试脚本（推荐）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%B9%E6%B3%95-2%EF%BC%9A%E4%BD%BF%E7%94%A8-PowerShell-%E8%84%9A%E6%9C%AC%E6%B5%8B%E8%AF%95"><span class="toc-number">2.2.2.</span> <span class="toc-text">方法 2：使用 PowerShell 脚本测试</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%B9%E6%B3%95-3%EF%BC%9A%E4%BD%BF%E7%94%A8-WSL2-Ubuntu%EF%BC%88%E6%8E%A8%E8%8D%90%EF%BC%89"><span class="toc-number">2.2.3.</span> <span class="toc-text">方法 3：使用 WSL2 Ubuntu（推荐）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%89%8D%E7%AB%AF%E8%B7%AF%E7%94%B1%E6%B5%8B%E8%AF%95"><span class="toc-number">2.3.</span> <span class="toc-text">前端路由测试</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5"><span class="toc-number">3.</span> <span class="toc-text">常见问题排查</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Docker-Desktop-%E5%90%AF%E5%8A%A8%E5%A4%B1%E8%B4%A5"><span class="toc-number">3.1.</span> <span class="toc-text">Docker Desktop 启动失败</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AB%AF%E5%8F%A3%E5%86%B2%E7%AA%81"><span class="toc-number">3.2.</span> <span class="toc-text">端口冲突</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5"><span class="toc-number">3.3.</span> <span class="toc-text">数据库连接失败</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9E%84%E5%BB%BA%E5%A4%B1%E8%B4%A5"><span class="toc-number">3.4.</span> <span class="toc-text">构建失败</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Windows-%E8%B7%AF%E5%BE%84%E9%97%AE%E9%A2%98"><span class="toc-number">3.5.</span> <span class="toc-text">Windows 路径问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%8E-Linux-%E7%94%9F%E4%BA%A7%E9%83%A8%E7%BD%B2%E7%9A%84%E6%98%A0%E5%B0%84%E5%85%B3%E7%B3%BB"><span class="toc-number">4.</span> <span class="toc-text">与 Linux 生产部署的映射关系</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E6%98%A0%E5%B0%84"><span class="toc-number">4.1.</span> <span class="toc-text">配置文件映射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%83%A8%E7%BD%B2%E5%91%BD%E4%BB%A4%E6%98%A0%E5%B0%84"><span class="toc-number">4.2.</span> <span class="toc-text">部署命令映射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%BF%E9%97%AE%E5%9C%B0%E5%9D%80%E6%98%A0%E5%B0%84"><span class="toc-number">4.3.</span> <span class="toc-text">访问地址映射</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8E%E6%9C%AC%E5%9C%B0%E9%AA%8C%E8%AF%81%E5%88%B0%E7%94%9F%E4%BA%A7%E9%83%A8%E7%BD%B2"><span class="toc-number">5.</span> <span class="toc-text">从本地验证到生产部署</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AA%8C%E8%AF%81%E9%80%9A%E8%BF%87%E5%90%8E%E9%83%A8%E7%BD%B2%E5%88%B0-Linux"><span class="toc-number">5.1.</span> <span class="toc-text">验证通过后部署到 Linux</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="toc-number">6.</span> <span class="toc-text">性能对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5"><span class="toc-number">7.</span> <span class="toc-text">下一步</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95%EF%BC%9A%E5%AE%8C%E6%95%B4%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84"><span class="toc-number">8.</span> <span class="toc-text">附录：完整端口映射</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">9.</span> <span class="toc-text">总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

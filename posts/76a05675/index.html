@@ -1,0 +1,369 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>SDK 运行时契约：二进制兼容怎么保证 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="尚未发布的 S03 刷新加固增加了仓储迁移要求，见">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SDK 运行时契约：二进制兼容怎么保证">
+<meta property="og:url" content="https://voidvec.github.io/posts/76a05675/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="尚未发布的 S03 刷新加固增加了仓储迁移要求，见">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-18T00:10:00.000Z">
+<meta property="article:modified_time" content="2026-11-18T00:10:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "SDK 运行时契约：二进制兼容怎么保证",
+  "url": "https://voidvec.github.io/posts/76a05675/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-18T00:10:00.000Z",
+  "dateModified": "2026-11-18T00:10:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/76a05675/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'SDK 运行时契约：二进制兼容怎么保证',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">SDK 运行时契约：二进制兼容怎么保证</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">SDK 运行时契约：二进制兼容怎么保证</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-18T00:10:00.000Z" title="发表于 2026-11-18 08:10:00">2026-11-18</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-18T00:10:00.000Z" title="更新于 2026-11-18 08:10:00">2026-11-18</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E6%9E%84%E5%BB%BA%E7%B3%BB%E7%BB%9F/">构建系统</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>尚未发布的 S03 刷新加固增加了仓储迁移要求，见<br><a href="/posts/4916bf40/">刷新令牌与撤销生效边界</a>。<br>仅实现旧 ITokenRepository 接口的仓储仍可编译，但在实现新的查询、原子轮换与确认撤销端口前，<br>刷新会失败关闭。</p>
+<p>对外契约声明：Fulla SDK（<code>fulla::common</code> &#x2F; <code>fulla::oauth2</code> &#x2F;<br><code>fulla::identity</code> &#x2F; <code>fulla::storage-*</code> &#x2F; <code>fulla::drogon</code>）在 v1.x<br>期间对消费者承诺的线程模型、ABI、异常、日志与依赖边界。</p>
+<p>本文档是对外承诺的单一出处；SDK 头文件注释与本文冲突时以本文为准并修头。</p>
+<hr>
+<h2 id="1-线程模型"><a href="#1-线程模型" class="headerlink" title="1. 线程模型"></a>1. 线程模型</h2><ul>
+<li>Domain 服务（<code>libs/oauth2</code>、<code>libs/identity</code>）<strong>不自持事件循环</strong>；所有异步<br>操作经回调返回。</li>
+<li><strong>回调可能在任意 Drogon IO 线程触发，不保证是调用线程</strong>。消费者不得假设<br>线程亲和性；需要回到特定线程时由消费者自行投递。</li>
+<li>只读单例（如 <code>JwkManager</code>）遵循 <strong>init-once-then-read-only</strong>：在服务开始<br>接受请求前完成一次性 <code>init()</code>，之后以 <code>shared_ptr&lt;const T&gt;</code> 发布，运行期<br>不再变更。消费者在 SDK 装配完成后并发读取是安全的。</li>
+<li>服务对象持有 <code>shared_ptr</code> 仓储句柄保证生命周期；异步续体一律捕获<br><code>auto self = shared_from_this()</code>，禁止 <code>[this]</code> &#x2F; <code>[&amp;]</code>。</li>
+</ul>
+<h2 id="2-ABI-稳定性"><a href="#2-ABI-稳定性" class="headerlink" title="2. ABI 稳定性"></a>2. ABI 稳定性</h2><ul>
+<li>v1.x <strong>仅支持 <code>find_package</code> 源码集成，不承诺二进制 ABI</strong>。</li>
+<li>语义化版本只覆盖<strong>源码级 API</strong>：公共头 <code>include/fulla/**</code> 遵循<br>SemVer，破坏性变更必须升 major（由 api-diff 工具在 CI 强制）。</li>
+<li>跨编译器 &#x2F; 跨 STL 混用预编译二进制不在支持范围；进入 Conan 二进制包<br>分发阶段后再单独制定 ABI 策略。</li>
+<li>弃用流程：<code>[[deprecated]]</code> 标注 + 至少一个 minor 周期过渡后方可移除。</li>
+</ul>
+<h2 id="3-异常安全约定"><a href="#3-异常安全约定" class="headerlink" title="3. 异常安全约定"></a>3. 异常安全约定</h2><ul>
+<li>Domain 公共 API 以 <code>Result&lt;T, Error&gt;</code> 返回<strong>可预期错误</strong>，不用异常表达<br>业务失败。</li>
+<li>仅在不可恢复的编程错误（契约违反、断言级问题）抛异常。</li>
+<li>存储底层异常（如 <code>DrogonDbException</code>）<strong>必须在 Adapter 层<br>（<code>libs/storage-*</code>、<code>libs/drogon</code>）捕获并转为 <code>Error</code>，不得穿透到<br>Domain 回调</strong>。消费者在 Domain 回调内无需 try&#x2F;catch 存储异常。</li>
+</ul>
+<h2 id="4-日志抽象"><a href="#4-日志抽象" class="headerlink" title="4. 日志抽象"></a>4. 日志抽象</h2><ul>
+<li>Domain 代码经 <code>common::ports::ILogger</code> 端口输出日志，<strong>不直接使用<br>Drogon <code>LOG_*</code> 宏</strong>（arch-guard 强制 Domain 层不 include drogon 头）。</li>
+<li>SDK 默认提供 Drogon 日志适配实现（<code>libs/drogon</code> Adapter）；脱离 Drogon<br>宿主的消费者可注入自己的 <code>ILogger</code> 实现替换。</li>
+</ul>
+<h2 id="5-依赖声明"><a href="#5-依赖声明" class="headerlink" title="5. 依赖声明"></a>5. 依赖声明</h2><ul>
+<li><code>with_social</code> &#x2F; <code>with_webauthn</code> 映射到 CMake 的 <code>WITH_SOCIAL</code> &#x2F;<br><code>WITH_WEBAUTHN</code>，裁剪对应服务与 Controller 的编译面。</li>
+<li><code>with_identity=False</code> &#x2F; <code>WITH_IDENTITY=OFF</code> <strong>不受支持</strong>：产品与<br>Postgres 适配器仍需要 <code>fulla::identity</code>，配置阶段会明确报错；<br>配置仓库时应保持 identity 启用。</li>
+<li>WebAuthn 自 v1.1.0（#142）起实现真实 W3C Level 2 CBOR&#x2F;COSE 和 ES256 验证，<br>只读强类型 CborReader 消费 libcbor。关闭 WebAuthn 后，Conan 不再要求 libcbor，<br>CMake 不再查找&#x2F;链接它，相关服务、加密实现与 CBOR 测试不参与编译，导出的 SDK<br>配置也不再要求它。OpenSSL 与 jsoncpp 仍是其他特性的共享依赖。</li>
+</ul>
+<h3 id="5-1-受支持的组合"><a href="#5-1-受支持的组合" class="headerlink" title="5.1 受支持的组合"></a>5.1 受支持的组合</h3><p>所有受支持配置都保持 identity ON。两个可选开关默认均为 ON，应使用对应 Conan<br>选项，不要只覆盖 CMake 开关。</p>
+<table>
+<thead>
+<tr>
+<th>Social</th>
+<th>WebAuthn</th>
+<th>编译面与依赖边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ON</td>
+<td>ON</td>
+<td>完整 provider&#x2F;WebAuthn 服务与 Controller，需要 libcbor</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>ON</td>
+<td>去除 provider 登录&#x2F;绑定路由与 social 服务，保留 WebAuthn&#x2F;libcbor</td>
+</tr>
+<tr>
+<td>ON</td>
+<td>OFF</td>
+<td>去除 WebAuthn 路由、实现和测试，不再要求 libcbor</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>OFF</td>
+<td>保留核心 identity&#x2F;MFA&#x2F;TOTP&#x2F;OAuth2，不要求两组可选服务或 libcbor</td>
+</tr>
+</tbody></table>
+<p>Social OFF 仍保留 <code>GET /api/auth/providers</code>，返回空 provider 列表；共享的<br><code>POST /api/auth/providers/{provider}/authorize</code> 路由也保留，在不可用时返回 404。<br>关闭 social 不承诺移除共享 HTTP 或存储适配器。头文件继续安装；哪些声明可用仍由<br>既有 <code>WITH_*</code> guards 决定。OFF 库不提供被关闭服务的实现。应链接 SDK imported<br>targets，使用其导出的 feature 定义，不要<br>自行定义 <code>WITH_*</code>。</p>
+<p>编译开关不会删除已保存的 WebAuthn 凭据或社交绑定。部署裁剪变体前，应给依赖<br>被关闭特性的账号准备可用登录方式；不会自动迁移认证因子或数据。</p>
+<p>仓库中的 Conan lock 是受支持配置的超集；libcbor 条目继续锁定 ON 构建，OFF 图<br>不消费该条目。构建树和安装树消费者都必须解析所选依赖闭包。不同 feature 配置<br>之间不承诺二进制 ABI 兼容。</p>
+<h3 id="5-2-复现矩阵检查"><a href="#5-2-复现矩阵检查" class="headerlink" title="5.2 复现矩阵检查"></a>5.2 复现矩阵检查</h3><p>按测试指南准备隔离的 PostgreSQL&#x2F;Redis fixture，<br>沿用普通测试入口的 <code>FULLA_DB_*</code> 与 <code>FULLA_REDIS_*</code> 环境覆盖。然后运行一个组合<br>（需要 Python 3.10+、Conan、CMake 与原生工具链）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">python3 tools/feature-matrix/run.py \</span><br><span class="line">  --social ON --webauthn OFF \</span><br><span class="line">  --build-dir build/social-on-webauthn-off \</span><br><span class="line">  --evidence-dir docs-local/feature-matrix/social-on-webauthn-off</span><br></pre></td></tr></table></figure>
+
+<p>每次尝试使用新的证据目录，不覆盖已有结果；消费者&#x2F;安装目录也必须全新，若上次<br>尝试已生成它们，应选择新的构建目录。其余三个组合依次重复。脚本解析<br>锁定依赖图，以 <code>FULLA_WERROR=ON</code> 构建，检查配置源文件&#x2F;flags&#x2F;exports，运行适用的<br>完整 CTest（含完整服务 binary），并从构建树及新安装前缀分别构建&#x2F;运行 SDK 宿主。<br>OFF 消费者显式禁找 libcbor，包目录和 imported target 路径也要匹配预期前缀。<br>必需测试须已注册且通过，不能有 CTest skip，并验证 PG&#x2F;Redis 实际就绪；不支持的<br>identity OFF 组合必须在 Conan 和 CMake 两处失败。<br>既有 gtest&#x2F;example 警告策略保持，Werror 应用于使用项目 warnings helper 的目标。</p>
+<p>全开构建保留原 OAuth2&#x2F;Admin 端点脚本；裁剪构建改跑独立 feature-surface 进程探针，<br>检查公共端点并断言被裁剪路由返回 404；启用 social 时仍运行浏览器绑定 state 的<br>独立进程检查。默认完整 route golden 和 OpenAPI fingerprint 原文不变，仅裁剪<br>构建的预期集合按开关缩减。Optional Feature Matrix CI 跑三个裁剪 Linux 组合，<br>普通跨平台 CI 覆盖 ON&#x2F;ON。</p>
+<h2 id="6-插件注册与配置契约（宿主集成）"><a href="#6-插件注册与配置契约（宿主集成）" class="headerlink" title="6. 插件注册与配置契约（宿主集成）"></a>6. 插件注册与配置契约（宿主集成）</h2><ul>
+<li><code>OAuth2Plugin</code> 类名与 config <code>plugins[].name</code> 反射加载契约<strong>保持稳定</strong><br>（方案 A）：各 config（<code>config.{json,dev,ci,prod,bench}.json</code>）中<br><code>&quot;plugins&quot;:[{&quot;name&quot;:&quot;OAuth2Plugin&quot;,&quot;config&quot;:{...}}]</code> 的类名字符串与<br><code>config{}</code> 块 schema 是产品配置契约的一部分，v1.x 不改名。</li>
+<li><code>fulla::drogon</code> 当前是包含插件源文件的 <strong>STATIC 库</strong>；原独立<br>OBJECT 库已被合并。</li>
+<li>宿主必须保留实际使用的 Controller&#x2F;插件注册代码。参考<br><code>examples/full-stack-host/</code>：编译产品 bootstrap 源文件、显式注册<br>Controller 并装配插件依赖。配置中的类名字符串本身不能强制链接器<br>抽取静态库目标文件。</li>
+<li>仅依赖未引用静态自注册的封装须显式保留相关目标文件（如在适用链接器上<br>使用 whole-archive），并自行验证注册冒烟测试。</li>
+<li>HTTP 宿主集成见 <code>examples/full-stack-host/</code>；仅引擎集成见<br><code>examples/third-party-host/</code>。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/76a05675/">https://voidvec.github.io/posts/76a05675/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4916bf40/"><span class="pj-related__name">刷新令牌与撤销的生效边界</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9808bae6/"><span class="pj-related__name">多租户组织模型设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/5cd14a42/"><span class="pj-related__name">RBAC 权限控制模型</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/2e791cf6/" title="从零接入 OIDC 登录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">从零接入 OIDC 登录</div></div><div class="info-2"><div class="info-item-1">用标准 OpenID Connect 把 Web / 移动 / CLI 应用接到 Fulla 的完整步骤。</div></div></div></a><a class="pagination-related" href="/posts/bbcb0ba7/" title="OpenMAIC 运营合规边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">OpenMAIC 运营合规边界</div></div><div class="info-2"><div class="info-item-1">闲鱼两条业务线的风控口径边界与唯一真源；具体禁词、图片规格与处罚条款不在此维护</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/11796283/" title="OAuth2 可观测性设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-23</div><div class="info-item-2">OAuth2 可观测性设计</div></div><div class="info-2"><div class="info-item-1">本系统通过 IMetrics 适配器提供 Prometheus 指标，并提供带上下文的结构化指标日志，供监控与问题排查使用。</div></div></div></a><a class="pagination-related" href="/posts/ae985cd0/" title="数据库迁移管理"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库迁移管理</div></div><div class="info-2"><div class="info-item-1">本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及</div></div></div></a><a class="pagination-related" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 数据持久化：存储选型与一致性</div></div><div class="info-2"><div class="info-item-1">OAuth2 插件的持久化层：PostgreSQL Schema、Redis 键值结构与存储侧安全加固。</div></div></div></a><a class="pagination-related" href="/posts/4434d0a3/" title="OIDC 集成指南：从 id_token 到用户信息"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-08</div><div class="info-item-2">OIDC 集成指南：从 id_token 到用户信息</div></div><div class="info-2"><div class="info-item-1">本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。</div></div></div></a><a class="pagination-related" href="/posts/1a7e5d4e/" title="Windows 部署验证：端点测试与踩坑排查"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows 部署验证：端点测试与踩坑排查</div></div><div class="info-2"><div class="info-item-1">端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。</div></div></div></a><a class="pagination-related" href="/posts/5cd14a42/" title="RBAC 权限控制模型"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">RBAC 权限控制模型</div></div><div class="info-2"><div class="info-item-1">三道门强制执行的三层访问控制模型，以及角色、权限与资源的映射关系。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B"><span class="toc-number">1.</span> <span class="toc-text">1. 线程模型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-ABI-%E7%A8%B3%E5%AE%9A%E6%80%A7"><span class="toc-number">2.</span> <span class="toc-text">2. ABI 稳定性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%BC%82%E5%B8%B8%E5%AE%89%E5%85%A8%E7%BA%A6%E5%AE%9A"><span class="toc-number">3.</span> <span class="toc-text">3. 异常安全约定</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%97%A5%E5%BF%97%E6%8A%BD%E8%B1%A1"><span class="toc-number">4.</span> <span class="toc-text">4. 日志抽象</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E4%BE%9D%E8%B5%96%E5%A3%B0%E6%98%8E"><span class="toc-number">5.</span> <span class="toc-text">5. 依赖声明</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E5%8F%97%E6%94%AF%E6%8C%81%E7%9A%84%E7%BB%84%E5%90%88"><span class="toc-number">5.1.</span> <span class="toc-text">5.1 受支持的组合</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%A4%8D%E7%8E%B0%E7%9F%A9%E9%98%B5%E6%A3%80%E6%9F%A5"><span class="toc-number">5.2.</span> <span class="toc-text">5.2 复现矩阵检查</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%8F%92%E4%BB%B6%E6%B3%A8%E5%86%8C%E4%B8%8E%E9%85%8D%E7%BD%AE%E5%A5%91%E7%BA%A6%EF%BC%88%E5%AE%BF%E4%B8%BB%E9%9B%86%E6%88%90%EF%BC%89"><span class="toc-number">6.</span> <span class="toc-text">6. 插件注册与配置契约（宿主集成）</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

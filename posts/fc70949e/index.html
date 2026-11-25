@@ -1,0 +1,689 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>数据库性能优化 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="数据库性能优化">
+<meta property="og:url" content="https://voidvec.github.io/posts/fc70949e/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:21:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:21:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="database">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "数据库性能优化",
+  "url": "https://voidvec.github.io/posts/fc70949e/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:21:00.000Z",
+  "dateModified": "2026-11-03T00:21:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/fc70949e/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '数据库性能优化',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">数据库性能优化</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">数据库性能优化</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:21:00.000Z" title="发表于 2026-11-03 08:21:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:21:00.000Z" title="更新于 2026-11-03 08:21:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F/">数据库系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F/%E5%85%B3%E7%B3%BB%E5%9E%8B%E6%95%B0%E6%8D%AE%E5%BA%93/">关系型数据库</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">数据存储</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">数据与运维</span><span class="pj-badge pj-badge--muted">深入</span></div><article class="container post-content" id="article-container"><blockquote>
+<p>快照说明：本文以 authforge <code>fix/oidc-p0-consent-insecure-context</code> @ <code>acdb09d3</code> + 工作区为基线；发布版本仍为 v1.6.0，基线后的新增能力均标为“未发布”。版本脉络见 [[versioning-and-release-guide-zh]]。</p>
+</blockquote>
+<cite>
+**本文引用的文件**
+- [apps/server/migrations/V002__oauth2_core.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql)
+- [apps/server/migrations/V003__oauth2_core_indexes.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V003__oauth2_core_indexes.sql)
+- [apps/server/config/config.json](https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json)
+- [apps/server/config/config.prod.json](https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json)
+- [libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h)
+- [libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h)
+- [libs/storage-redis/src/RedisClientRepository.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisClientRepository.cc)
+- [docs/operate/observability.md](https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md)
+- [tests/security/injection/DbLeakVerificationTest.cc](https://github.com/voidvec/fulla/blob/master/tests/security/injection/DbLeakVerificationTest.cc)
+- [tests/performance/benchmark/PerformanceBenchmark.cc](https://github.com/voidvec/fulla/blob/master/tests/performance/benchmark/PerformanceBenchmark.cc)
+- [docs/history/design/superpowers/specs/2026-05-11-p1-P1_TECHNICAL_DESIGN.md](https://fulla.dev/docs/intro)
+- [docs/architecture/data-persistence.md](https://github.com/voidvec/fulla/blob/master/docs/architecture/data-persistence.md)
+- [CachedClaimMappingsProvider.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/adapters/CachedClaimMappingsProvider.h)
+- [OAuth2Plugin.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc)
+- [benchmarks/README.md](https://github.com/voidvec/fulla/blob/master/benchmarks/README.md)
+- [CHANGELOG.md](https://github.com/voidvec/fulla/blob/master/CHANGELOG.md)
+- [libs/drogon/src/adapters/DrogonMetrics.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/adapters/DrogonMetrics.cc)
+- [libs/drogon/src/controllers/TokenGrantResponse.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/TokenGrantResponse.cc)
+- [libs/storage-redis/src/RedisCachedTokenRepository.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc)
+- [benchmarks/results/20261027-3d458c08-s6-userinfo-c32.json](https://github.com/voidvec/fulla/blob/master/benchmarks/results/20261027-3d458c08-s6-userinfo-c32.json)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F">性能考量</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。内容基于仓库中的迁移脚本、配置、存储实现与可观测性文档进行系统化梳理，并提供可操作的优化路径。</p>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><ul>
+<li>数据库层：PostgreSQL 通过 Drogon ORM 访问；Redis 用于高性能缓存与令牌生命周期管理。</li>
+<li>存储抽象：PostgresRepositoryBase 提供主从客户端初始化能力；RedisRepositoryBase 提供 Redis 客户端获取与超时设置。</li>
+<li>配置：开发&#x2F;生产环境分别提供 db_clients 与 redis_clients 的连接池参数。</li>
+<li>可观测性：PromExporter 原生导出实际发射的 counter&#x2F;gauge；histogram 仅日志，当前没有原生延迟直方图。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">A[&quot;应用进程&lt;br/&gt;OAuth2 插件&quot;] --&gt; B[&quot;Drogon ORM&lt;br/&gt;DbClient (PostgreSQL)&quot;]</span><br><span class="line">A --&gt; C[&quot;Drogon RedisClient&lt;br/&gt;Redis&quot;]</span><br><span class="line">B --&gt; D[&quot;PostgreSQL&quot;]</span><br><span class="line">C --&gt; E[&quot;Redis 集群/单实例&quot;]</span><br><span class="line">A --&gt; F[&quot;PromExporter&lt;br/&gt;/metrics&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>数据库表与索引<ul>
+<li>OAuth2 核心表：clients、codes、access_tokens、refresh_tokens（定义见迁移脚本）。</li>
+<li>索引：针对 token、client_id、过期时间、撤销状态等高频查询字段建立复合索引。</li>
+</ul>
+</li>
+<li>存储后端<ul>
+<li>PostgreSQL：通过 PostgresRepositoryBase 初始化主&#x2F;读客户端，支持读写分离扩展点。</li>
+<li>Redis：通过 RedisRepositoryBase 获取 RedisClient 并设置超时，用于高吞吐 Token 操作。</li>
+</ul>
+</li>
+<li>配置与连接池<ul>
+<li>db_clients.number_of_connections、timeout、auto_batch、connect_options.statement_timeout。</li>
+<li>redis_clients.number_of_connections、timeout。</li>
+</ul>
+</li>
+<li>可观测性<ul>
+<li>counter&#x2F;gauge 经 PromExporter 暴露并保留 [METRIC] 日志；oauth2_requests_total 以 HTTP 状态码数值为增量，不是 QPS。</li>
+<li>oauth2_active_tokens 签发后置 1，不是活跃 Token 估算；histogram 仅日志且无业务侧 timer。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql#L5-L56">apps&#x2F;server&#x2F;migrations&#x2F;V002__oauth2_core.sql:5-56</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V003__oauth2_core_indexes.sql#L3-L8">apps&#x2F;server&#x2F;migrations&#x2F;V003__oauth2_core_indexes.sql:3-8</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/adapters/DrogonMetrics.cc#L114-L216">libs&#x2F;drogon&#x2F;src&#x2F;adapters&#x2F;DrogonMetrics.cc:114-216</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/TokenGrantResponse.cc#L14-L42">libs&#x2F;drogon&#x2F;src&#x2F;controllers&#x2F;TokenGrantResponse.cc:14-42</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>下图展示请求在 OAuth2 服务中的关键路径：HTTP 进入后，鉴权流程可能命中 Redis 缓存（Token 校验、元数据），未命中则回源到 PostgreSQL 读取或写入，并通过 PromExporter 上报指标。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Client as &quot;客户端&quot;</span><br><span class="line">participant App as &quot;OAuth2 插件&quot;</span><br><span class="line">participant Cache as &quot;Redis&quot;</span><br><span class="line">participant DB as &quot;PostgreSQL&quot;</span><br><span class="line">participant Metrics as &quot;PromExporter&quot;</span><br><span class="line">Client-&gt;&gt;App : &quot;授权码/令牌交换/校验&quot;</span><br><span class="line">App-&gt;&gt;Cache : &quot;查找缓存(如 Token/元数据)&quot;</span><br><span class="line">alt 缓存命中</span><br><span class="line">Cache--&gt;&gt;App : &quot;返回结果&quot;</span><br><span class="line">else 缓存未命中</span><br><span class="line">App-&gt;&gt;DB : &quot;执行 SQL(带索引)&quot;</span><br><span class="line">DB--&gt;&gt;App : &quot;返回记录&quot;</span><br><span class="line">App-&gt;&gt;Cache : &quot;写入缓存(设置 TTL)&quot;</span><br><span class="line">end</span><br><span class="line">App-&gt;&gt;Metrics : &quot;更新 counter/gauge&quot;</span><br><span class="line">Note over App,Metrics : &quot;histogram 仅日志；Prometheus 拉取 /metrics&quot;</span><br><span class="line">App--&gt;&gt;Client : &quot;响应&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisClientRepository.cc#L1-L27">libs&#x2F;storage-redis&#x2F;src&#x2F;RedisClientRepository.cc:1-27</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="索引策略与查询优化（OAuth2-核心表）"><a href="#索引策略与查询优化（OAuth2-核心表）" class="headerlink" title="索引策略与查询优化（OAuth2 核心表）"></a>索引策略与查询优化（OAuth2 核心表）</h3><ul>
+<li>表结构与主键<ul>
+<li>oauth2_access_tokens(token PK)、oauth2_refresh_tokens(token PK)、oauth2_codes(code PK)、oauth2_clients(client_id PK)。</li>
+</ul>
+</li>
+<li>索引设计<ul>
+<li>access_tokens: token、client_id、expires_at、(revoked, expires_at) 复合索引。</li>
+<li>refresh_tokens: token、(revoked, expires_at) 复合索引。</li>
+</ul>
+</li>
+<li>典型查询场景与索引匹配<ul>
+<li>按 token 精确查找：使用 token 索引。</li>
+<li>清理过期&#x2F;已撤销令牌：使用 (revoked, expires_at) 复合索引加速范围扫描。</li>
+<li>按 client_id 统计&#x2F;过滤：使用 client_id 索引。</li>
+</ul>
+</li>
+<li>建议<ul>
+<li>避免对大文本字段（scope、redirect_uris）做前缀索引；如需按 scope 过滤，考虑生成列+表达式索引或规范化拆分。</li>
+<li>定期 ANALYZE 更新统计信息，确保优化器选择正确计划。</li>
+<li>对高频 UPDATE（如 revoked 标记）关注锁竞争与 WAL 压力。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;开始&quot;]) --&gt; Q1&#123;&quot;是否按 token 查询?&quot;&#125;</span><br><span class="line">Q1 --&gt; |是| I1[&quot;走 token 索引&quot;]</span><br><span class="line">Q1 --&gt; |否| Q2&#123;&quot;是否按 client_id 查询?&quot;&#125;</span><br><span class="line">Q2 --&gt; |是| I2[&quot;走 client_id 索引&quot;]</span><br><span class="line">Q2 --&gt; |否| Q3&#123;&quot;是否清理过期/撤销?&quot;&#125;</span><br><span class="line">Q3 --&gt; |是| I3[&quot;走 (revoked, expires_at) 复合索引&quot;]</span><br><span class="line">Q3 --&gt; |否| Q4&#123;&quot;其他条件?&quot;&#125;</span><br><span class="line">Q4 --&gt; |需要| Suggest[&quot;评估新增索引/改写查询&quot;]</span><br><span class="line">Q4 --&gt; |不需要| End([&quot;结束&quot;])</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql#L5-L56">apps&#x2F;server&#x2F;migrations&#x2F;V002__oauth2_core.sql:5-56</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V003__oauth2_core_indexes.sql#L3-L8">apps&#x2F;server&#x2F;migrations&#x2F;V003__oauth2_core_indexes.sql:3-8</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql#L5-L56">apps&#x2F;server&#x2F;migrations&#x2F;V002__oauth2_core.sql:5-56</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V003__oauth2_core_indexes.sql#L3-L8">apps&#x2F;server&#x2F;migrations&#x2F;V003__oauth2_core_indexes.sql:3-8</a></li>
+</ul>
+<h3 id="连接池配置与资源管理"><a href="#连接池配置与资源管理" class="headerlink" title="连接池配置与资源管理"></a>连接池配置与资源管理</h3><ul>
+<li>PostgreSQL 连接池<ul>
+<li>number_of_connections：控制每个 DbClient 的并发连接数。生产环境默认较小，可根据 CPU 核数与负载调整。</li>
+<li>timeout：连接&#x2F;语句级超时，防止长事务拖垮池。</li>
+<li>auto_batch：开启批量提交减少往返。</li>
+<li>connect_options.statement_timeout：限制单条语句执行时间，避免慢查询占用连接。</li>
+</ul>
+</li>
+<li>Redis 连接池<ul>
+<li>number_of_connections：控制 Redis 客户端连接数。</li>
+<li>timeout：网络&#x2F;命令超时，避免阻塞线程。</li>
+</ul>
+</li>
+<li>最佳实践<ul>
+<li>根据 QPS 与平均延迟估算所需连接数：连接数 ≈ QPS × 平均 RTT &#x2F; 1000。</li>
+<li>为不同用途创建多个 DbClient（写&#x2F;读分离），降低锁竞争。</li>
+<li>结合 Hodor 限流保护后端，避免突发流量打满连接池。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<h3 id="查询性能分析方法"><a href="#查询性能分析方法" class="headerlink" title="查询性能分析方法"></a>查询性能分析方法</h3><ul>
+<li>慢查询日志<ul>
+<li>启用 PostgreSQL 慢查询日志（log_min_duration_statement），采集执行时间超过阈值的 SQL。</li>
+<li>结合 statement_timeout 快速定位异常长语句。</li>
+</ul>
+</li>
+<li>执行计划分析<ul>
+<li>使用 EXPLAIN&#x2F;EXPLAIN ANALYZE 检查索引使用情况、扫描方式与成本。</li>
+<li>关注 Seq Scan 出现在大表上的情况，必要时补充索引或改写查询。</li>
+</ul>
+</li>
+<li>瓶颈识别<ul>
+<li>应用侧没有 PromExporter 延迟直方图；使用 PG 慢查询、Redis 命中率、DB 连接池使用率与外部代理&#x2F;APM 定位热点。</li>
+<li>登录失败、Introspection 错误 Counter 仅在经 IMetrics 实际发射时有数据。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<h3 id="缓存策略建议（Redis-集成与内存优化）"><a href="#缓存策略建议（Redis-集成与内存优化）" class="headerlink" title="缓存策略建议（Redis 集成与内存优化）"></a>缓存策略建议（Redis 集成与内存优化）</h3><ul>
+<li>Key 设计与 TTL<ul>
+<li>缓存装饰器使用 <code>fulla:cache:</code> 前缀；独立 Redis 权威&#x2F;协议仓储仍使用 <code>oauth2:client:</code>、<code>oauth2:code:</code>、<code>oauth2:token:</code> 等键，不能把两层键空间混为一谈。</li>
+<li>合理设置 TTL：授权码短 TTL，访问令牌中等 TTL，刷新令牌较长 TTL。</li>
+</ul>
+</li>
+<li>缓存模式<ul>
+<li>读多写少：先查缓存，未命中再查 DB 并回填；Token 正缓存 TTL 不晚于令牌剩余寿命，单次查询 5 秒 deadline，无 stale positive fallback。</li>
+<li>单令牌撤销在 DB 写成功后设置 negative marker，再删除正缓存；family 撤销不清全部正缓存，由 TTL 收敛。</li>
+</ul>
+</li>
+<li>内存优化<ul>
+<li>监控 Redis 内存与 fulla_cache_total{repo,outcome}，必要时调整 key 空间；引入本地小缓存前须先明确一致性边界。</li>
+</ul>
+</li>
+<li>性能目标参考<ul>
+<li>缓存命中下的亚毫秒与 P95 数字属于设计目标，不是当前工作区实测。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/data-persistence.md#L94-L131">docs&#x2F;architecture&#x2F;data-persistence.md:94-131</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisClientRepository.cc#L1-L27">libs&#x2F;storage-redis&#x2F;src&#x2F;RedisClientRepository.cc:1-27</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L383-L505">libs&#x2F;storage-redis&#x2F;src&#x2F;RedisCachedTokenRepository.cc:383-505</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/src/RedisCachedTokenRepository.cc#L506-L556">libs&#x2F;storage-redis&#x2F;src&#x2F;RedisCachedTokenRepository.cc:506-556</a></li>
+</ul>
+<h3 id="分库分表策略与读写分离配置"><a href="#分库分表策略与读写分离配置" class="headerlink" title="分库分表策略与读写分离配置"></a>分库分表策略与读写分离配置</h3><ul>
+<li>读写分离<ul>
+<li>通过 PostgresRepositoryBase 的主&#x2F;读客户端分离，将只读查询路由到副本，减轻主库压力。</li>
+<li>注意复制延迟对强一致读的影响，必要时降级到主库。</li>
+</ul>
+</li>
+<li>分库分表<ul>
+<li>按租户&#x2F;组织维度水平分片（如按 client_id 哈希），提升横向扩展能力。</li>
+<li>令牌表按时间或哈希分片，降低单表体积与锁竞争。</li>
+<li>跨分片查询需在上层聚合，避免分布式事务。</li>
+</ul>
+</li>
+<li>迁移与治理<ul>
+<li>使用迁移脚本逐步切流，灰度验证后再全量切换。</li>
+<li>配合监控与告警，观察分片后的均匀性与热点。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+</ul>
+<h3 id="性能监控指标与基准测试结果"><a href="#性能监控指标与基准测试结果" class="headerlink" title="性能监控指标与基准测试结果"></a>性能监控指标与基准测试结果</h3><ul>
+<li>监控指标<ul>
+<li>原生 counter&#x2F;gauge 需实际发射并注册；请求 Counter 按状态码增量，登录失败与 Introspection&#x2F;Revocation 错误仅在发射时有数据。</li>
+<li>应用侧没有原生延迟直方图；P95&#x2F;P99 使用外部代理&#x2F;APM 或压测驱动。oauth2_active_tokens 是签发活动标记。</li>
+</ul>
+</li>
+<li>基准目标（参考设计文档，不是当前实测）<ul>
+<li>令牌操作：授权码生成 &lt; 10ms，令牌交换 &lt; 50ms，Introspection 缓存命中 &lt; 10ms、未命中 &lt; 30ms。</li>
+<li>数据库查询：索引命中 &lt; 5ms，撤销更新 &lt; 10ms。</li>
+<li>负载：稳定 1000 req&#x2F;s（P95 &lt; 50ms），峰值 5000 req&#x2F;s（P95 &lt; 100ms），突发 10000 req&#x2F;s（P95 &lt; 200ms）。</li>
+<li>缓存：正常负载下命中率 ≥ 95%，Redis 操作 &lt; 2ms。</li>
+</ul>
+</li>
+<li>基准测试<ul>
+<li>项目包含轻量性能基准用例；本页未执行测试。未发布 capacity driver 与共享 runner 只验证工具行为，不形成当前容量 baseline。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://fulla.dev/docs/intro">docs&#x2F;history&#x2F;design&#x2F;superpowers&#x2F;specs&#x2F;2026-05-11-p1-P1_TECHNICAL_DESIGN.md:606-660</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/performance/benchmark/PerformanceBenchmark.cc#L11-L77">tests&#x2F;performance&#x2F;benchmark&#x2F;PerformanceBenchmark.cc:11-77</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CHANGELOG.md#L153-L163">CHANGELOG.md:153-163</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/benchmarks/results/20261027-3d458c08-s6-userinfo-c32.json#L1-L40">benchmarks&#x2F;results&#x2F;20261027-3d458c08-s6-userinfo-c32.json:1-40</a></li>
+</ul>
+<h3 id="v1-6-0-热路径修复与发布基准门禁"><a href="#v1-6-0-热路径修复与发布基准门禁" class="headerlink" title="v1.6.0 热路径修复与发布基准门禁"></a>v1.6.0 热路径修复与发布基准门禁</h3><blockquote>
+<p>v1.6.0 发布前的<strong>五场景基准门禁</strong>（同机背靠背对上一发布版 + 重复臂 + 同窗对照）抓到<br>两个”每请求多一次 DB 往返”的回归，均在同一基准战役中发现并修复（各吃掉所在场景<br>17–18% QPS）；复测后 userinfo &#x2F; introspect 回到 v1.5.0 的 **97–112%**。</p>
+</blockquote>
+<ul>
+<li><strong>修复一：userinfo &#x2F; 签发路径的 claim_mappings 查询（v1.6.0）</strong><ul>
+<li>问题：<code>StorageClaimMappingsProvider</code> 无缓存，userinfo &#x2F; code &#x2F; refresh 每次签发<br>都查一遍 <code>claim_mappings</code> 表。</li>
+<li>修复：<code>CachedClaimMappingsProvider</code> 装饰器——保持 provider 契约不变，把已启用映射<br>列表缓存在<strong>进程内存</strong>：<ul>
+<li>每个声明映射<strong>写路径</strong>都调用 <code>invalidate()</code>（与刷新 discovery <code>claims_supported</code><br>的同一批钩子），CRUD 立即可见（PublicationChain e2e 语义保持）；</li>
+<li>TTL（默认 60s）<strong>仅用于约束跨进程漂移</strong>（多实例部署下别的进程写入的过期上限，<br>best-effort）；本进程写路径不走 TTL；</li>
+<li>启动后第一个请求仍可能回源一次（惰性），内存模式部署保持零接线。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>修复二：introspection 的 oauth2_client_owners 查询（v1.6.0）</strong><ul>
+<li>问题：v1.4.0 的 P1-4 组织覆盖逻辑让 introspection 每次调用都读<br><code>oauth2_client_owners</code>。</li>
+<li>修复：插件内 <strong>3s→60s TTL 缓存</strong>（快路径：锁+查表、零分配），从<strong>两处 owner 行写<br>路径精确失效</strong>（开放平台 suspend&#x2F;resume；组织软删除级联，提交后失效）。<br>OrgLifecycle &#x2F; ClaimsMapping 语义经 e2e 验证不变（删除→introspection 失效、<br>CRUD→即时发布均绿）。</li>
+</ul>
+</li>
+<li><strong>基准门禁本身（benchmarks&#x2F;）</strong>：场景脚本 s1-discovery、s2-client-credentials、<br>s3-introspect、s4-auth-code、s5-refresh-token、s6-userinfo；v1.6.0 运行记录在<br><code>results/20261027-3d458c08-*.json</code>（发现 S6 userinfo −18%、S3 introspect −17%；<br>修复后 S6 97–112%、S3 同窗 103%）。方法论要点：<strong>只与同日同机臂对比</strong>——跨日基线<br>存在 ±9% 主机漂移，不可作为回归依据。</li>
+<li>相关schema侧变化（v1.6.0）：<code>users.custom_attributes</code> 带 GIN 索引（V044）；<br>audit_logs 月度分区的保留 DROP 与分区创建同锁定周期执行（P1-6）。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/adapters/CachedClaimMappingsProvider.h#L1-L45">CachedClaimMappingsProvider.h:1-45</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/plugin/OAuth2Plugin.cc#L1340-L1360">OAuth2Plugin.cc:1340-1360</a>（owner 缓存 60s TTL 与精确失效）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/benchmarks/README.md#L20-L30">benchmarks&#x2F;README.md:20-30</a>（五场景门禁与结果）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CHANGELOG.md">CHANGELOG.md</a>（v1.6.0 Fixed 段）</li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>存储层依赖<ul>
+<li>Postgres 存储通过 PostgresRepositoryBase 注入 DbClient 指针，支持主从双客户端。</li>
+<li>Redis 存储通过 RedisRepositoryBase 注入 RedisClient，并设置超时。</li>
+</ul>
+</li>
+<li>配置驱动<ul>
+<li>db_clients&#x2F;redis_clients 名称与连接参数由配置文件决定，插件通过名称查找对应客户端。</li>
+</ul>
+</li>
+<li>可观测性耦合<ul>
+<li>指标上报集中在 PromExporter，便于统一采集与分析。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">classDiagram</span><br><span class="line">class PostgresRepositoryBase &#123;</span><br><span class="line">+initFromConfig(config)</span><br><span class="line">-dbClientMaster_</span><br><span class="line">-dbClientReader_</span><br><span class="line">-dbClientName_</span><br><span class="line">-dbClientReaderName_</span><br><span class="line">&#125;</span><br><span class="line">class RedisRepositoryBase &#123;</span><br><span class="line">+ctor(redisClientName)</span><br><span class="line">-redisClient_</span><br><span class="line">&#125;</span><br><span class="line">class OAuth2Plugin &#123;</span><br><span class="line">+getStorageType()</span><br><span class="line">+config storage_type</span><br><span class="line">&#125;</span><br><span class="line">OAuth2Plugin --&gt; PostgresRepositoryBase : &quot;初始化主/读客户端&quot;</span><br><span class="line">OAuth2Plugin --&gt; RedisRepositoryBase : &quot;初始化 Redis 客户端&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L133-L170">apps&#x2F;server&#x2F;config&#x2F;config.json:133-170</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L189-L218">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:189-218</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/include/fulla/storage/postgres/PostgresRepositoryBase.h#L54-L70">libs&#x2F;storage-postgres&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;postgres&#x2F;PostgresRepositoryBase.h:54-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-redis/include/fulla/storage/redis/RedisRepositoryBase.h#L42-L53">libs&#x2F;storage-redis&#x2F;include&#x2F;fulla&#x2F;storage&#x2F;redis&#x2F;RedisRepositoryBase.h:42-53</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L133-L170">apps&#x2F;server&#x2F;config&#x2F;config.json:133-170</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L189-L218">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:189-218</a></li>
+</ul>
+<h2 id="性能考量"><a href="#性能考量" class="headerlink" title="性能考量"></a>性能考量</h2><ul>
+<li>索引与查询<ul>
+<li>优先利用现有复合索引；对复杂过滤条件评估表达式索引或物化视图。</li>
+<li>避免 SELECT *，仅拉取必要字段以减少 IO 与序列化开销。</li>
+</ul>
+</li>
+<li>连接池与超时<ul>
+<li>根据负载曲线动态调整 number_of_connections；设置合理的 timeout 与 statement_timeout。</li>
+<li>使用 auto_batch 合并写操作，降低网络往返。</li>
+</ul>
+</li>
+<li>缓存与一致性<ul>
+<li>按当前撤销顺序：DB 写成功后设 negative marker，再失效正缓存；不要概括为“先删缓存再更新 DB”。</li>
+<li>正缓存 TTL 不超过令牌剩余寿命；family 撤销的残留正缓存由 TTL 收敛。</li>
+</ul>
+</li>
+<li>监控与告警<ul>
+<li>QPS 与 P99 使用外部指标；原生 Counter 告警仅用于实际发射的登录失败、Introspection&#x2F;Revocation 错误等，不把请求 Counter 的 rate 当 QPS。</li>
+<li>结合慢查询日志与执行计划持续优化。</li>
+</ul>
+</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>连接池耗尽<ul>
+<li>现象：出现连接耗尽错误、数据库连接数飙升。</li>
+<li>排查：检查 number_of_connections、timeout、statement_timeout；确认是否存在长事务或未释放连接。</li>
+<li>验证：通过连接池行为测试用例观察复用情况。</li>
+</ul>
+</li>
+<li>慢查询与锁竞争<ul>
+<li>现象：P99 延迟升高、CPU&#x2F;IO 打满。</li>
+<li>排查：启用慢查询日志，分析 EXPLAIN 计划；检查索引缺失或失效；评估锁等待。</li>
+</ul>
+</li>
+<li>缓存穿透&#x2F;雪崩<ul>
+<li>现象：大量请求直达 DB，Redis 命中率骤降。</li>
+<li>排查：增加空值缓存、随机 TTL、热点 Key 预热；限制并发穿透。</li>
+</ul>
+</li>
+<li>指标异常<ul>
+<li>现象：实际发射的 Counter&#x2F;Gauge 或外部 QPS&#x2F;P99 指标异常。</li>
+<li>排查：结合日志与指标定位热点端点；检查下游依赖（DB&#x2F;Redis）健康状态；不要查询不存在的应用侧 histogram bucket。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tests/security/injection/DbLeakVerificationTest.cc#L79-L143">tests&#x2F;security&#x2F;injection&#x2F;DbLeakVerificationTest.cc:79-143</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/operate/observability.md#L1-L22">docs&#x2F;operate&#x2F;observability.md:1-22</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>索引、连接池与缓存策略需结合慢查询、执行计划和受控基准验证。应用请求 Counter、活跃令牌 Gauge 与日志 histogram 都不能直接替代 QPS、活跃 Token 数或 P99；v1.6.0 历史门禁也不是当前容量证明。</p>
+<p>[本节为总结性内容，不直接分析具体文件]</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><ul>
+<li>关键配置位置<ul>
+<li>开发&#x2F;生产环境的 db_clients 与 redis_clients 参数对比，便于调参参考。</li>
+</ul>
+</li>
+<li>基准与目标<ul>
+<li>参考设计文档中的性能目标作为待验证目标；当前容量与延迟结论须来自实际执行并保留环境元数据的基准结果。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/config/config.prod.json#L9-L40">apps&#x2F;server&#x2F;config&#x2F;config.prod.json:9-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://fulla.dev/docs/intro">docs&#x2F;history&#x2F;design&#x2F;superpowers&#x2F;specs&#x2F;2026-05-11-p1-P1_TECHNICAL_DESIGN.md:606-660</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/fc70949e/">https://voidvec.github.io/posts/fc70949e/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/database/">database</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/ae985cd0/"><span class="pj-related__name">数据库迁移管理</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/7ef686a2/"><span class="pj-related__name">备份与恢复设计</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/2e791cf6/"><span class="pj-related__name">从零接入 OIDC 登录</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/47d52779/"><span class="pj-related__name">Fulla 架构总览：技术栈、模块布局与授权码流程</span><span class="pj-related__type">架构设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a><a class="pagination-related" href="/posts/ae985cd0/" title="数据库迁移管理"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库迁移管理</div></div><div class="info-2"><div class="info-item-1">本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及</div></div></div></a><a class="pagination-related" href="/posts/9518940e/" title="自定义 Claims 映射"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">自定义 Claims 映射</div></div><div class="info-2"><div class="info-item-1">自 v1.6.0（P1-3，#280）起，fulla 可以把按用户维护的自定义声明发布进</div></div></div></a><a class="pagination-related" href="/posts/875ba3c2/" title="Docker 部署与容器编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Docker 部署与容器编排</div></div><div class="info-2"><div class="info-item-1">用 Docker Compose 拉起完整 OAuth2 服务栈：镜像、编排与生产环境差异。</div></div></div></a><a class="pagination-related" href="/posts/03144bb1/" title="把 Fulla 作为 OIDC 提供方接入（RP 指南）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">把 Fulla 作为 OIDC 提供方接入（RP 指南）</div></div><div class="info-2"><div class="info-item-1">面向把外部依赖方（RP）——WeKnora、Nextcloud、内部 SSO 应用——接入 Fulla</div></div></div></a><a class="pagination-related" href="/posts/f69881e8/" title="授权模型安全：从 scope 到 RBAC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">授权模型安全：从 scope 到 RBAC</div></div><div class="info-2"><div class="info-item-1">授权安全能力全景：scope 收敛、RBAC 落地与越权防护。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E7%AD%96%E7%95%A5%E4%B8%8E%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96%EF%BC%88OAuth2-%E6%A0%B8%E5%BF%83%E8%A1%A8%EF%BC%89"><span class="toc-number">6.1.</span> <span class="toc-text">索引策略与查询优化（OAuth2 核心表）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%9E%E6%8E%A5%E6%B1%A0%E9%85%8D%E7%BD%AE%E4%B8%8E%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86"><span class="toc-number">6.2.</span> <span class="toc-text">连接池配置与资源管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9F%A5%E8%AF%A2%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90%E6%96%B9%E6%B3%95"><span class="toc-number">6.3.</span> <span class="toc-text">查询性能分析方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E7%AD%96%E7%95%A5%E5%BB%BA%E8%AE%AE%EF%BC%88Redis-%E9%9B%86%E6%88%90%E4%B8%8E%E5%86%85%E5%AD%98%E4%BC%98%E5%8C%96%EF%BC%89"><span class="toc-number">6.4.</span> <span class="toc-text">缓存策略建议（Redis 集成与内存优化）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%86%E5%BA%93%E5%88%86%E8%A1%A8%E7%AD%96%E7%95%A5%E4%B8%8E%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE"><span class="toc-number">6.5.</span> <span class="toc-text">分库分表策略与读写分离配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87%E4%B8%8E%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C"><span class="toc-number">6.6.</span> <span class="toc-text">性能监控指标与基准测试结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#v1-6-0-%E7%83%AD%E8%B7%AF%E5%BE%84%E4%BF%AE%E5%A4%8D%E4%B8%8E%E5%8F%91%E5%B8%83%E5%9F%BA%E5%87%86%E9%97%A8%E7%A6%81"><span class="toc-number">6.7.</span> <span class="toc-text">v1.6.0 热路径修复与发布基准门禁</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E9%87%8F"><span class="toc-number">8.</span> <span class="toc-text">性能考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

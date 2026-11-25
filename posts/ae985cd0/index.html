@@ -1,0 +1,584 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>数据库迁移管理 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及">
+<meta property="og:type" content="article">
+<meta property="og:title" content="数据库迁移管理">
+<meta property="og:url" content="https://voidvec.github.io/posts/ae985cd0/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:19:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:19:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="database">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "数据库迁移管理",
+  "url": "https://voidvec.github.io/posts/ae985cd0/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:19:00.000Z",
+  "dateModified": "2026-11-03T00:19:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/ae985cd0/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '数据库迁移管理',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">数据库迁移管理</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">数据库迁移管理</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:19:00.000Z" title="发表于 2026-11-03 08:19:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:19:00.000Z" title="更新于 2026-11-03 08:19:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F/">数据库系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F/%E5%85%B3%E7%B3%BB%E5%9E%8B%E6%95%B0%E6%8D%AE%E5%BA%93/">关系型数据库</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">数据存储</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">数据与运维</span><span class="pj-badge pj-badge--muted">深入</span></div><article class="container post-content" id="article-container"><cite>
+**本文引用的文件**
+- [SchemaManager.h](https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.h)
+- [SchemaManager.cc](https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc)
+- [MigrationRunner.h](https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.h)
+- [MigrationRunner.cc](https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc)
+- [main.cc](https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc)
+- [V001__schema_migrations.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V001__schema_migrations.sql)
+- [V002__oauth2_core.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql)
+- [V004__users_table.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V004__users_table.sql)
+- [V028__webauthn_purge_unverified_credentials.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V028__webauthn_purge_unverified_credentials.sql)
+- [V031__normalize_user_emails.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V031__normalize_user_emails.sql)
+- [V044__custom_attributes_claim_mappings.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V044__custom_attributes_claim_mappings.sql)
+- [V045__upstream_providers.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V045__upstream_providers.sql)（未发布）
+- [docker-compose.prod.yml](https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml)
+- [migration-job.yaml](https://github.com/voidvec/fulla/blob/master/deploy/helm/fulla/templates/migration-job.yaml)
+- [CHANGELOG.md](https://github.com/voidvec/fulla/blob/master/CHANGELOG.md)
+- [migration_check.py](https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py)
+- [baseline.json](https://github.com/voidvec/fulla/blob/master/tools/migration-check/baseline.json)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91">性能考虑</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本文件面向数据库迁移管理系统，系统性说明 SchemaManager 的工作原理与实现机制、迁移文件的命名规范与版本控制策略、迁移执行流程（含依赖解析、事务处理与错误恢复）、回滚策略与数据一致性保证、最佳实践（向后兼容性、备份与测试），以及生产环境的安全与监控方案。同时提供常见迁移场景示例指引与工具链使用建议。</p>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><ul>
+<li>迁移脚本位于 apps&#x2F;server&#x2F;migrations，采用 VNNN__描述.sql 的命名约定，按版本号顺序执行；<strong>发布基线为 V044</strong>（v1.6.0，2026-10-30），<strong>当前代码快照到 V045</strong>（未发布）。V027–V044 为 v1.1.0–v1.6.0 各版本增量，V045 为未发布的 upstream provider registry 建表迁移；逐条语义见 [[database-design-overview]] 的「Schema 演进时间线」一节。</li>
+<li>运行时由 bootstrap&#x2F;MigrationRunner 负责发现迁移目录、根据环境变量决定是否自动迁移或仅做自检；当以 –migrate-only 启动时，独立构建 DbClient 并同步执行迁移后退出（Helm pre-install&#x2F;pre-upgrade Hook Job 即用此模式，v1.2.0 起生产 compose 亦改为一次性 migrate job 执行，见下文演进节）。</li>
+<li>核心迁移逻辑在 schema::SchemaManager，负责建表跟踪、扫描文件、去重排序、拆分 SQL、事务执行与记录校验和。</li>
+<li>CI&#x2F;CD 通过 tools&#x2F;migration-check&#x2F;migration_check.py 对迁移文件进行静态检查与基线校验，确保可重复性与安全性。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">A[&quot;main.cc&quot;] --&gt; B[&quot;bootstrap/MigrationRunner&quot;]</span><br><span class="line">B --&gt; C[&quot;schema/SchemaManager&quot;]</span><br><span class="line">C --&gt; D[&quot;PostgreSQL&quot;]</span><br><span class="line">subgraph &quot;迁移脚本&quot;</span><br><span class="line">E[&quot;apps/server/migrations/V*.sql&quot;]</span><br><span class="line">end</span><br><span class="line">C --&gt; E</span><br><span class="line">F[&quot;tools/migration-check/migration_check.py&quot;] --&gt; E</span><br><span class="line">F --&gt; G[&quot;tools/migration-check/baseline.json&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L165">MigrationRunner.cc:53-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L233">SchemaManager.cc:175-233</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L237-L276">migration_check.py:237-276</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L165">MigrationRunner.cc:53-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L233">SchemaManager.cc:175-233</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L237-L276">migration_check.py:237-276</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>SchemaManager：提供 migrate、countPendingMigrations、splitSqlStatements 等能力；维护 schema_migrations 跟踪表；按版本顺序应用未执行的迁移；为每个已应用迁移记录文件名与 SHA-256 校验和。</li>
+<li>MigrationRunner：定位迁移目录、根据 FULLA_AUTO_MIGRATE 决定自动迁移或自检；支持 –migrate-only 模式用于 Helm pre-install&#x2F;pre-upgrade Hook Job；失败时终止进程以避免半迁移状态服务流量。</li>
+<li>迁移脚本：遵循幂等与向前兼容原则，避免破坏性语句，确保可重入执行。</li>
+<li>迁移检查工具：强制命名、序列连续性、幂等性、前向安全、内容不可变（基线）等规则。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.h#L20-L96">SchemaManager.h:20-96</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L14-L423">SchemaManager.cc:14-423</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.h#L20-L43">MigrationRunner.h:20-43</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L17-L165">MigrationRunner.cc:17-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L1-L52">migration_check.py:1-52</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>系统启动流程：</p>
+<ul>
+<li>main 加载配置，若检测到 –migrate-only 则调用 runMigrateOnly 直接执行迁移并退出。</li>
+<li>否则注册控制器、中间件、OpenAPI 等，再调用 setupMigrations。</li>
+<li>setupMigrations 探测迁移目录，若 FULLA_AUTO_MIGRATE&#x3D;true 则在 beginning advice 中异步执行迁移；否则注册自检逻辑，比较磁盘迁移与已应用版本并记录日志。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant M as &quot;main.cc&quot;</span><br><span class="line">participant MR as &quot;MigrationRunner&quot;</span><br><span class="line">participant SM as &quot;SchemaManager&quot;</span><br><span class="line">participant DB as &quot;PostgreSQL&quot;</span><br><span class="line">M-&gt;&gt;MR : 解析参数(--migrate-only?)</span><br><span class="line">alt 是</span><br><span class="line">MR-&gt;&gt;DB : 创建独立DbClient</span><br><span class="line">MR-&gt;&gt;SM : migrate(db, migrationsDir)</span><br><span class="line">SM-&gt;&gt;DB : 确保schema_migrations存在</span><br><span class="line">SM-&gt;&gt;DB : 扫描并排序V*.sql</span><br><span class="line">SM-&gt;&gt;DB : 获取已应用版本</span><br><span class="line">loop 逐个未应用迁移</span><br><span class="line">SM-&gt;&gt;DB : 拆分SQL并事务执行</span><br><span class="line">SM-&gt;&gt;DB : 记录version/filename/checksum</span><br><span class="line">end</span><br><span class="line">MR--&gt;&gt;M : 返回退出码(0/1)</span><br><span class="line">else 否</span><br><span class="line">MR-&gt;&gt;M : 注册beginningAdvice(自动迁移或自检)</span><br><span class="line">M-&gt;&gt;DB : 启动Drogon事件循环</span><br><span class="line">Note over MR,DB : 自动迁移在后台线程执行</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L165">MigrationRunner.cc:53-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L233">SchemaManager.cc:175-233</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="SchemaManager-工作原理"><a href="#SchemaManager-工作原理" class="headerlink" title="SchemaManager 工作原理"></a>SchemaManager 工作原理</h3><ul>
+<li>跟踪表：确保 schema_migrations(version PK, filename, checksum, applied_at) 存在。</li>
+<li>扫描与排序：匹配 V(\d+)__.+.sql，提取版本号并按数值升序排列。</li>
+<li>已应用版本：查询 schema_migrations.version 集合。</li>
+<li>执行迁移：读取 SQL，计算 SHA-256 校验和，拆分为单条语句（忽略注释、字符串、美元引用块中的分号），在单个事务中逐条执行；成功后插入 version&#x2F;filename&#x2F;checksum。</li>
+<li>计数待迁移：在不进入完整迁移流程的情况下，统计磁盘上未记录的迁移数量，供自检使用。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;开始&quot;]) --&gt; Ensure[&quot;确保schema_migrations存在&quot;]</span><br><span class="line">Ensure --&gt; Scan[&quot;扫描V*.sql并排序&quot;]</span><br><span class="line">Scan --&gt; Applied[&quot;查询已应用版本&quot;]</span><br><span class="line">Applied --&gt; Loop&#123;&quot;是否存在未应用迁移?&quot;&#125;</span><br><span class="line">Loop --&gt; |否| Done[&quot;结束(已是最新)&quot;]</span><br><span class="line">Loop --&gt; |是| Read[&quot;读取SQL并计算校验和&quot;]</span><br><span class="line">Read --&gt; Split[&quot;拆分SQL为单条语句&quot;]</span><br><span class="line">Split --&gt; Tx[&quot;开启事务&quot;]</span><br><span class="line">Tx --&gt; Exec&#123;&quot;逐条执行成功?&quot;&#125;</span><br><span class="line">Exec --&gt; |否| Rollback[&quot;事务回滚并报错&quot;]</span><br><span class="line">Exec --&gt; |是| Record[&quot;记录version/filename/checksum&quot;]</span><br><span class="line">Record --&gt; Next[&quot;下一个迁移&quot;]</span><br><span class="line">Next --&gt; Loop</span><br><span class="line">Rollback --&gt; End([&quot;结束(失败)&quot;])</span><br><span class="line">Done --&gt; End</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L233">SchemaManager.cc:175-233</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L274-L351">SchemaManager.cc:274-351</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L353-L411">SchemaManager.cc:353-411</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L14-L162">SchemaManager.cc:14-162</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.h#L20-L96">SchemaManager.h:20-96</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L14-L423">SchemaManager.cc:14-423</a></li>
+</ul>
+<h3 id="迁移执行入口与生命周期"><a href="#迁移执行入口与生命周期" class="headerlink" title="迁移执行入口与生命周期"></a>迁移执行入口与生命周期</h3><ul>
+<li>自动迁移：FULLA_AUTO_MIGRATE&#x3D;true 时，在 beginning advice 中于后台线程延迟执行迁移；失败则致命日志并退出进程，避免半迁移状态继续服务。</li>
+<li>自检模式：FULLA_AUTO_MIGRATE&#x3D;false 时，启动后比较磁盘迁移与已应用版本，若有滞后则记录 ERROR 提示运行迁移 Job。</li>
+<li>仅迁移模式：–migrate-only 模式下，不启动 HTTP 服务，构造独立 DbClient 同步执行迁移并返回退出码，便于 Kubernetes Hook Job 编排。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Main as &quot;main.cc&quot;</span><br><span class="line">participant Runner as &quot;MigrationRunner&quot;</span><br><span class="line">participant SM as &quot;SchemaManager&quot;</span><br><span class="line">participant DB as &quot;PostgreSQL&quot;</span><br><span class="line">Main-&gt;&gt;Runner : setupMigrations()</span><br><span class="line">alt FULLA_AUTO_MIGRATE=true</span><br><span class="line">Runner-&gt;&gt;Main : registerBeginningAdvice</span><br><span class="line">Main-&gt;&gt;Runner : 后台线程执行</span><br><span class="line">Runner-&gt;&gt;SM : migrate(migrationsDir)</span><br><span class="line">SM-&gt;&gt;DB : 执行迁移</span><br><span class="line">SM--&gt;&gt;Runner : 成功/失败</span><br><span class="line">Runner--&gt;&gt;Main : 失败则exit(1)</span><br><span class="line">else FULLA_AUTO_MIGRATE=false</span><br><span class="line">Runner-&gt;&gt;Main : registerBeginningAdvice(自检)</span><br><span class="line">Main-&gt;&gt;Runner : 后台线程执行</span><br><span class="line">Runner-&gt;&gt;SM : countPendingMigrations</span><br><span class="line">SM--&gt;&gt;Runner : pending数</span><br><span class="line">Runner--&gt;&gt;Main : 记录ERROR/INFO/WARN</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L128">MigrationRunner.cc:53-128</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L235-L272">SchemaManager.cc:235-272</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L234-L238">main.cc:234-238</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.h#L20-L43">MigrationRunner.h:20-43</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L165">MigrationRunner.cc:53-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+</ul>
+<h3 id="v1-1→v1-6-及未发布迁移的基线与部署口径演进"><a href="#v1-1→v1-6-及未发布迁移的基线与部署口径演进" class="headerlink" title="v1.1→v1.6 及未发布迁移的基线与部署口径演进"></a>v1.1→v1.6 及未发布迁移的基线与部署口径演进</h3><ul>
+<li><strong>发布基线</strong>：快照时为 V022；v1.6.0 发布末条为 <strong>V044</strong>（V023–V026 在快照后落地、CHANGELOG<br>未单独记段落；V027&#x2F;V028 随 v1.1.0、V030&#x2F;V031 随 v1.1.1、V032 随 v1.2.0、<br>V033–V038 随 v1.4.0、V039 随 v1.5.0、V040–V044 随 v1.6.0；V029 落在 v1.1.x 窗口）。</li>
+<li><strong>代码快照基线</strong>：2026-11-24 工作区推进到 <strong>V045（未发布）</strong>。V045 只创建<br><code>upstream_providers</code> 表与启用索引；legacy Google&#x2F;微信&#x2F;GitHub 行由启动 seeder 以<br>INSERT-only 方式迁入 runtime registry，未配置凭据时不建行。该实现不得倒推为 v1.6.0 已发布结构。</li>
+<li><strong>启动自动迁移 + –migrate-only + Helm Hook（既有机制，v1.2.0 全面固化）</strong>：<br><code>FULLA_AUTO_MIGRATE=true</code> 时启动即自动迁移（v1.1.x 起多个数据修复迁移——V027&#x2F;V028&#x2F;<br>V030&#x2F;V031&#x2F;V032——都靠它”随版本自动应用”）；<code>fulla-server --migrate-only</code> 供 Helm<br><code>pre-install/pre-upgrade</code> Hook Job（migration-job.yaml，hook-weight&#x3D;-5）在业务 Pod<br>起来前独立执行。</li>
+<li><strong>prod compose 的 migrate job 本地构建（v1.2.0）</strong>：生产 compose 的 <code>migrate</code> 一次性<br>服务改为<strong>本地构建</strong>迁移镜像而非拉取 release 镜像——release 镜像滞后于刚落地的迁移<br>曾导致 <code>run --rm migrate</code> 静默漏迁移；同时 <code>FULLA_BOOTSTRAP_ADMIN_PASSWORD</code> 透传给<br>migrate job，<code>AUTO_MIGRATE=false</code> 成为 env example 的文档化默认（生产栈跑专用<br>migrate job 而非启动自动迁移）。</li>
+<li><strong>M4 顶层 DELETE 禁令与 DO 块逃生口（v1.1.0 先例）</strong>：迁移检查器 M4 禁止顶层<br><code>DELETE FROM</code>；确需一次性数据清理时，美元引号例程体内的数据修复是获准的逃生口——<br>V028（清空 webauthn_credentials）即以 <code>DO $$ … DELETE … $$</code> 形式落地；V043 退役<br>遗留权限名则用 UPDATE 打标记（同因 M4）。</li>
+<li><strong>升级前置检查（V031）</strong>：存量库若存在仅大小写不同的邮箱对，V031 会在唯一索引上<br>冲突并中止迁移（进而拒绝启动）——这是刻意的（需要人工去重而非静默合并）；升级前<br>可用 <code>SELECT email, count(*) FROM users GROUP BY lower(email) HAVING count(*) &gt; 1;</code><br>自检。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/CHANGELOG.md">CHANGELOG.md</a>（v1.1.1 &#x2F; v1.2.0 段）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/docker/docker-compose.prod.yml#L1-L20">docker-compose.prod.yml:1-20</a>（migrate 服务本地构建注释）</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/deploy/helm/fulla/templates/migration-job.yaml#L15-L40">migration-job.yaml:15-40</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V028__webauthn_purge_unverified_credentials.sql#L1-L28">V028__webauthn_purge_unverified_credentials.sql:1-28</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V031__normalize_user_emails.sql#L1-L24">V031__normalize_user_emails.sql:1-24</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V045__upstream_providers.sql#L1-L30">V045__upstream_providers.sql:1-30</a>（未发布）</li>
+</ul>
+<h3 id="迁移文件命名规范与版本控制策略"><a href="#迁移文件命名规范与版本控制策略" class="headerlink" title="迁移文件命名规范与版本控制策略"></a>迁移文件命名规范与版本控制策略</h3><ul>
+<li>命名规范：VNNN__snake_case.sql，其中 NNN 为三位零填充数字。</li>
+<li>版本策略：从 V001 起始连续递增，不允许重复或缺失；CI 通过 glob 按字典序应用，要求固定宽度以保证字典序等于数值序。</li>
+<li>幂等性：CREATE TABLE&#x2F;INDEX 需 IF NOT EXISTS；ADD COLUMN 需 IF NOT EXISTS；INSERT 需 ON CONFLICT；函数定义需 CREATE OR REPLACE；新增约束需先 DROP CONSTRAINT IF EXISTS。</li>
+<li>前向安全：禁止 DROP TABLE&#x2F;COLUMN&#x2F;TRUNCATE&#x2F;DROP SCHEMA&#x2F;DROP DATABASE 及顶层 DELETE FROM；允许 DROP CONSTRAINT IF EXISTS 与 DROP NOT NULL。</li>
+<li>不可变性：已应用的迁移内容必须保持不变；新增变更通过新版本号迁移完成；工具通过 baseline.json 校验内容哈希。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L17-L52">migration_check.py:17-52</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L64-L200">migration_check.py:64-200</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/baseline.json#L1-L24">baseline.json:1-24</a></li>
+</ul>
+<h3 id="依赖解析与执行顺序"><a href="#依赖解析与执行顺序" class="headerlink" title="依赖解析与执行顺序"></a>依赖解析与执行顺序</h3><ul>
+<li>依赖解析：基于文件名中的版本号进行数值排序，确保严格顺序执行。</li>
+<li>执行顺序：按 V001→V002→… 的顺序逐一应用未记录版本；同一版本不会重复执行。</li>
+<li>多语句拆分：splitSqlStatements 识别行注释、块注释、单引号字符串、美元引用块，仅在顶级分号处拆分，避免误切分。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L295-L333">SchemaManager.cc:295-333</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L14-L162">SchemaManager.cc:14-162</a></li>
+</ul>
+<h3 id="事务处理与错误恢复"><a href="#事务处理与错误恢复" class="headerlink" title="事务处理与错误恢复"></a>事务处理与错误恢复</h3><ul>
+<li>事务边界：每个迁移文件在一个事务内执行所有语句；任一语句失败将导致整个事务回滚，且该版本不会被记录。</li>
+<li>错误恢复：失败时记录错误日志并停止后续迁移；自动迁移模式下会终止进程，防止半迁移状态对外提供服务。</li>
+<li>健壮性：空迁移文件会被跳过；无法打开文件或执行异常均会记录错误并返回失败。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L353-L411">SchemaManager.cc:353-411</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L77-L93">MigrationRunner.cc:77-93</a></li>
+</ul>
+<h3 id="回滚策略与数据一致性保证"><a href="#回滚策略与数据一致性保证" class="headerlink" title="回滚策略与数据一致性保证"></a>回滚策略与数据一致性保证</h3><ul>
+<li>回滚策略：系统采用“向前演进”的不可变迁移策略，不提供 down-migration；如需回滚，应通过外部手段（如备份恢复、临时补丁迁移）实现。</li>
+<li>一致性保证：<ul>
+<li>每步迁移在事务中执行，原子提交。</li>
+<li>记录 filename 与 SHA-256 校验和，配合 baseline.json 保障内容不可变。</li>
+<li>幂等设计确保多次执行不会产生副作用。</li>
+<li>自检模式在滚动升级期间提示滞后，避免旧副本服务不一致。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L396-L402">SchemaManager.cc:396-402</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L203-L234">migration_check.py:203-234</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L95-L128">MigrationRunner.cc:95-128</a></li>
+</ul>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3><ul>
+<li>向后兼容性：<ul>
+<li>优先采用增量变更（新增列、新增表、新增索引），避免删除或修改已有结构。</li>
+<li>对必填字段变更采用“双写”策略：先新增列并写入默认值，再逐步切换代码路径，最后移除旧列。</li>
+</ul>
+</li>
+<li>数据备份：<ul>
+<li>在生产执行前进行全量或快照备份；Helm Hook Job 应在部署前执行并验证结果。</li>
+</ul>
+</li>
+<li>测试策略：<ul>
+<li>本地与 CI 均运行 migration_check.py 确保规则合规。</li>
+<li>在集成测试中应用迁移脚本并验证关键结构与查询。</li>
+<li>对复杂迁移编写专项测试用例，覆盖边界条件与并发场景。</li>
+</ul>
+</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h3 id="常见迁移场景示例"><a href="#常见迁移场景示例" class="headerlink" title="常见迁移场景示例"></a>常见迁移场景示例</h3><ul>
+<li>表结构变更：新增列或表时使用 IF NOT EXISTS；新增约束前先 DROP CONSTRAINT IF EXISTS。</li>
+<li>索引优化：新增唯一或非唯一索引时使用 IF NOT EXISTS；必要时结合分区或覆盖索引提升查询性能。</li>
+<li>数据修复：使用 INSERT … ON CONFLICT 进行幂等写入；避免顶层 DELETE FROM；如需清理，使用带条件的 UPDATE 或分批处理。</li>
+<li>多租户扩展：新增 tenant_id 列并在历史表中回填默认值；逐步引入路由与权限判断。</li>
+</ul>
+<p>[本节为概念性示例，不直接分析具体文件]</p>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>main.cc 负责装配与启动，调用 bootstrap 模块完成迁移相关设置。</li>
+<li>MigrationRunner 依赖 SchemaManager 执行迁移；在 –migrate-only 模式下自建 DbClient。</li>
+<li>SchemaManager 依赖 Drogon ORM 的 DbClient 与 PostgreSQL 驱动；使用 OpenSSL 提供的 SHA-256 计算校验和。</li>
+<li>迁移检查工具独立于运行时，用于 CI 与开发阶段的质量门禁。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">Main[&quot;main.cc&quot;] --&gt; Runner[&quot;MigrationRunner&quot;]</span><br><span class="line">Runner --&gt; SM[&quot;SchemaManager&quot;]</span><br><span class="line">SM --&gt; DB[&quot;PostgreSQL&quot;]</span><br><span class="line">Tools[&quot;migration_check.py&quot;] --&gt; Files[&quot;migrations/*.sql&quot;]</span><br><span class="line">Tools --&gt; Baseline[&quot;baseline.json&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L17-L165">MigrationRunner.cc:17-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L423">SchemaManager.cc:175-423</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L237-L276">migration_check.py:237-276</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/main.cc#L97-L239">main.cc:97-239</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L17-L165">MigrationRunner.cc:17-165</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L423">SchemaManager.cc:175-423</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L237-L276">migration_check.py:237-276</a></li>
+</ul>
+<h2 id="性能考虑"><a href="#性能考虑" class="headerlink" title="性能考虑"></a>性能考虑</h2><ul>
+<li>事务粒度：每个迁移文件一个事务，减少锁竞争与回滚成本；大迁移建议拆分为多个小版本以提升可观测性与可控性。</li>
+<li>SQL 拆分：splitSqlStatements 避免预处理限制，但过多语句会增加网络往返；建议合理组织 SQL 以减少语句数量。</li>
+<li>自检开销：countPendingMigrations 仅查询版本列表与扫描目录，开销较低，适合每次启动执行。</li>
+<li>连接池：–migrate-only 模式使用最小连接池（1），避免阻塞主事件循环；生产自动迁移在后台线程执行，不影响请求处理。</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>迁移目录未找到：检查 locateMigrationsDir 的相对路径；确认镜像或部署路径包含 migrations 目录。</li>
+<li>自动迁移未执行：确认 FULLA_AUTO_MIGRATE&#x3D;true；查看 beginning advice 是否注册成功；检查数据库连接与权限。</li>
+<li>迁移失败：查看日志中的错误信息；确认 SQL 是否符合幂等与前向安全规则；必要时回滚到上一版本并修复。</li>
+<li>自检告警：若出现“schema behind binary”，请运行迁移 Job 或启用自动迁移；滚动升级期间旧副本可能观察到滞后属正常现象。</li>
+<li>基线校验失败：运行 migration_check.py 并更新 baseline.json；确保已应用迁移未被修改或删除。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/bootstrap/MigrationRunner.cc#L53-L128">MigrationRunner.cc:53-128</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/src/SchemaManager.cc#L175-L233">SchemaManager.cc:175-233</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/tools/migration-check/migration_check.py#L237-L276">migration_check.py:237-276</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>本迁移管理系统以 SchemaManager 为核心，结合 MigrationRunner 的灵活入口与严格的迁移检查工具，实现了安全、可追溯、幂等的数据库版本演进。通过事务化执行、校验和记录与基线保护，系统在开发与生产环境中均能提供一致性与可靠性保障。推荐在生产中采用 Helm Hook Job 执行迁移并结合自检模式，确保滚动升级期间的稳定性与可观测性。</p>
+<p>[本节为总结性内容，不直接分析具体文件]</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><h3 id="迁移文件示例参考"><a href="#迁移文件示例参考" class="headerlink" title="迁移文件示例参考"></a>迁移文件示例参考</h3><ul>
+<li>V001__schema_migrations.sql：初始化跟踪表，记录已应用迁移的版本、文件名与校验和。</li>
+<li>V002__oauth2_core.sql：创建 OAuth2 核心表（客户端、授权码、访问令牌、刷新令牌），使用 IF NOT EXISTS 保证幂等。</li>
+<li>V004__users_table.sql：创建用户表，包含用户名、密码哈希、盐与邮箱等字段。</li>
+<li>V044__custom_attributes_claim_mappings.sql（v1.6.0 发布基线末条）：JSONB 列 + GIN 索引 +<br>新表 + 唯一约束的现代形状范例（全部 IF NOT EXISTS &#x2F; 幂等）。</li>
+<li>V045__upstream_providers.sql（当前代码快照末条，未发布）：provider registry 建表与<br>启用行部分索引；不代表 v1.6.0 已包含该结构。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V001__schema_migrations.sql#L1-L9">V001__schema_migrations.sql:1-9</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V002__oauth2_core.sql#L1-L57">V002__oauth2_core.sql:1-57</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V004__users_table.sql#L1-L10">V004__users_table.sql:1-10</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V044__custom_attributes_claim_mappings.sql#L1-L30">V044__custom_attributes_claim_mappings.sql:1-30</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V045__upstream_providers.sql#L1-L30">V045__upstream_providers.sql:1-30</a>（未发布）</li>
+</ul>
+<h3 id="生产环境安全与监控"><a href="#生产环境安全与监控" class="headerlink" title="生产环境安全与监控"></a>生产环境安全与监控</h3><ul>
+<li>安全考虑：<ul>
+<li>使用 –migrate-only 模式在隔离环境中执行迁移，避免与业务流量共享连接池。</li>
+<li>严格控制数据库账户权限，仅授予必要 DDL&#x2F;DML 权限。</li>
+<li>敏感信息（如密码）不记录到日志；连接字符串由配置管理。</li>
+</ul>
+</li>
+<li>监控方案：<ul>
+<li>记录迁移开始、结束、失败与自检结果日志，便于审计与告警。</li>
+<li>在 Helm Hook Job 中设置 activeDeadlineSeconds 限制执行时间，超时即失败。</li>
+<li>结合 Prometheus&#x2F;Grafana 采集应用指标与数据库慢查询，辅助定位性能瓶颈。</li>
+</ul>
+</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/ae985cd0/">https://voidvec.github.io/posts/ae985cd0/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/database/">database</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/7ef686a2/"><span class="pj-related__name">备份与恢复设计</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/fc70949e/"><span class="pj-related__name">数据库性能优化</span><span class="pj-related__type">数据与运维</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/2e791cf6/"><span class="pj-related__name">从零接入 OIDC 登录</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/47d52779/"><span class="pj-related__name">Fulla 架构总览：技术栈、模块布局与授权码流程</span><span class="pj-related__type">架构设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a><a class="pagination-related" href="/posts/ab872dd4/" title="网络安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">网络安全边界</div></div><div class="info-2"><div class="info-item-1">本章节面向Fulla的网络安全配置与加固，覆盖HTTPS/TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/fc70949e/" title="数据库性能优化"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库性能优化</div></div><div class="info-2"><div class="info-item-1">本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。</div></div></div></a><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a><a class="pagination-related" href="/posts/712a4a7b/" title="上线前的安全加固清单"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">上线前的安全加固清单</div></div><div class="info-2"><div class="info-item-1">本文件面向Fulla的安全加固，覆盖输入验证与清理（SQL注入、XSS、命令注入）、依赖包安全更新与漏洞扫描、敏感信息保护（配置加密、密钥管理、日志脱敏）、安全审计与监控（登录尝试记录、权限变更追踪、异常行为检测）、安全配置基线（生产模板与</div></div></div></a><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a><a class="pagination-related" href="/posts/f73c3341/" title="密码存储与校验"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">密码存储与校验</div></div><div class="info-2"><div class="info-item-1">密码存储算法、加盐策略与校验流程的取舍，以及实测口径。</div></div></div></a><a class="pagination-related" href="/posts/ab872dd4/" title="网络安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">网络安全边界</div></div><div class="info-2"><div class="info-item-1">本章节面向Fulla的网络安全配置与加固，覆盖HTTPS/TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SchemaManager-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-number">6.1.</span> <span class="toc-text">SchemaManager 工作原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%81%E7%A7%BB%E6%89%A7%E8%A1%8C%E5%85%A5%E5%8F%A3%E4%B8%8E%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-number">6.2.</span> <span class="toc-text">迁移执行入口与生命周期</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#v1-1%E2%86%92v1-6-%E5%8F%8A%E6%9C%AA%E5%8F%91%E5%B8%83%E8%BF%81%E7%A7%BB%E7%9A%84%E5%9F%BA%E7%BA%BF%E4%B8%8E%E9%83%A8%E7%BD%B2%E5%8F%A3%E5%BE%84%E6%BC%94%E8%BF%9B"><span class="toc-number">6.3.</span> <span class="toc-text">v1.1→v1.6 及未发布迁移的基线与部署口径演进</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%81%E7%A7%BB%E6%96%87%E4%BB%B6%E5%91%BD%E5%90%8D%E8%A7%84%E8%8C%83%E4%B8%8E%E7%89%88%E6%9C%AC%E6%8E%A7%E5%88%B6%E7%AD%96%E7%95%A5"><span class="toc-number">6.4.</span> <span class="toc-text">迁移文件命名规范与版本控制策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E8%A7%A3%E6%9E%90%E4%B8%8E%E6%89%A7%E8%A1%8C%E9%A1%BA%E5%BA%8F"><span class="toc-number">6.5.</span> <span class="toc-text">依赖解析与执行顺序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BA%8B%E5%8A%A1%E5%A4%84%E7%90%86%E4%B8%8E%E9%94%99%E8%AF%AF%E6%81%A2%E5%A4%8D"><span class="toc-number">6.6.</span> <span class="toc-text">事务处理与错误恢复</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%9E%E6%BB%9A%E7%AD%96%E7%95%A5%E4%B8%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E8%AF%81"><span class="toc-number">6.7.</span> <span class="toc-text">回滚策略与数据一致性保证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-number">6.8.</span> <span class="toc-text">最佳实践</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E8%BF%81%E7%A7%BB%E5%9C%BA%E6%99%AF%E7%A4%BA%E4%BE%8B"><span class="toc-number">6.9.</span> <span class="toc-text">常见迁移场景示例</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91"><span class="toc-number">8.</span> <span class="toc-text">性能考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%81%E7%A7%BB%E6%96%87%E4%BB%B6%E7%A4%BA%E4%BE%8B%E5%8F%82%E8%80%83"><span class="toc-number">11.1.</span> <span class="toc-text">迁移文件示例参考</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%AE%89%E5%85%A8%E4%B8%8E%E7%9B%91%E6%8E%A7"><span class="toc-number">11.2.</span> <span class="toc-text">生产环境安全与监控</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>刷新令牌与撤销的生效边界 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="刷新令牌与撤销的生效边界">
+<meta property="og:url" content="https://voidvec.github.io/posts/4916bf40/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-08T01:00:00.000Z">
+<meta property="article:modified_time" content="2026-11-08T01:00:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "刷新令牌与撤销的生效边界",
+  "url": "https://voidvec.github.io/posts/4916bf40/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-08T01:00:00.000Z",
+  "dateModified": "2026-11-08T01:00:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/4916bf40/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '刷新令牌与撤销的生效边界',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">刷新令牌与撤销的生效边界</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">刷新令牌与撤销的生效边界</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-08T01:00:00.000Z" title="发表于 2026-11-08 09:00:00">2026-11-08</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-08T01:00:00.000Z" title="更新于 2026-11-08 09:00:00">2026-11-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>S03 安全加固保留严格单次刷新令牌和家族重用检测，调整轮换的持久化方式并明确缓存收敛边界。本文描述尚未发布的行为，以及自定义 C++ 仓储所需的迁移。</p>
+<h2 id="1-轮换与失败结果"><a href="#1-轮换与失败结果" class="headerlink" title="1. 轮换与失败结果"></a>1. 轮换与失败结果</h2><p>令牌端点先认证客户端，仓储再检查 RT 是否属于该客户端、尚未到期且未被使用。错误客户端不能消费合法 RT，也不能通过提交已使用 RT 撤销其他客户端的家族。</p>
+<p>subject 规范化、claim 解析及随机令牌生成均在消费之前完成。Memory 在一个 mutex 内轮换；Postgres 持有事务级家族 advisory lock，在同一事务中消费旧 RT、插入两个新令牌，只有确认 commit 后才报告成功。轮换与家族撤销使用相同锁域。</p>
+<table>
+<thead>
+<tr>
+<th>故障或事件</th>
+<th>持久化状态</th>
+<th>客户端结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>消费前查询或存储失败</td>
+<td>旧 RT 不变，无新 pair</td>
+<td><code>server_error</code>，不返回令牌</td>
+</tr>
+<tr>
+<td>随机源或 subject 规范化失败</td>
+<td>旧 RT 不变，无新 pair</td>
+<td>错误，不返回令牌</td>
+</tr>
+<tr>
+<td>client 不匹配或未使用 RT 的 <code>now &gt;= expires_at</code></td>
+<td>不消费、不撤销家族</td>
+<td><code>invalid_grant</code></td>
+</tr>
+<tr>
+<td>AT&#x2F;RT 任一插入失败或确定性提交拒绝</td>
+<td>旧消费回滚，无新 pair</td>
+<td><code>server_error</code>，不返回令牌</td>
+</tr>
+<tr>
+<td>COMMIT 确认丢失</td>
+<td>完整旧状态或完整轮换状态，调用方无法确定</td>
+<td><code>server_error</code>，不返回未经确认的令牌</td>
+</tr>
+<tr>
+<td>提交成功但 HTTP 响应丢失</td>
+<td>旧 RT 已使用，完整新 pair 存在</td>
+<td>可能需要重新登录</td>
+</tr>
+<tr>
+<td>正确客户端重放仍保留的已使用 RT</td>
+<td>撤销整个家族，包含已提交的新 pair</td>
+<td><code>invalid_grant</code>；撤销存储失败则为 <code>server_error</code></td>
+</tr>
+</tbody></table>
+<p>提交结果不确定与确定回滚不同。不能因网络错误推断旧 RT 仍可使用。重试已使用 RT 可能撤销整个家族，包括响应丢失的那组令牌。不增加宽限期或服务端重试幂等；单个客户端实例合并刷新请求不能协调其他标签页或进程。</p>
+<p>两个请求使用同一旧 RT 时最多一个轮换成功。若另一个请求随后检测重用，已成功返回的 pair 也会被撤销。到期本身不能证明重用；仍保留的已使用记录即使过期也继续作为重放证据，保持既有 Postgres 政策，绝不允许再次兑换。</p>
+<p>当关联 AT 仍有效时，清理任务保留已到期 RT 的关联元数据，覆盖 RT 期限短于 AT 的配置；这只保留家族撤销的可达性，不延长 RT 使用期限。AT 到期、被撤销或不存在后，后续清理即可回收元数据，不新增永久 tombstone 或 schema 变更。</p>
+<h2 id="2-C-仓储迁移"><a href="#2-C-仓储迁移" class="headerlink" title="2. C++ 仓储迁移"></a>2. C++ 仓储迁移</h2><p>自定义 <code>ITokenRepository</code> 必须实现以下加性方法：</p>
+<ul>
+<li><code>inspectRefreshToken</code>：权威读取，区分 Ready、NotFound、AlreadyUsed、ClientMismatch、Expired 和 StorageError；仅向正确绑定的客户端返回已使用令牌元数据。</li>
+<li><code>rotateRefreshToken</code>：在临界区重新校验权威旧记录和期限，原子消费并保存新 pair，仅确认持久化后返回 Rotated。</li>
+<li><code>revokeTokenFamilyChecked</code>：与轮换共用家族锁，原子撤销两类令牌并报告确认的成功或失败。</li>
+</ul>
+<p>原 CRUD&#x2F;CAS 方法保留。新方法默认失败关闭，所以旧实现仍能编译，但迁移前刷新请求会返回 <code>server_error</code>。这是源码兼容，不是行为兼容，也不提供二进制 ABI 承诺。不能把旧接口的所有 nullopt 判成重用，或将顺序写入宣称为原子操作。</p>
+<p>Drogon 宿主的 introspection 归属判断必须使用 lookupOwnerStatusChecked。OwnerStatusResult 区分 Active、成功确认无归属的 Unmanaged、Suspended（包含未知行状态）及 Unavailable，仅前两种可继续 introspection。没有 owner 注册表的部署（storage_type 非 postgres）归类为 Unmanaged——这是启动即知的结构事实，与 memory 模式一致；Unavailable 仅保留给注册表查询错误与超时，因此无注册表的模式不会把有效 token 报为 inactive。旧 optional lookupOwnerStatus 包装为展示和源码兼容保留，仍丢失错误与不存在的区别，不可用于授权。</p>
+<p>内置 Memory&#x2F;Postgres 仓储与 Redis 缓存装饰器实现了新路径。已弃用的独立 Redis 存储继续拒绝刷新 grant。按版本政策，下一次 MINOR 发布必须显著标记此安全行为收紧与迁移要求。</p>
+<h2 id="3-令牌缓存收敛"><a href="#3-令牌缓存收敛" class="headerlink" title="3. 令牌缓存收敛"></a>3. 令牌缓存收敛</h2><p>Postgres 的 AT 校验与 introspection 从主库读取，缓存回退也使用主库，避免由落后 reader 重新填入安全缓存。未命中或故障时主库读取量会增加，应据此配置主库容量。</p>
+<p>令牌 L2 使用 <code>cache.ttl_seconds.access_token_max</code>（默认 60 秒），并受令牌到期时间限制。过期预算从异步查询前起算；Redis EXAT 保留绝对期限，迟到的数据库回调或 Redis 命令不能重新获得完整 TTL。Lua 在填充时原子检查撤销标记与期限；introspection 同时检查 access key，RT introspection 不进入缓存。两种缓存载荷均保留 org_id，旧版无版本标记的载荷按未命中处理。</p>
+<p>直接撤销 AT 会尝试写负标记并执行立即和延迟 DEL。家族撤销不逐一清理正缓存，依照既有 TTL 政策收敛。失效失败时，已缓存的撤销前令牌可能有效至其绝对缓存期限与 token 到期时间中较早者。在应用与 Redis 时钟同步、主库权威读取的前提下，撤销前快照不能将期限推迟到撤销后一个配置预算之外。运维需要计入时钟偏差，TTL 不代表所有副本的下一请求必然拒绝。</p>
+<p>缓存读取有一个覆盖 Redis 查询、后端查询和受保护填充的五秒本地完成期限。首次 Redis 错误回退权威仓储；受保护填充错误或本地超时则拒绝读取，不返回未经确认的旧快照。迟到回调不能再次完成请求，业务回调会被释放。宿主必须运行承载这些定时器的 Drogon event loop。超时及错误计入 <code>fulla_cache_total{repo=&quot;token&quot;,outcome=&quot;error&quot;}</code>；失败 DEL 继续计入 <code>fulla_cache_invalidation_failures_total{kind=&quot;token&quot;}</code>，负标记 SET 失败也可观测。</p>
+<h2 id="4-权限变化是不同的操作"><a href="#4-权限变化是不同的操作" class="headerlink" title="4. 权限变化是不同的操作"></a>4. 权限变化是不同的操作</h2><p>令牌有效性、登录资格和当前授权是不同检查；不会将现有政策改成统一的即时撤销：</p>
+<table>
+<thead>
+<tr>
+<th>变化</th>
+<th>API 与刷新行为</th>
+<th>userinfo&#x2F;introspection 和缓存边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>禁用用户</td>
+<td>设置登录锁，不自动撤销全部已签发 AT&#x2F;RT</td>
+<td>profile 缓存失效不等于令牌撤销；终止既有访问需显式撤销相关令牌</td>
+</tr>
+<tr>
+<td>撤销用户角色</td>
+<td>角色保护 API 解析角色和权限；已签发 scope 不被改写</td>
+<td>用户角色缓存默认 120 秒，写入钩子失效已知 subject 形式；userinfo claim 不能替代 API 授权检查</td>
+</tr>
+<tr>
+<td>移除组织成员</td>
+<td>组织感知 gate 与 claim 解析检查成员关系；存储 org_id 仍为历史绑定</td>
+<td>失去成员关系后，新 userinfo&#x2F;刷新 ID token 不再带 org_ctx；introspection org_id 不证明当前成员资格</td>
+</tr>
+<tr>
+<td>停用开放平台客户端</td>
+<td>新 client lookup 拒绝明确已停用的 owner；该读取不统一撤销既有 AT</td>
+<td>introspection 使用类型化 owner-status overlay；查询错误或超时仅返回 active:false。client 与 owner-status 缓存仍独立，其他 API 不因此新增该 overlay</td>
+</tr>
+</tbody></table>
+<p>owner-status memo 采用从读起点算起的 60 秒预算和五秒完成期限，仅缓存成功 Found&#x2F;NoRow，错误、超时及其迟到回调均不能重新填充。失效仍可能与在途成功读取竞争，但不会重启其原预算。其他已有缓存保留各自政策：client L2 默认 300 秒，用户角色 120 秒，用户资料 300 秒。这些是条目存活时间，不是已证明的“提交到拒绝”上界，还需计入异步填充和后端读取耗时。不能把上文 token 缓存的绝对预算保证推广到这些缓存。若后端读取或副本没有有界的新鲜度与延迟保证，仅配置 TTL 无法证明更严格的全局撤销 SLO。</p>
+<p>表中的角色撤销指移除用户的角色绑定。修改现有角色所授予的权限，另有进程内 RolePermissionResolver 缓存且没有 TTL。其既有政策要求对每个副本主动失效或重启；用户角色 TTL 不能约束权限定义变更。本项不新增跨进程失效协议。</p>
+<p>若要立即终止既有会话，必须执行并验证显式令牌撤销；没有这一步，不能把禁用登录或修改角色宣传成撤销现存令牌。变更提交时已在授权中的请求，也不同于提交后才开始的新请求。</p>
+<h2 id="5-验证与运维限制"><a href="#5-验证与运维限制" class="headerlink" title="5. 验证与运维限制"></a>5. 验证与运维限制</h2><p>回归覆盖 Memory&#x2F;Postgres 的绑定校验、任一 pair 插入冲突、延迟提交拒绝、单次消费并发、等待家族锁时到期，以及在 CAS 到 INSERT 之间暂停轮换后并发家族撤销。域测试覆盖查询&#x2F;轮换故障、随机源失败、提交结果不确定、响应丢失后的重放语义和仅实现旧 SDK 接口的仓储。owner-status 测试分别验证状态映射、无后端及真实 Postgres 锁等待超时，不将前置客户端认证失败冒充 overlay 验收。缓存测试用独立节点对象共享真实 Redis，配合命令故障与迟到快照，验证共享 L2 行为，不冒称跨主机部署测试。</p>
+<p>应分别保留确定性数据库拒绝、数据库提交结果不确定和 HTTP 响应丢失的证据。模拟确认丢失测试不能称为真实网络分区实验。本项不修改 token 格式、默认令牌期限、consent 政策或组织权限含义，不执行生产部署。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/4916bf40/">https://voidvec.github.io/posts/4916bf40/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pj-snav"><div class="pj-snav__head"><i class="fas fa-layer-group"></i><span class="pj-snav__series">Fulla 架构与协议</span><b class="pj-snav__pos">5 / 6</b></div><div class="pj-snav__links"><a class="pj-snav__item pj-snav__item--prev" href="/posts/edf54557/"><span class="pj-snav__label"><i class="fas fa-angle-left"></i> 上一篇</span><span class="pj-snav__title">令牌全生命周期设计</span></a><a class="pj-snav__item pj-snav__item--next" href="/posts/4434d0a3/"><span class="pj-snav__label">下一篇 <i class="fas fa-angle-right"></i></span><span class="pj-snav__title">OIDC 集成指南：从 id_token 到用户信息</span></a></div></nav><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9808bae6/"><span class="pj-related__name">多租户组织模型设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/5cd14a42/"><span class="pj-related__name">RBAC 权限控制模型</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4434d0a3/"><span class="pj-related__name">OIDC 集成指南：从 id_token 到用户信息</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/4434d0a3/" title="OIDC 集成指南：从 id_token 到用户信息"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">OIDC 集成指南：从 id_token 到用户信息</div></div><div class="info-2"><div class="info-item-1">本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。</div></div></div></a><a class="pagination-related" href="/posts/edf54557/" title="令牌全生命周期设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">令牌全生命周期设计</div></div><div class="info-2"><div class="info-item-1">fulla 中令牌如何签发、存活与消亡：三类令牌、真正落库的是什么、刷新轮换如何</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a><a class="pagination-related" href="/posts/3aa359ed/" title="配置项设计与默认值"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-24</div><div class="info-item-2">配置项设计与默认值</div></div><div class="info-2"><div class="info-item-1">配置项清单与默认值、环境变量覆盖顺序，以及常见误配的后果。</div></div></div></a><a class="pagination-related" href="/posts/3964c8d1/" title="Windows Docker Desktop 部署实录：从零到服务可用"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows Docker Desktop 部署实录：从零到服务可用</div></div><div class="info-2"><div class="info-item-1">在 Windows + Docker Desktop 上把 Fulla 全栈跑起来的完整步骤：前置依赖、密钥生成、环境变量与容器编排。</div></div></div></a><a class="pagination-related" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 数据持久化：存储选型与一致性</div></div><div class="info-2"><div class="info-item-1">OAuth2 插件的持久化层：PostgreSQL Schema、Redis 键值结构与存储侧安全加固。</div></div></div></a><a class="pagination-related" href="/posts/f69881e8/" title="授权模型安全：从 scope 到 RBAC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">授权模型安全：从 scope 到 RBAC</div></div><div class="info-2"><div class="info-item-1">授权安全能力全景：scope 收敛、RBAC 落地与越权防护。</div></div></div></a><a class="pagination-related" href="/posts/9518940e/" title="自定义 Claims 映射"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">自定义 Claims 映射</div></div><div class="info-2"><div class="info-item-1">自 v1.6.0（P1-3，#280）起，fulla 可以把按用户维护的自定义声明发布进</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E8%BD%AE%E6%8D%A2%E4%B8%8E%E5%A4%B1%E8%B4%A5%E7%BB%93%E6%9E%9C"><span class="toc-number">1.</span> <span class="toc-text">1. 轮换与失败结果</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-C-%E4%BB%93%E5%82%A8%E8%BF%81%E7%A7%BB"><span class="toc-number">2.</span> <span class="toc-text">2. C++ 仓储迁移</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E4%BB%A4%E7%89%8C%E7%BC%93%E5%AD%98%E6%94%B6%E6%95%9B"><span class="toc-number">3.</span> <span class="toc-text">3. 令牌缓存收敛</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%9D%83%E9%99%90%E5%8F%98%E5%8C%96%E6%98%AF%E4%B8%8D%E5%90%8C%E7%9A%84%E6%93%8D%E4%BD%9C"><span class="toc-number">4.</span> <span class="toc-text">4. 权限变化是不同的操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E9%AA%8C%E8%AF%81%E4%B8%8E%E8%BF%90%E7%BB%B4%E9%99%90%E5%88%B6"><span class="toc-number">5.</span> <span class="toc-text">5. 验证与运维限制</span></a></li></ol></div></div><div class="card-widget card-post-series"><div class="item-headline"><i class="fa-solid fa-layer-group"></i><span>系列文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/47d52779/" title="Fulla 架构总览：技术栈、模块布局与授权码流程">Fulla 架构总览：技术栈、模块布局与授权码流程</a><time datetime="2026-11-07T01:00:00.000Z" title="发表于 2026-11-07 09:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性">OAuth2 数据持久化：存储选型与一致性</a><time datetime="2026-11-07T04:00:00.000Z" title="发表于 2026-11-07 12:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/6db0e595/" title="OAuth2 安全架构：威胁模型与密钥管理">OAuth2 安全架构：威胁模型与密钥管理</a><time datetime="2026-11-07T07:00:00.000Z" title="发表于 2026-11-07 15:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/edf54557/" title="令牌全生命周期设计">令牌全生命周期设计</a><time datetime="2026-11-07T10:00:00.000Z" title="发表于 2026-11-07 18:00:00">2026-11-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/4916bf40/" title="刷新令牌与撤销的生效边界">刷新令牌与撤销的生效边界</a><time datetime="2026-11-08T01:00:00.000Z" title="发表于 2026-11-08 09:00:00">2026-11-08</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/4434d0a3/" title="OIDC 集成指南：从 id_token 到用户信息">OIDC 集成指南：从 id_token 到用户信息</a><time datetime="2026-11-08T04:00:00.000Z" title="发表于 2026-11-08 12:00:00">2026-11-08</time></div></div></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>多租户组织模型设计 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="多租户组织模型设计">
+<meta property="og:url" content="https://voidvec.github.io/posts/9808bae6/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-10T00:06:00.000Z">
+<meta property="article:modified_time" content="2026-11-10T00:06:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "多租户组织模型设计",
+  "url": "https://voidvec.github.io/posts/9808bae6/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-10T00:06:00.000Z",
+  "dateModified": "2026-11-10T00:06:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/9808bae6/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '多租户组织模型设计',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">多租户组织模型设计</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">多租户组织模型设计</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-10T00:06:00.000Z" title="发表于 2026-11-10 08:06:00">2026-11-10</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-10T00:06:00.000Z" title="更新于 2026-11-10 08:06:00">2026-11-10</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">软件架构</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1/">系统设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>fulla 的多租户目前是一个<strong>组织层</strong>：组织归组用户与客户端、承载品牌字段、<br>锚定 v1.4.0 的租户语义（组织上下文授权、组织授权（organization consent）、owner 继任），<br>并经管理 API 与自助门户流程管理。本页如实记录现状有什么、<strong>没有</strong>什么、以及如何在不过度<br>假设隔离的前提下使用它。</p>
+<blockquote>
+<p><strong>先读这段</strong>：组织是元数据与归属归组，不是硬隔离边界。授权由 RBAC +<br>scope 强制（见 <a href="/posts/5cd14a42/">RBAC 指南</a>）；今天属于某组织的主体并不会<br>自动与其他组织的数据隔离。</p>
+</blockquote>
+<h2 id="1-模型（V017-V034-V036–V038-V042）"><a href="#1-模型（V017-V034-V036–V038-V042）" class="headerlink" title="1. 模型（V017 + V034&#x2F;V036–V038 + V042）"></a>1. 模型（V017 + V034&#x2F;V036–V038 + V042）</h2><p>核心 <code>organizations</code> 表来自 V017；组织层如今又横跨五条迁移——<br><code>organization_members</code> + <code>organization_invitations</code>（V034）、<br><code>organization_consents</code>（V036；同一迁移还新增 <code>organizations.require_mfa</code>、<br>授权码&#x2F;令牌上的组织列、<code>audit_logs.org_id</code>，并播种 <code>org</code> scope）、<br><code>organization_succession_nominations</code>（V037）、<code>organization_consent_requests</code>（V038），<br>以及 <code>organizations.deleted_at</code> 软删除标记（V042）：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">organizations (</span><br><span class="line">    id              SERIAL <span class="keyword">PRIMARY KEY</span>,</span><br><span class="line">    slug            <span class="type">VARCHAR</span>(<span class="number">50</span>) <span class="keyword">UNIQUE</span>,   <span class="comment">-- 3–50 字符，小写</span></span><br><span class="line">    name            <span class="type">VARCHAR</span>(<span class="number">200</span>),</span><br><span class="line">    logo_uri        <span class="type">VARCHAR</span>(<span class="number">512</span>),         <span class="comment">-- 品牌</span></span><br><span class="line">    primary_color   <span class="type">VARCHAR</span>(<span class="number">7</span>),           <span class="comment">-- 品牌</span></span><br><span class="line">    issuer_override <span class="type">VARCHAR</span>(<span class="number">512</span>),         <span class="comment">-- 已存储；见 §4 路线图</span></span><br><span class="line">    require_mfa     <span class="type">BOOLEAN</span> <span class="keyword">DEFAULT</span> <span class="literal">FALSE</span>,<span class="comment">-- V036；由组织上下文门强制</span></span><br><span class="line">    created_at <span class="operator">/</span> updated_at</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<p>两个可空外键把实体挂到组织上：</p>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>所在表</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>org_id</code></td>
+<td><code>users</code></td>
+<td>V017 的单组织锚点，已废弃。<strong>v1.4.0 起只读</strong>（admin API 写入面已移除）；<code>NULL</code> &#x3D; 未设置。计划 v2.0 物理删除。</td>
+</tr>
+<tr>
+<td>（已删除）</td>
+<td><code>oauth2_clients</code></td>
+<td>V017 的 <code>org_id</code> 列从未被代码读写，<strong>V036 已 DROP</strong>。客户端归属在 <code>oauth2_client_owners.org_id</code>（v1.4.0）。</td>
+</tr>
+</tbody></table>
+<p>v1.4.0 起组织归属的唯一权威锚点是 M:N 成员表（<code>organization_members</code>）与<br><code>oauth2_client_owners.org_id</code>；<code>users.org_id</code> 只是为迁移保留的只读遗留列。</p>
+<h2 id="2-管理-API-面"><a href="#2-管理-API-面" class="headerlink" title="2. 管理 API 面"></a>2. 管理 API 面</h2><p>所有路由要求 admin scope 令牌（<code>AuthorizationFilter</code>；<code>impliedBy: admin</code>）——<br>API 参考客户端管理一节：</p>
+<table>
+<thead>
+<tr>
+<th>方法与路径</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/admin/organizations</code></td>
+<td>列出组织（id、slug、name、品牌字段）</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/organizations</code></td>
+<td>创建（slug：3–50 个小写字符，唯一）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/organizations/{slug}</code></td>
+<td>查询单个</td>
+</tr>
+<tr>
+<td><code>PATCH /api/admin/organizations/{slug}</code></td>
+<td>更新 name &#x2F; <code>logo_uri</code> &#x2F; <code>primary_color</code>（v1.6.0，P1-4 #281；slug 不可变；品牌字段按 P1-1 校验规则；审计 <code>org_updated</code>）</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/organizations/{slug}</code></td>
+<td>软删除 + 封闭级联（v1.6.0，P1-4 #281；V042 <code>deleted_at</code> + <code>#del-&lt;id&gt;</code> slug 占位）：作废待处理邀请与继任提名、撤销组织授权、挂起所属客户端（其令牌 introspect 为 inactive）、解除成员关系——单事务；审计 <code>org_deleted</code></td>
+</tr>
+<tr>
+<td><code>GET /api/admin/organizations/{slug}/members</code></td>
+<td>只读成员名册（user_id、username、role、joined_at）（v1.6.0，#281）</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/organizations/{slug}/members/{userId}</code></td>
+<td>移除成员关系——移除最后一个 owner 被拒（409，需先转移所有权）；审计 <code>org_member_removed</code>（v1.6.0，#281）</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/organizations/{slug}/transfer-ownership</code></td>
+<td>把 owner 席位转给另一位在世用户（解软删 owner 死锁；旧 owner 降级为 admin）</td>
+</tr>
+</tbody></table>
+<p>另：</p>
+<ul>
+<li>管理用户 API（<code>POST/PUT /api/admin/users</code>）**不再接受 <code>org_id</code>**（v1.4.0<br>组织锚点收敛）：请求体携带该键一律 400，无论取值。组织成员关系经组织<br>成员 API（<code>organization_members</code>）管理；<code>users.org_id</code> 列在 v2.0 物理删除<br>前保持可读。</li>
+</ul>
+<p>示例：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建组织（令牌：admin scope）</span></span><br><span class="line">curl -X POST http://localhost:5555/api/admin/organizations \</span><br><span class="line">  -H <span class="string">&quot;Authorization: Bearer <span class="variable">$TOKEN</span>&quot;</span> -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;&quot;slug&quot;:&quot;acme&quot;,&quot;name&quot;:&quot;ACME Corp&quot;,&quot;logo_uri&quot;:&quot;https://acme.example/logo.svg&quot;,&quot;primary_color&quot;:&quot;#5b2fd1&quot;&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="3-现在能买到什么"><a href="#3-现在能买到什么" class="headerlink" title="3. 现在能买到什么"></a>3. 现在能买到什么</h2><ul>
+<li><strong>归属记账</strong>：哪个人属于哪家公司、哪个客户端应用属于哪家公司——管理 API<br>与 SQL（成员表；<code>users.org_id</code> 是已废弃的只读遗留列）均可查。</li>
+<li><strong>品牌目录</strong>：按组织存 logo 与主色，前端可按租户换肤登录体验。</li>
+<li><strong>授权链中的组织上下文（v1.4.0）</strong>：授权端点接受可选的 <code>org_id</code>（id 或 slug），<br>由组织上下文门校验——请求者必须是有效（未软删除）的成员，客户端必须属于该组织<br>或持有有效的组织授权，且启用了 <code>require_mfa</code> 的组织拒绝仅密码认证的会话。<br>该绑定沿授权码→令牌链流转，携带 <code>org</code> scope 签发的令牌带有 <strong><code>org_ctx</code> 声明</strong><br>（userinfo &#x2F; id_token），成员资格一旦终止即不再携带。</li>
+<li><strong>组织授权（organization consent，v1.4.0）</strong>：成员授权组织拥有的应用时，授权记录在<br><strong>组织</strong>上（<code>organization_consents</code> 中的管理级记录）；owner&#x2F;admin 可在门户的”组织授权”页<br>查看并撤销（<code>GET /api/me/organizations/{slug}/consents</code>、<br><code>DELETE /api/me/organizations/{slug}/consents/{clientId}</code>）。</li>
+<li><strong>授权申请工作流（consent request，v1.4.0，#236）</strong>：非 owner 成员可提交组织授权<br><strong>申请</strong>（<code>organization_consent_requests</code>）；管理者在门户中批准&#x2F;拒绝，提交申请的成员<br>可撤回自己待处理的申请，获批的申请即成为组织授权。</li>
+<li><strong>Owner 继任（v1.4.0）</strong>：owner 可提名继任者（提名 → 接受，两步确认），被软删除的<br>owner 席位会依据待处理的提名自动继任，没有合格继任者的组织则由上文管理端的<br>transfer-ownership 端点解围。</li>
+<li><strong>组织锚定的客户端凭据（v1.4.0）</strong>：组织拥有的应用的 client_credentials 令牌携带<br><code>org_id</code> 声明（subject 仍是 client id）。</li>
+<li><strong>无迁移断崖</strong>：一切都是可选、增量式的；不关心组织的部署完全不碰它。</li>
+</ul>
+<h3 id="3-1-授权决定、重试与恢复"><a href="#3-1-授权决定、重试与恢复" class="headerlink" title="3.1. 授权决定、重试与恢复"></a>3.1. 授权决定、重试与恢复</h3><p><code>POST /api/me/organizations/{slug}/consent-requests/{id}/approve</code> 在一个事务中<br>提交注册 scope 快照、目标申请的决定和当时可见的同组待处理申请。成功响应确认整组提交，<br>不存在还要等待后台写入的尾部 scope。注册 scope 为空时仍提交决定。拒绝使用相同串行化<br>边界，并在提交前复核 pending 状态。</p>
+<p>事务内重新确认组织未删除，执行审批的用户仍是 owner&#x2F;admin 成员。组织生命周期和同组织<br>的申请决定串行化；授权写入和整组撤销共用现有 <code>orgconsent:&lt;org&gt;:&lt;client&gt;</code> 锁。<br>成员移除、降权或申请撤回不会让过时的前置检查变成新授权。scope 集合取自事务内读取的<br>快照，不额外承诺与其他客户端编辑流程全局隔离。组织授权联集和 owner 继任政策保持<br>不变；撤销影响未来授权，不撤销已经签发的令牌。</p>
+<p>重复批准时，只要已有任一 active 授权，就返回 200 no-op，不补入原决定之后新增的<br>注册 scope。因此，历史上只落地部分 scope 的授权也不会被默默扩展。受控修复由当前<br>manager 先检查客户端当前 scope，使用现有 DELETE 授权 API 明确撤销该组织&#x2F;客户端的<br>整组授权，再明确重批原 approved 申请。零 active 行时，重批恢复当前 scope 快照且<br>不产生重复行。这是两个独立操作，中间可以没有授权；失败重试仍必须通过当前 manager<br>权限复核。</p>
+<p>客户端已被软删的申请无法批准——渲染为与不存在&#x2F;外部申请 id 相同的 404（此前批准会<br>成功并为已删除客户端写入授权）。拒绝与撤回不经过该客户端检查，此类申请仍可处理。</p>
+<p>数据库错误和未确认提交返回失败。批准、拒绝、应用列表、申请撤回和整组撤销具有十秒<br>本地 HTTP 完成期限，并行查询错误也只经过一个响应出口。完成时同时检查实际 steady 截止时间，事件循环的<br>迟到 timer 不能让迟到成功通过；宿主必须运行 Drogon 事件循环。这一期限不取消也不能<br>证明在途提交已回滚：数据库可能完整提交或完整回滚。应检查持久化授权，并通过现有<br>幂等批准路径恢复，不能由 500&#x2F;超时推断回滚。迟到的已确认决定仍可记录审计，但不能<br>二次响应。直接调用 C++ 仓储的宿主自行配置 DbClient timeout；HTTP 期限不等于新增<br>全 SDK 超时承诺。</p>
+<h2 id="4-还没有的（路线图）"><a href="#4-还没有的（路线图）" class="headerlink" title="4. 还没有的（路线图）"></a>4. 还没有的（路线图）</h2><p>对利益相关方要说清楚——以下<strong>未</strong>实现：</p>
+<ol>
+<li><strong><code>issuer_override</code> 已存储但未生效</strong>：按组织的 issuer（进发现文档与签发<br>令牌）schema 就绪、运行时未接入。</li>
+<li>用户&#x2F;客户端列表<strong>无按组织过滤&#x2F;隔离</strong>；admin 跨组织可见。</li>
+<li><strong>无组织级角色</strong>：角色是全局的（RBAC），不按组织。</li>
+<li><strong>无按组织的限流与 API key</strong>——但创建<em>配额</em>已存在：自助建组织按用户配额<br>（<code>max_orgs_per_user</code>）、组织拥有的客户端数量有配额（<code>max_org_apps</code>）、<br>自助<em>应用</em>创建有限流（<code>creation_rate_limit_per_day</code>）（开放平台限额）。</li>
+</ol>
+<p>如果今天就需要硬租户隔离：每租户跑一套 fulla 栈——Docker Compose &#x2F; Helm<br>路径让这很便宜（部署）。</p>
+<h2 id="5-Schema-参考"><a href="#5-Schema-参考" class="headerlink" title="5. Schema 参考"></a>5. Schema 参考</h2><p>组织层横跨多条迁移——权威 DDL 位于<br><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/tree/master/apps/server/migrations"><code>apps/server/migrations/</code></a>：</p>
+<table>
+<thead>
+<tr>
+<th>迁移</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>V017__multi_tenant.sql</code></td>
+<td><code>organizations</code> 核心表（索引 <code>users(org_id)</code>、<code>organizations(slug)</code>）</td>
+</tr>
+<tr>
+<td><code>V034</code></td>
+<td><code>organization_members</code> &#x2F; <code>organization_invitations</code></td>
+</tr>
+<tr>
+<td><code>V036</code></td>
+<td><code>organization_consents</code> + <code>organizations.require_mfa</code> + 授权链上的组织列 + 删除从未使用的 <code>oauth2_clients.org_id</code></td>
+</tr>
+<tr>
+<td><code>V037</code></td>
+<td><code>organization_succession_nominations</code></td>
+</tr>
+<tr>
+<td><code>V038</code></td>
+<td><code>organization_consent_requests</code></td>
+</tr>
+<tr>
+<td><code>V042</code></td>
+<td><code>organizations.deleted_at</code> 软删除标记 + 未删除 slug 的部分索引（支撑管理端 DELETE 级联）</td>
+</tr>
+</tbody></table>
+<p><code>users.org_id</code> 是只读遗留列，计划 v2.0 物理删除。<br>存储层细节见<a href="/posts/780d6dbc/">数据与持久化</a>。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/9808bae6/">https://voidvec.github.io/posts/9808bae6/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4916bf40/"><span class="pj-related__name">刷新令牌与撤销的生效边界</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/5cd14a42/"><span class="pj-related__name">RBAC 权限控制模型</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4434d0a3/"><span class="pj-related__name">OIDC 集成指南：从 id_token 到用户信息</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/f607c499/" title="SDK 集成：消费发布产物"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">SDK 集成：消费发布产物</div></div><div class="info-2"><div class="info-item-1">如何获取并集成 Fulla 的发布产物：SDK 二进制包（库 + 头 +</div></div></div></a><a class="pagination-related" href="/posts/f73c3341/" title="密码存储与校验"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">密码存储与校验</div></div><div class="info-2"><div class="info-item-1">密码存储算法、加盐策略与校验流程的取舍，以及实测口径。</div></div></div></a><a class="pagination-related" href="/posts/c079fffd/" title="插件架构设计：让认证引擎可扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">插件架构设计：让认证引擎可扩展</div></div><div class="info-2"><div class="info-item-1">本文件面向希望理解与扩展 Fulla 插件系统的工程师，系统性说明插件生命周期、依赖注入、配置加载、插件发现机制，以及 OAuth2Plugin 在 Drogon 框架中的集成方式（自动注册、控制器与过滤器）。</div></div></div></a><a class="pagination-related" href="/posts/ab872dd4/" title="网络安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">网络安全边界</div></div><div class="info-2"><div class="info-item-1">本章节面向Fulla的网络安全配置与加固，覆盖HTTPS/TLS、CORS跨域、安全响应头、HSTS、反向代理（Nginx）以及DDoS防护与请求限流。文档基于仓库中的实际实现与配置，提供可操作的部署建议与验证方法。</div></div></div></a><a class="pagination-related" href="/posts/6db0e595/" title="OAuth2 安全架构：威胁模型与密钥管理"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 安全架构：威胁模型与密钥管理</div></div><div class="info-2"><div class="info-item-1">威胁模型与防御机制：令牌生命周期、加密存储与常见攻击面的处置方式。</div></div></div></a><a class="pagination-related" href="/posts/4acdd980/" title="社交登录接入设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-09</div><div class="info-item-2">社交登录接入设计</div></div><div class="info-2"><div class="info-item-1">后端社交登录按\"提供方适配器\"模式实现。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A8%A1%E5%9E%8B%EF%BC%88V017-V034-V036%E2%80%93V038-V042%EF%BC%89"><span class="toc-number">1.</span> <span class="toc-text">1. 模型（V017 + V034&#x2F;V036–V038 + V042）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%AE%A1%E7%90%86-API-%E9%9D%A2"><span class="toc-number">2.</span> <span class="toc-text">2. 管理 API 面</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%8E%B0%E5%9C%A8%E8%83%BD%E4%B9%B0%E5%88%B0%E4%BB%80%E4%B9%88"><span class="toc-number">3.</span> <span class="toc-text">3. 现在能买到什么</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%8E%88%E6%9D%83%E5%86%B3%E5%AE%9A%E3%80%81%E9%87%8D%E8%AF%95%E4%B8%8E%E6%81%A2%E5%A4%8D"><span class="toc-number">3.1.</span> <span class="toc-text">3.1. 授权决定、重试与恢复</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E8%BF%98%E6%B2%A1%E6%9C%89%E7%9A%84%EF%BC%88%E8%B7%AF%E7%BA%BF%E5%9B%BE%EF%BC%89"><span class="toc-number">4.</span> <span class="toc-text">4. 还没有的（路线图）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-Schema-%E5%8F%82%E8%80%83"><span class="toc-number">5.</span> <span class="toc-text">5. Schema 参考</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,704 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>OAuth2/OIDC 协议层安全 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="OAuth2&#x2F;OIDC 协议层安全实现：授权码、PKCE、令牌校验与已知攻击面。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OAuth2&#x2F;OIDC 协议层安全">
+<meta property="og:url" content="https://voidvec.github.io/posts/34f6f1ca/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="OAuth2&#x2F;OIDC 协议层安全实现：授权码、PKCE、令牌校验与已知攻击面。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-03T00:13:00.000Z">
+<meta property="article:modified_time" content="2026-11-03T00:13:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "OAuth2/OIDC 协议层安全",
+  "url": "https://voidvec.github.io/posts/34f6f1ca/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-03T00:13:00.000Z",
+  "dateModified": "2026-11-03T00:13:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/34f6f1ca/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'OAuth2/OIDC 协议层安全',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">OAuth2/OIDC 协议层安全</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">OAuth2/OIDC 协议层安全</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-03T00:13:00.000Z" title="发表于 2026-11-03 08:13:00">2026-11-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-03T00:13:00.000Z" title="更新于 2026-11-03 08:13:00">2026-11-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">安全设计</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><blockquote>
+<p><strong>快照说明（未发布）</strong>：当前发布仍为 v1.6.0。本文的 PKCE 默认策略、刷新轮换、缓存&#x2F;introspection 与 upstream federation 已按基线工作区更新；新增能力均<strong>未发布</strong>，版本边界见 [[versioning-and-release-guide-zh]]。</p>
+</blockquote>
+<cite>
+**本文引用的文件**
+- [JwkManager.cc](https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc)
+- [ICryptoProvider.h](https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h)
+- [Pkce.h](https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/pkce/Pkce.h)
+- [Pkce.cc](https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc)
+- [PkceChallenge.h](https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/model/PkceChallenge.h)
+- [TokenService.cc](https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc)
+- [ITokenRepository.h](https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/ITokenRepository.h)
+- [PostgresTokenRepository.cc](https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc)
+- [V008__refresh_token_family.sql](https://github.com/voidvec/fulla/blob/master/apps/server/migrations/V008__refresh_token_family.sql)
+- [DiscoveryController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc)
+- [openapi.json](https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json)
+- [oidc-guide.md](https://github.com/voidvec/fulla/blob/master/docs/domains/oidc-guide.md)
+- [security-architecture.md](https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md)
+- [SessionController.cc](https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc)
+- [OAuth2Plugin.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h)
+- [CryptoUtils.h](https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/CryptoUtils.h)
+- [test-oauth2-endpoints.sh](https://github.com/voidvec/fulla/blob/master/scripts/backend/test-oauth2-endpoints.sh)
+</cite>
+
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a></li>
+<li><a href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84">项目结构</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6">核心组件</a></li>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88">架构总览</a></li>
+<li><a href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90">详细组件分析</a></li>
+<li><a href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90">依赖关系分析</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91">性能考虑</a></li>
+<li><a href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97">故障排查指南</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA">结论</a></li>
+<li><a href="#%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>本文件面向Fulla的OAuth2&#x2F;OIDC协议安全实现，聚焦以下主题：</p>
+<ul>
+<li>PKCE（RFC 7636）的实现原理与安全优势</li>
+<li>JWT令牌的签名机制与算法（RS256等）</li>
+<li>客户端认证方式（客户端密钥、私钥JWT、公钥认证）</li>
+<li>授权码流程的安全增强（state参数、重定向URI白名单、防重放）</li>
+<li>刷新令牌的安全管理（轮换、家族化、撤销）</li>
+<li>OIDC Discovery与JWKS端点的安全实现</li>
+<li>安全配置指南与合规性检查清单</li>
+</ul>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p>本项目将OAuth2&#x2F;OIDC能力以插件与库的形式组织：</p>
+<ul>
+<li>libs&#x2F;oauth2：协议核心（PKCE、令牌服务、仓库接口）</li>
+<li>libs&#x2F;drogon：控制器与OpenAPI注册（授权、同意、发现、JWKS）</li>
+<li>libs&#x2F;common：通用端口与模型（加密抽象、PKCE值对象）</li>
+<li>libs&#x2F;storage-*：存储实现（Postgres、Redis、内存）</li>
+<li>apps&#x2F;server：服务端应用（迁移、种子数据、OpenAPI文档）</li>
+<li>docs：后端集成指南、运维安全清单等</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">subgraph &quot;协议层&quot;</span><br><span class="line">PKCE[&quot;PKCE模块&lt;br/&gt;Pkce.h / Pkce.cc&quot;]</span><br><span class="line">TokenSvc[&quot;令牌服务&lt;br/&gt;TokenService.cc&quot;]</span><br><span class="line">Repo[&quot;令牌仓库接口&lt;br/&gt;ITokenRepository.h&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;控制层&quot;</span><br><span class="line">SessionCtrl[&quot;会话控制器&lt;br/&gt;SessionController.cc&quot;]</span><br><span class="line">DiscCtrl[&quot;发现控制器&lt;br/&gt;DiscoveryController.cc&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;安全基础设施&quot;</span><br><span class="line">JWK[&quot;JWK管理器&lt;br/&gt;JwkManager.cc&quot;]</span><br><span class="line">Crypto[&quot;加密端口&lt;br/&gt;ICryptoProvider.h&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;存储&quot;</span><br><span class="line">PGRepo[&quot;Postgres令牌仓库&lt;br/&gt;PostgresTokenRepository.cc&quot;]</span><br><span class="line">Migration[&quot;刷新令牌家族化&lt;br/&gt;V008__refresh_token_family.sql&quot;]</span><br><span class="line">end</span><br><span class="line">subgraph &quot;文档&quot;</span><br><span class="line">OpenAPI[&quot;OpenAPI定义&lt;br/&gt;openapi.json&quot;]</span><br><span class="line">OIDCGuide[&quot;OIDC集成指南&lt;br/&gt;oidc-guide.md&quot;]</span><br><span class="line">Checklist[&quot;安全清单&lt;br/&gt;security-checklist.md&quot;]</span><br><span class="line">end</span><br><span class="line">SessionCtrl --&gt; TokenSvc</span><br><span class="line">TokenSvc --&gt; Repo</span><br><span class="line">Repo --&gt; PGRepo</span><br><span class="line">TokenSvc --&gt; PKCE</span><br><span class="line">TokenSvc --&gt; JWK</span><br><span class="line">JWK --&gt; Crypto</span><br><span class="line">DiscCtrl --&gt; JWK</span><br><span class="line">DiscCtrl --&gt; OpenAPI</span><br><span class="line">OIDCGuide --&gt; DiscCtrl</span><br><span class="line">Checklist --&gt; SessionCtrl</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L267-L874">SessionController.cc:267-874</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/ITokenRepository.h#L115-L149">ITokenRepository.h:115-149</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L437-L470">PostgresTokenRepository.cc:437-470</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h#L53-L101">ICryptoProvider.h:53-101</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/domains/oidc-guide.md#L1-L97">oidc-guide.md:1-97</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md#L1-L202">security-architecture.md:1-202</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L267-L874">SessionController.cc:267-874</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+</ul>
+<h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><ul>
+<li>PKCE模块：提供code_verifier校验、S256方法处理与格式校验（plain 自 v1.5.0 起在授权端点被拒绝、v1.6.0 移除 <code>auth.allow_pkce_plain</code> 逃生阀）。<strong>未发布</strong>：<code>require_pkce_for_public</code> 更名为 <code>require_pkce</code>，旧键不再读取；默认对所有 authorization_code 客户端强制 S256，不区分 client type。</li>
+<li>令牌服务：处理授权码换取令牌、刷新令牌轮换与家族化撤销。</li>
+<li>JWK管理器：加载RSA私钥、签发RS256 JWT、输出JWKS。</li>
+<li>发现控制器：暴露&#x2F;.well-known&#x2F;openid-configuration与&#x2F;.well-known&#x2F;jwks.json。</li>
+<li>存储仓库：持久化访问&#x2F;刷新令牌、支持按family_id级联撤销。</li>
+<li>加密端口：统一SHA-256、HMAC、PBKDF2、RSA签名等原语。</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/pkce/Pkce.h#L51-L85">Pkce.h:51-85</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc#L1-L70">Pkce.cc:1-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/ITokenRepository.h#L115-L149">ITokenRepository.h:115-149</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L437-L470">PostgresTokenRepository.cc:437-470</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h#L53-L101">ICryptoProvider.h:53-101</a></li>
+</ul>
+<h2 id="架构总览"><a href="#架构总览" class="headerlink" title="架构总览"></a>架构总览</h2><p>下图展示从授权到令牌交换的关键调用链，以及PKCE验证、刷新令牌家族化撤销、JWKS输出的交互。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Client as &quot;客户端&quot;</span><br><span class="line">participant Authz as &quot;授权端点(控制器)&quot;</span><br><span class="line">participant Sess as &quot;会话控制器&quot;</span><br><span class="line">participant Tok as &quot;令牌服务&quot;</span><br><span class="line">participant Repo as &quot;令牌仓库&quot;</span><br><span class="line">participant JWK as &quot;JWK管理器&quot;</span><br><span class="line">participant Disc as &quot;发现控制器&quot;</span><br><span class="line">Client-&gt;&gt;Authz : &quot;GET /oauth2/authorize?response_type=code&amp;client_id=...&amp;redirect_uri=...&amp;state=...&amp;code_challenge=...&amp;code_challenge_method=S256&quot;</span><br><span class="line">Authz-&gt;&gt;Sess : &quot;生成授权码并绑定PKCE&quot;</span><br><span class="line">Sess--&gt;&gt;Client : &quot;302重定向到回调URL(code,state)&quot;</span><br><span class="line">Client-&gt;&gt;Tok : &quot;POST /oauth2/token grant_type=authorization_code code=...&amp;code_verifier=...&amp;client_id=...&amp;client_secret=...&quot;</span><br><span class="line">Tok-&gt;&gt;Repo : &quot;消费授权码并校验redirect_uri&quot;</span><br><span class="line">Repo--&gt;&gt;Tok : &quot;返回授权码上下文(含PKCE)&quot;</span><br><span class="line">Tok-&gt;&gt;Tok : &quot;校验PKCE(仅S256)&quot;</span><br><span class="line">Note over Client,Tok : 刷新是独立grant：inspect→锁内重验→CAS+insert pair；仅confirmed commit返回Rotated</span><br><span class="line">Tok--&gt;&gt;Client : &quot;access_token, id_token(RS256), refresh_token&quot;</span><br><span class="line">Client-&gt;&gt;Disc : &quot;GET /.well-known/openid-configuration&quot;</span><br><span class="line">Disc--&gt;&gt;Client : &quot;返回OIDC元数据&quot;</span><br><span class="line">Client-&gt;&gt;Disc : &quot;GET /.well-known/jwks.json&quot;</span><br><span class="line">Disc-&gt;&gt;JWK : &quot;获取公钥集合&quot;</span><br><span class="line">JWK--&gt;&gt;Disc : &quot;返回keys数组&quot;</span><br><span class="line">Disc--&gt;&gt;Client : &quot;JWKS响应&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L267-L874">SessionController.cc:267-874</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L437-L470">PostgresTokenRepository.cc:437-470</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+</ul>
+<h2 id="详细组件分析"><a href="#详细组件分析" class="headerlink" title="详细组件分析"></a>详细组件分析</h2><h3 id="PKCE（RFC-7636）实现与安全优势"><a href="#PKCE（RFC-7636）实现与安全优势" class="headerlink" title="PKCE（RFC 7636）实现与安全优势"></a>PKCE（RFC 7636）实现与安全优势</h3><ul>
+<li>实现要点<ul>
+<li><strong>仅支持 S256 挑战方法</strong>（v1.5.0 起，RFC 9700 §2.1.1 方向）：<code>code_challenge_method=plain</code> 被授权端点拒绝，省略方法不再按 RFC 7636 §4.3 默认 plain，challenge 必须显式声明 S256。</li>
+<li><strong>默认强制范围（未发布）</strong>：<code>custom_config.auth.require_pkce=true</code> 为代码与配置默认值，适用于<strong>所有 authorization_code 客户端</strong>；旧键 <code>require_pkce_for_public</code> 已硬切割、不再读取。显式关闭是部署选择，不应把“仅 public 客户端”当作现行语义。</li>
+<li>S256 使用SHA-256后Base64url编码。</li>
+<li>提供code_verifier格式校验（长度43-128，字符集符合RFC 7636 §4.2；v1.2.0 审计 P0-4 起在全部四条签发路径强制执行）。</li>
+<li>通过ICryptoProvider抽象进行哈希与编码，便于替换底层实现。</li>
+</ul>
+</li>
+<li>安全优势<ul>
+<li>防止授权码在公共客户端被中间人截获后滥用。</li>
+<li>S256-only 使明文 code_verifier 比对从协议面上消失。</li>
+</ul>
+</li>
+<li>关键路径<ul>
+<li>计算challenge：computeCodeChallenge</li>
+<li>验证verifier：verifyCodeVerifier</li>
+<li>值对象封装：PkceChallenge</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">Start([&quot;进入PKCE验证&quot;]) --&gt; ReadParams[&quot;读取code_verifier与stored_challenge/method&quot;]</span><br><span class="line">ReadParams --&gt; Method&#123;&quot;method为S256?&quot;&#125;</span><br><span class="line">Method --&gt; |是| Hash[&quot;SHA-256(code_verifier) -&gt; Base64url&quot;]</span><br><span class="line">Method --&gt; |否(plain/省略)| Reject[&quot;拒绝请求(v1.5.0起)&quot;]</span><br><span class="line">Hash --&gt; Compare[&quot;比较computed_challenge与stored_challenge&quot;]</span><br><span class="line">Compare --&gt; Result&#123;&quot;是否匹配?&quot;&#125;</span><br><span class="line">Result --&gt; |是| Pass[&quot;验证通过&quot;]</span><br><span class="line">Result --&gt; |否| Fail[&quot;拒绝请求&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc#L1-L70">Pkce.cc:1-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/pkce/Pkce.h#L51-L85">Pkce.h:51-85</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/model/PkceChallenge.h#L30-L82">PkceChallenge.h:30-82</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/CryptoUtils.h#L67-L114">CryptoUtils.h:67-114</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc#L1-L70">Pkce.cc:1-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/pkce/Pkce.h#L51-L85">Pkce.h:51-85</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/model/PkceChallenge.h#L30-L82">PkceChallenge.h:30-82</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/utils/CryptoUtils.h#L67-L114">CryptoUtils.h:67-114</a></li>
+</ul>
+<h3 id="JWT令牌的签名机制（RS256）"><a href="#JWT令牌的签名机制（RS256）" class="headerlink" title="JWT令牌的签名机制（RS256）"></a>JWT令牌的签名机制（RS256）</h3><ul>
+<li>实现要点<ul>
+<li>使用RSA私钥对JWT进行RS256签名（EVP_sha256 + RSA）。</li>
+<li>Header包含alg&#x3D;RS256、typ&#x3D;JWT、kid标识密钥。</li>
+<li>JWKS端点输出对应公钥（n,e），供客户端验证签名。</li>
+</ul>
+</li>
+<li>密钥加载<ul>
+<li>优先从环境变量FULLA_SIGNING_KEY或FULLA_JWT_KEY_PATH加载PEM私钥。</li>
+<li>未配置时生成临时密钥（仅开发环境）。</li>
+</ul>
+</li>
+<li>安全建议<ul>
+<li>生产环境必须配置持久化私钥并定期轮换。</li>
+<li>客户端应缓存JWKS但设置合理刷新策略，并校验kid与alg。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">classDiagram</span><br><span class="line">class JwkManager &#123;</span><br><span class="line">+init(config) bool</span><br><span class="line">+signJwt(payload) string</span><br><span class="line">+getJwks() Json : : Value</span><br><span class="line">-loadFromPem(pemData) bool</span><br><span class="line">-generateEphemeralKey() bool</span><br><span class="line">-base64UrlEncode(data) string</span><br><span class="line">&#125;</span><br><span class="line">class ICryptoProvider &#123;</span><br><span class="line">&lt;&lt;interface&gt;&gt;</span><br><span class="line">+sha256(data) vector&lt;unsigned char&gt;</span><br><span class="line">+base64UrlEncode(bytes,len) string</span><br><span class="line">+rsaSign(privateKeyPem,digest,data) vector&lt;unsigned char&gt;</span><br><span class="line">&#125;</span><br><span class="line">JwkManager ..&gt; ICryptoProvider : &quot;使用加密原语&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h#L53-L101">ICryptoProvider.h:53-101</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h#L53-L101">ICryptoProvider.h:53-101</a></li>
+</ul>
+<h3 id="客户端认证方式"><a href="#客户端认证方式" class="headerlink" title="客户端认证方式"></a>客户端认证方式</h3><ul>
+<li>支持的认证方式<ul>
+<li>HTTP Basic Authorization（Authorization: Basic base64(client_id:client_secret)）</li>
+<li>POST body参数（client_id、client_secret）</li>
+<li>设计文档中提及私钥JWT与公钥认证方案（作为扩展方向）</li>
+</ul>
+</li>
+<li>安全要点<ul>
+<li>对confidential client强制校验client_secret（常量时间比较）。</li>
+<li>错误响应遵循RFC 6749 §5.2，并在WWW-Authenticate头提示Basic。</li>
+<li>通过OpenAPI声明clientCredentialsAuth方案。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant Client as &quot;客户端&quot;</span><br><span class="line">participant Controller as &quot;令牌端点控制器&quot;</span><br><span class="line">participant Plugin as &quot;OAuth2插件&quot;</span><br><span class="line">participant Storage as &quot;存储&quot;</span><br><span class="line">Client-&gt;&gt;Controller : &quot;POST /oauth2/token (grant_type=authorization_code)&quot;</span><br><span class="line">Controller-&gt;&gt;Controller : &quot;解析Basic或body中的client_id/client_secret&quot;</span><br><span class="line">Controller-&gt;&gt;Plugin : &quot;validateClient(type-aware)&quot;</span><br><span class="line">Plugin-&gt;&gt;Storage : &quot;verify secret (constant-time)&quot;</span><br><span class="line">Storage--&gt;&gt;Plugin : &quot;验证结果&quot;</span><br><span class="line">Plugin--&gt;&gt;Controller : &quot;通过/失败&quot;</span><br><span class="line">Controller--&gt;&gt;Client : &quot;令牌或错误响应(含WWW-Authenticate)&quot;</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h#L275-L314">OAuth2Plugin.h:275-314</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/include/fulla/drogon/plugin/OAuth2Plugin.h#L275-L314">OAuth2Plugin.h:275-314</a></li>
+</ul>
+<h3 id="授权码流程的安全增强"><a href="#授权码流程的安全增强" class="headerlink" title="授权码流程的安全增强"></a>授权码流程的安全增强</h3><ul>
+<li>state参数<ul>
+<li>OAuth2 RP 应在授权请求中生成不可预测 state，并在回调时严格比对；Fulla 将其回传到已注册 redirect_uri。</li>
+<li><strong>社交登录是另一条服务端状态化链路（未发布）</strong>：<code>GET /api/auth/providers</code> 的 legacy <code>authorize_url</code> 固定为空且 deprecated；先两阶段 POST <code>/api/auth/providers/{provider}/authorize</code> 获取绑定 Cookie 与 600 秒 state，exchange 再以 JSON&#x2F;form 提交 code+state，并带 Origin&#x2F;Cookie。Redis 仅存 SHA-256 digest，NX+EX 保留、Lua compare-delete 消费，拒绝 query、重复键、跨站与重放；Redis 故障 fail closed。详见 [[authentication-security-social-login-security]]。</li>
+</ul>
+</li>
+<li>重定向URI白名单<ul>
+<li>消费授权码时必须校验redirect_uri与授权请求一致，防止重定向劫持。</li>
+<li><strong>错误码边界</strong>：代码签发路径发现 redirect_uri 未注册使用 <code>VALIDATION_CLIENT_REDIRECT_URI_NOT_REGISTERED</code>（<strong>3027</strong>）；<code>VALIDATION_REDIRECT_URI_NOT_REGISTERED</code>（<strong>3013</strong>）是 end_session 专用，不能复用为代码签发错误。</li>
+</ul>
+</li>
+<li>防重放攻击<ul>
+<li>授权码一次性使用；结合PKCE确保即使授权码泄露也无法被第三方复用。</li>
+</ul>
+</li>
+<li>实现位置<ul>
+<li>会话控制器在同意&#x2F;授权完成后生成授权码并重定向。</li>
+<li>令牌服务在消费授权码时校验redirect_uri与PKCE。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">A[&quot;发起授权请求&quot;] --&gt; B[&quot;记录state与redirect_uri&quot;]</span><br><span class="line">B --&gt; C[&quot;用户登录并同意scope&quot;]</span><br><span class="line">C --&gt; D[&quot;生成授权码并绑定PKCE&quot;]</span><br><span class="line">D --&gt; E[&quot;302重定向到回调URL(code,state)&quot;]</span><br><span class="line">E --&gt; F[&quot;客户端用code+code_verifier换令牌&quot;]</span><br><span class="line">F --&gt; G&#123;&quot;redirect_uri匹配?&quot;&#125;</span><br><span class="line">G --&gt; |否| Err[&quot;拒绝并返回错误&quot;]</span><br><span class="line">G --&gt; |是| H&#123;&quot;PKCE验证通过?&quot;&#125;</span><br><span class="line">H --&gt; |否| Err</span><br><span class="line">H --&gt; |是| Iss[&quot;颁发令牌&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L267-L874">SessionController.cc:267-874</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/IGrantRepository.h#L64-L101">IGrantRepository.h:64-101</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/SessionController.cc#L267-L874">SessionController.cc:267-874</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/IGrantRepository.h#L64-L101">IGrantRepository.h:64-101</a></li>
+</ul>
+<h3 id="刷新令牌的安全管理（轮换、家族化、撤销）"><a href="#刷新令牌的安全管理（轮换、家族化、撤销）" class="headerlink" title="刷新令牌的安全管理（轮换、家族化、撤销）"></a>刷新令牌的安全管理（轮换、家族化、撤销）</h3><blockquote>
+<p><strong>未发布加固</strong>：以下替换旧的 <code>atomicRevokeRefreshToken</code> + 回退 <code>getRefreshToken</code> 流程。历史版本曾使用该路径；当前基线的安全正确性以 inspect → 锁内重验 → CAS&#x2F;insert pair → confirmed commit 为准。</p>
+</blockquote>
+<ul>
+<li>家族化管理<ul>
+<li>同一授权码派生的所有刷新令牌共享 <code>family_id</code>，便于批量撤销。</li>
+<li>刷新先计算哈希，调用 <code>inspectRefreshToken(hashedRt, clientId)</code>。实现必须区分存储失败与不存在，并在报告重用前校验客户端绑定；<code>ClientMismatch</code>、<code>Expired</code> 不签发。</li>
+</ul>
+</li>
+<li>轮换与重用检测<ul>
+<li><code>TokenService</code> 再校验 client&#x2F;expiry，保持族、scope、org 与主体绑定，生成新的 access&#x2F;refresh token pair，然后调用 <code>rotateRefreshToken(expectedOld, newAccess, newRefresh, ...)</code>。</li>
+<li><strong>Memory</strong>：同一 recursive mutex 内完成 inspect 与 insert；插入 access&#x2F;refresh 任一步失败会回滚已插入记录，旧令牌保持可用，返回 <code>StorageError</code>。</li>
+<li><strong>Postgres</strong>：master 初查后取得 family advisory lock，在锁内再次从 master inspect，校验 family&#x2F;user&#x2F;scope&#x2F;org&#x2F;client&#x2F;pair 关系；对旧 RT 执行带 client、未撤销、未过期条件的 CAS，成功后在同一事务插入新 pair。</li>
+<li>只有事务 <strong>confirmed commit</strong> 才返回 <code>Rotated</code>；SQL&#x2F;insert&#x2F;commit 失败均为 <code>StorageError</code>。未知 COMMIT 结果不能当作 reuse，也不能向调用方返回任何新 token。</li>
+</ul>
+</li>
+<li>撤销机制<ul>
+<li>仅在 inspect 明确报告 <code>AlreadyUsed</code> 且能定位 family 时记录重用审计，调用 <code>revokeTokenFamilyChecked</code>。</li>
+<li>checked revoke 提交确认后才算成功；成功则 <code>invalid_grant</code>，失败则 <code>server_error</code>，不会把存储故障伪装成“重用已处理”。</li>
+<li>checked family revoke 撤销族内 RT 及关联 AT；旧 <code>revokeTokenFamily</code> 不再是刷新主路径。</li>
+<li><code>ITokenRepository</code> 新方法默认 fail closed；未实现 <code>inspectRefreshToken</code> &#x2F; <code>rotateRefreshToken</code> 的旧自定义仓库会得到 <code>StorageError</code>，refresh 返回 <code>server_error</code>，不会回退到“撤销后签发”。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">participant C as &quot;客户端&quot;</span><br><span class="line">participant TS as &quot;TokenService&quot;</span><br><span class="line">participant R as &quot;TokenRepository&quot;</span><br><span class="line">participant DB as &quot;Memory锁 / Postgres事务&quot;</span><br><span class="line">C-&gt;&gt;TS : POST grant_type=refresh_token</span><br><span class="line">TS-&gt;&gt;TS : hash(refresh_token)</span><br><span class="line">TS-&gt;&gt;R : inspectRefreshToken(hash, client_id)</span><br><span class="line">R--&gt;&gt;TS : Ready / ClientMismatch / Expired / AlreadyUsed / StorageError</span><br><span class="line">alt 非Ready</span><br><span class="line">TS--&gt;&gt;C : invalid_grant 或 server_error（不返回token）</span><br><span class="line">else Ready</span><br><span class="line">TS-&gt;&gt;TS : 再校验绑定/过期，生成新pair</span><br><span class="line">TS-&gt;&gt;R : rotateRefreshToken(expectedOld, newAT, newRT)</span><br><span class="line">R-&gt;&gt;DB : 取族锁（PG）；锁内重验</span><br><span class="line">DB-&gt;&gt;DB : 旧RT CAS + 插入新pair（Memory失败回滚）</span><br><span class="line">DB--&gt;&gt;R : confirmed commit / StorageError</span><br><span class="line">alt Rotated</span><br><span class="line">R--&gt;&gt;TS : Rotated</span><br><span class="line">TS--&gt;&gt;C : 新access_token + refresh_token</span><br><span class="line">else StorageError/其他</span><br><span class="line">TS--&gt;&gt;C : server_error/invalid_grant（不泄露新token）</span><br><span class="line">end</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p><strong>实现与测试依据</strong></p>
+<ul>
+<li><code>libs/oauth2/include/fulla/oauth2/repository/ITokenRepository.h</code>、<code>libs/oauth2/src/protocol/TokenService.cc:643-905</code></li>
+<li><code>libs/storage-memory/src/MemoryTokenRepository.cc:34-135</code></li>
+<li><code>libs/storage-postgres/src/PostgresTokenRepository.cc:350-479,481-525</code></li>
+<li><code>tests/contract/RefreshRotationContractTest.cc</code> 覆盖绑定、并发、回滚、锁内过期、延迟 COMMIT 拒绝与 checked revoke（存在覆盖不等于本次执行过测试）</li>
+</ul>
+<h3 id="OIDC-Discovery与JWKS端点的安全实现"><a href="#OIDC-Discovery与JWKS端点的安全实现" class="headerlink" title="OIDC Discovery与JWKS端点的安全实现"></a>OIDC Discovery与JWKS端点的安全实现</h3><ul>
+<li>Discovery端点<ul>
+<li>提供issuer、各端点地址、支持的scopes&#x2F;response_types&#x2F;grant_types、id_token_signing_alg_values_supported等元数据。</li>
+<li>由DiscoveryController注册路由并描述OpenAPI。</li>
+</ul>
+</li>
+<li>JWKS端点<ul>
+<li>返回当前用于签发JWT的RSA公钥集合（kty&#x3D;RSA, use&#x3D;sig, alg&#x3D;RS256, kid）。</li>
+<li>由JwkManager提供keys数组。</li>
+</ul>
+</li>
+<li>客户端验证步骤<ul>
+<li>从JWKS获取对应kid的公钥，校验id_token签名，验证iss&#x2F;aud&#x2F;exp&#x2F;nonce等claims。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">Client[&quot;客户端&quot;] --&gt; Disc[&quot;/.well-known/openid-configuration&quot;]</span><br><span class="line">Client --&gt; JWKS[&quot;/.well-known/jwks.json&quot;]</span><br><span class="line">Disc --&gt; Meta[&quot;OIDC元数据(JSON)&quot;]</span><br><span class="line">JWKS --&gt; Keys[&quot;JWKS(keys)&quot;]</span><br><span class="line">Keys --&gt; Verify[&quot;验证id_token签名&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L331-L353">JwkManager.cc:331-353</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L81-L115">openapi.json:81-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/domains/oidc-guide.md#L1-L97">oidc-guide.md:1-97</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L331-L353">JwkManager.cc:331-353</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L81-L115">openapi.json:81-115</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/domains/oidc-guide.md#L1-L97">oidc-guide.md:1-97</a></li>
+</ul>
+<h3 id="上游-OIDC-federation-的边界（未发布）"><a href="#上游-OIDC-federation-的边界（未发布）" class="headerlink" title="上游 OIDC federation 的边界（未发布）"></a>上游 OIDC federation 的边界（未发布）</h3><p>V045 <code>upstream_providers</code> 注册表 + 60 秒 runtime registry 支撑管理 CRUD <code>/api/admin/upstream-providers</code> 与 generic <code>POST /api/auth/oidc/{provider}/login</code>。legacy Google&#x2F;微信&#x2F;GitHub 行迁入 registry，但仍走各自协议实现。Keycloak 真实上游 E2E 脚本覆盖 authorize→上游登录→code exchange→userinfo→第一方 token pair；<strong>门户 generic OIDC 按钮&#x2F;callback&#x2F;exchange 尚未接通</strong>。</p>
+<p>这不是完整 OIDC RP：当前 generic 只使用 token response 的 access token 调用 <strong>userinfo</strong> 并映射身份，不验证上游 <code>id_token</code>&#x2F;JWKS&#x2F;nonce，也不实现上游 PKCE。Fulla 自己作为 OP 的 Discovery&#x2F;JWKS&#x2F;RS256 id_token 能力不能拿来证明 upstream 验证已经完成。issuer 只允许 <code>http(s)</code> 前缀，不强制 HTTPS，也不构成 SSRF 防护。secret API 不回显不等于静态加密；registry <code>listAll()</code> 的 DB 错误会映射空列表，不能宣称故障保留旧快照。详见 [[authentication-security-social-login-security]]。</p>
+<h3 id="令牌缓存与-introspection-边界（未发布）"><a href="#令牌缓存与-introspection-边界（未发布）" class="headerlink" title="令牌缓存与 introspection 边界（未发布）"></a>令牌缓存与 introspection 边界（未发布）</h3><ul>
+<li>Redis token cache schema 提升为 <strong>2</strong>，access&#x2F;introspection 序列化绑定 <code>orgId</code>；旧 schema 被拒绝，避免组织上下文丢失。</li>
+<li>安全读以 Postgres <strong>master</strong> 为权威来源，不用可能滞后的副本 refill L2；正缓存 TTL 不超过令牌剩余寿命。</li>
+<li>refill 使用 Redis <code>TIME</code> 与绝对 expires-at，并通过 Lua 原子检查撤销 marker、绝对截止及 introspection 的 access-token 判别键；已过期快照不得回填。</li>
+<li>单次 lookup 只有 <strong>5 秒 steady-clock deadline</strong>，覆盖缓存查询、master read 与 guarded fill；截止后强制返回未命中&#x2F;不活跃，不返回 stale positive。Redis 命令失败可读权威仓库，但不等于返回旧缓存。</li>
+<li>单 token <code>revokeAccessToken</code> 先完成权威撤销，再写 negative marker 并 double-delete access&#x2F;introspection 正缓存；marker&#x2F;DEL 为 best-effort，失败记日志&#x2F;指标。<strong>族撤销不主动清所有正缓存，依赖 TTL 收敛，不能称全局即时撤销。</strong></li>
+<li>introspection 无有效结果时返回 HTTP 200 <code>{&quot;active&quot;:false}</code>；只有 active 才附 <code>client_id/token_type/exp/iat/nbf/sub/org_id/aud/iss/scope</code>，所有响应 <code>no-store</code>。refresh-token introspection 不进入正缓存。</li>
+<li>非 memory 模式在 token active 后叠加 owner 状态：<strong>Active &#x2F; Unmanaged 放行，Suspended &#x2F; Unavailable 拒绝</strong>。owner 状态缓存 60 秒、查询 deadline 5 秒；超时、DB error、storage type 缺失均 <code>Unavailable</code> 且不缓存，NoRow 才是可缓存的 <code>Unmanaged</code>。</li>
+<li><code>org_id</code> 是令牌事实，不是实时组织成员资格；资源服务器仍需按 [[authorization-security]] 的组织与权限策略做实时决策。</li>
+</ul>
+<h2 id="依赖关系分析"><a href="#依赖关系分析" class="headerlink" title="依赖关系分析"></a>依赖关系分析</h2><ul>
+<li>PKCE模块依赖ICryptoProvider进行哈希与编码，保证算法可替换。</li>
+<li>令牌服务依赖令牌仓库接口，屏蔽存储实现差异。</li>
+<li>PostgresTokenRepository实现家族化撤销，依赖SQL事务与索引优化。</li>
+<li>JwkManager依赖OpenSSL进行RSA签名与JWKS构建。</li>
+<li>发现控制器与OpenAPI共同暴露标准端点，便于客户端自动发现。</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">PKCE[&quot;PKCE(Pkce.cc)&quot;] --&gt; Crypto[&quot;ICryptoProvider.h&quot;]</span><br><span class="line">TokSvc[&quot;TokenService.cc&quot;] --&gt; Repo[&quot;ITokenRepository.h&quot;]</span><br><span class="line">Repo --&gt; PGRepo[&quot;PostgresTokenRepository.cc&quot;]</span><br><span class="line">JWK[&quot;JwkManager.cc&quot;] --&gt; Crypto</span><br><span class="line">Disc[&quot;DiscoveryController.cc&quot;] --&gt; JWK</span><br><span class="line">Disc --&gt; OpenAPI[&quot;openapi.json&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>图表来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc#L1-L70">Pkce.cc:1-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/common/include/fulla/common/ports/ICryptoProvider.h#L53-L101">ICryptoProvider.h:53-101</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/include/fulla/oauth2/repository/ITokenRepository.h#L115-L149">ITokenRepository.h:115-149</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L437-L470">PostgresTokenRepository.cc:437-470</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/pkce/Pkce.cc#L1-L70">Pkce.cc:1-70</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/storage-postgres/src/PostgresTokenRepository.cc#L437-L470">PostgresTokenRepository.cc:437-470</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/jwk/JwkManager.cc#L231-L293">JwkManager.cc:231-293</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/drogon/src/controllers/DiscoveryController.cc#L38-L71">DiscoveryController.cc:38-71</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/apps/server/docs/api/openapi.json#L60-L115">openapi.json:60-115</a></li>
+</ul>
+<h2 id="性能考虑"><a href="#性能考虑" class="headerlink" title="性能考虑"></a>性能考虑</h2><ul>
+<li>PKCE验证<ul>
+<li>S256方法涉及一次SHA-256与Base64url编码，开销低；建议在令牌交换路径中尽早校验以减少后续处理。</li>
+</ul>
+</li>
+<li>刷新令牌家族化撤销<ul>
+<li>未发布轮换以 inspect、锁内重验、CAS 与同事务 pair insert 降低竞争；Memory 插入失败回滚，Postgres 仅 confirmed commit 返回 Rotated。checked revoke 也等待提交确认，未知 COMMIT 不误判 reuse、不泄露 token。</li>
+</ul>
+</li>
+<li>JWKS缓存<ul>
+<li>客户端应缓存JWKS并按Cache-Control或固定周期刷新，降低网络与CPU消耗。</li>
+</ul>
+</li>
+<li>连接池与索引<ul>
+<li>刷新令牌家族化查询依赖family_id索引，确保高并发下性能稳定。</li>
+</ul>
+</li>
+</ul>
+<p>[本节为通用指导，不直接分析具体文件]</p>
+<h2 id="故障排查指南"><a href="#故障排查指南" class="headerlink" title="故障排查指南"></a>故障排查指南</h2><ul>
+<li>常见问题<ul>
+<li>PKCE验证失败：检查code_verifier格式与method是否匹配；确认S256哈希与Base64url编码一致性。</li>
+<li>刷新令牌重用：仅在确认 AlreadyUsed 且 checked family revoke 成功后记录并返回 invalid_grant；StorageError&#x2F;未知 COMMIT 应返回 server_error，不记录为 reuse，不返回新 token。</li>
+<li>introspection active 但 owner 不可用：检查 owner lookup 的 5 秒 deadline 与 60 秒缓存；Suspended&#x2F;Unavailable 均拒绝，错误&#x2F;超时不缓存。</li>
+<li>缓存旧 schema 或 orgId 缺失：确认部署已清空&#x2F;迁移旧 token cache，避免回退到 schema&#x3D;1。</li>
+<li>JWKS缺失或kid不匹配：确认JwkManager初始化成功且kid与JWT header一致。</li>
+</ul>
+</li>
+<li>定位步骤<ul>
+<li>启用调试日志，关注令牌交换与撤销路径的错误码。</li>
+<li>使用脚本测试端到端流程（如test-oauth2-endpoints.sh）验证Discovery与JWKS可用性。</li>
+</ul>
+</li>
+<li>参考命令<ul>
+<li>运行后端OAuth2端点测试脚本，检查OIDC Discovery与JWKS返回内容是否符合预期。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/libs/oauth2/src/protocol/TokenService.cc#L361-L397">TokenService.cc:361-397</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/scripts/backend/test-oauth2-endpoints.sh#L52-L89">test-oauth2-endpoints.sh:52-89</a></li>
+</ul>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Fulla在OAuth2&#x2F;OIDC安全方面实现了：</p>
+<ul>
+<li>完整支持授权码流程的 PKCE（仅 S256，v1.5.0 起；未发布 <code>require_pkce</code> 默认覆盖所有 authorization_code 客户端）。</li>
+<li>RS256签名的JWT与标准的JWKS端点，便于客户端验证身份令牌。</li>
+<li>多方式客户端认证（Basic&#x2F;Body参数），并为私钥JWT与公钥认证预留扩展空间。</li>
+<li>授权码流程强化（state、redirect_uri白名单、防重放）。</li>
+<li>刷新令牌家族化与未发布原子轮换&#x2F;checked revoke，避免把存储故障误判为重用或泄露新 token。</li>
+<li>标准化的OIDC Discovery与JWKS端点，提升互操作性。</li>
+</ul>
+<p>建议在生产环境中：</p>
+<ul>
+<li>配置持久化RSA私钥并定期轮换。</li>
+<li>严格校验state与redirect_uri，启用速率限制与审计日志。</li>
+<li>客户端缓存JWKS并校验kid&#x2F;alg，拒绝none算法。</li>
+<li>遵循安全清单进行部署前检查与密钥轮换。</li>
+</ul>
+<p>[本节为总结，不直接分析具体文件]</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><ul>
+<li>安全配置与合规性检查清单<ul>
+<li>使用环境变量管理敏感信息，禁止提交到版本控制。</li>
+<li>定期轮换客户端密钥、管理员密码与API密钥。</li>
+<li>部署前执行安全检查命令，确保无硬编码凭证。</li>
+<li>启用Pre-commit Hook防止意外提交敏感文件。</li>
+</ul>
+</li>
+</ul>
+<p>章节来源</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/voidvec/fulla/blob/master/docs/architecture/security-architecture.md#L1-L202">security-architecture.md:1-202</a></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/34f6f1ca/">https://voidvec.github.io/posts/34f6f1ca/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/f69881e8/"><span class="pj-related__name">授权模型安全：从 scope 到 RBAC</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/712a4a7b/"><span class="pj-related__name">上线前的安全加固清单</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/f73c3341/"><span class="pj-related__name">密码存储与校验</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/c9545167/"><span class="pj-related__name">会话管理机制与安全约束</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/ab872dd4/"><span class="pj-related__name">网络安全边界</span><span class="pj-related__type">深度设计</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/f69881e8/" title="授权模型安全：从 scope 到 RBAC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">授权模型安全：从 scope 到 RBAC</div></div><div class="info-2"><div class="info-item-1">授权安全能力全景：scope 收敛、RBAC 落地与越权防护。</div></div></div></a><a class="pagination-related" href="/posts/688d956c/" title="drogon-pay 运维手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">drogon-pay 运维手册</div></div><div class="info-2"><div class="info-item-1">使用NSSM (Non-Sucking Service Manager):</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/875ba3c2/" title="Docker 部署与容器编排"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">Docker 部署与容器编排</div></div><div class="info-2"><div class="info-item-1">用 Docker Compose 拉起完整 OAuth2 服务栈：镜像、编排与生产环境差异。</div></div></div></a><a class="pagination-related" href="/posts/c9545167/" title="会话管理机制与安全约束"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">会话管理机制与安全约束</div></div><div class="info-2"><div class="info-item-1">本文件面向 Fulla 的“会话管理”能力，围绕会话生命周期（创建、验证、更新、销毁）、存储机制（Redis 策略与数据结构）、安全特性（会话 ID 生成、防重放、会话固定防护、CSRF 防护）、过期策略（绝对过期、滑动过期、空闲超时）以及</div></div></div></a><a class="pagination-related" href="/posts/fc70949e/" title="数据库性能优化"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">数据库性能优化</div></div><div class="info-2"><div class="info-item-1">本指南聚焦于 OAuth2 认证服务的数据库性能优化，覆盖索引策略、连接池调优、查询性能分析方法、缓存策略、分库分表与读写分离建议、监控指标与基准测试，以及生产环境调优与排障实践。</div></div></div></a><a class="pagination-related" href="/posts/4345ce98/" title="账号锁定机制"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-10</div><div class="info-item-2">账号锁定机制</div></div><div class="info-2"><div class="info-item-1">OAuth2 系统实现了账号锁定机制以防止暴力破解攻击。当用户多次登录失败时，账号会被临时锁定。</div></div></div></a><a class="pagination-related" href="/posts/1a7e5d4e/" title="Windows 部署验证：端点测试与踩坑排查"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-14</div><div class="info-item-2">Windows 部署验证：端点测试与踩坑排查</div></div><div class="info-2"><div class="info-item-1">端点测试与功能测试清单的执行方式，以及端口占用、镜像构建、WSL2 路径转换等常见问题的排查路径。</div></div></div></a><a class="pagination-related" href="/posts/f69881e8/" title="授权模型安全：从 scope 到 RBAC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">授权模型安全：从 scope 到 RBAC</div></div><div class="info-2"><div class="info-item-1">授权安全能力全景：scope 收敛、RBAC 落地与越权防护。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-number">2.</span> <span class="toc-text">简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84"><span class="toc-number">3.</span> <span class="toc-text">项目结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="toc-number">4.</span> <span class="toc-text">核心组件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E6%80%BB%E8%A7%88"><span class="toc-number">5.</span> <span class="toc-text">架构总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E7%BB%84%E4%BB%B6%E5%88%86%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">详细组件分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PKCE%EF%BC%88RFC-7636%EF%BC%89%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%AE%89%E5%85%A8%E4%BC%98%E5%8A%BF"><span class="toc-number">6.1.</span> <span class="toc-text">PKCE（RFC 7636）实现与安全优势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#JWT%E4%BB%A4%E7%89%8C%E7%9A%84%E7%AD%BE%E5%90%8D%E6%9C%BA%E5%88%B6%EF%BC%88RS256%EF%BC%89"><span class="toc-number">6.2.</span> <span class="toc-text">JWT令牌的签名机制（RS256）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%AE%A4%E8%AF%81%E6%96%B9%E5%BC%8F"><span class="toc-number">6.3.</span> <span class="toc-text">客户端认证方式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%88%E6%9D%83%E7%A0%81%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%89%E5%85%A8%E5%A2%9E%E5%BC%BA"><span class="toc-number">6.4.</span> <span class="toc-text">授权码流程的安全增强</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%B7%E6%96%B0%E4%BB%A4%E7%89%8C%E7%9A%84%E5%AE%89%E5%85%A8%E7%AE%A1%E7%90%86%EF%BC%88%E8%BD%AE%E6%8D%A2%E3%80%81%E5%AE%B6%E6%97%8F%E5%8C%96%E3%80%81%E6%92%A4%E9%94%80%EF%BC%89"><span class="toc-number">6.5.</span> <span class="toc-text">刷新令牌的安全管理（轮换、家族化、撤销）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#OIDC-Discovery%E4%B8%8EJWKS%E7%AB%AF%E7%82%B9%E7%9A%84%E5%AE%89%E5%85%A8%E5%AE%9E%E7%8E%B0"><span class="toc-number">6.6.</span> <span class="toc-text">OIDC Discovery与JWKS端点的安全实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8A%E6%B8%B8-OIDC-federation-%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%88%E6%9C%AA%E5%8F%91%E5%B8%83%EF%BC%89"><span class="toc-number">6.7.</span> <span class="toc-text">上游 OIDC federation 的边界（未发布）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A4%E7%89%8C%E7%BC%93%E5%AD%98%E4%B8%8E-introspection-%E8%BE%B9%E7%95%8C%EF%BC%88%E6%9C%AA%E5%8F%91%E5%B8%83%EF%BC%89"><span class="toc-number">6.8.</span> <span class="toc-text">令牌缓存与 introspection 边界（未发布）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB%E5%88%86%E6%9E%90"><span class="toc-number">7.</span> <span class="toc-text">依赖关系分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E8%80%83%E8%99%91"><span class="toc-number">8.</span> <span class="toc-text">性能考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-number">9.</span> <span class="toc-text">故障排查指南</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">10.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-number">11.</span> <span class="toc-text">附录</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

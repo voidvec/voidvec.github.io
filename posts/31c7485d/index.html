@@ -1,0 +1,471 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>llmwiki 项目定位、业务背景与边界 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="产品定位、目标用户、与 RAG 和 Obsidian 的对比及明确非目标">
+<meta property="og:type" content="article">
+<meta property="og:title" content="llmwiki 项目定位、业务背景与边界">
+<meta property="og:url" content="https://voidvec.github.io/posts/31c7485d/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="产品定位、目标用户、与 RAG 和 Obsidian 的对比及明确非目标">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-13T01:46:00.000Z">
+<meta property="article:modified_time" content="2026-11-13T01:46:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="Non-Goals">
+<meta property="article:tag" content="产品">
+<meta property="article:tag" content="定位">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "llmwiki 项目定位、业务背景与边界",
+  "url": "https://voidvec.github.io/posts/31c7485d/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-13T01:46:00.000Z",
+  "dateModified": "2026-11-13T01:46:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/31c7485d/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'llmwiki 项目定位、业务背景与边界',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">llmwiki 项目定位、业务背景与边界</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">llmwiki 项目定位、业务背景与边界</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-13T01:46:00.000Z" title="发表于 2026-11-13 09:46:00">2026-11-13</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-13T01:46:00.000Z" title="更新于 2026-11-13 09:46:00">2026-11-13</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/">AI辅助开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E8%BE%85%E5%8A%A9%E5%BC%80%E5%8F%91/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%B7%A5%E7%A8%8B/">知识库工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/llmwiki/">llmwiki-suite</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">项目记录</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#b37feb">llmwiki-suite</span><span class="pj-badge">深度设计</span><span class="pj-badge pj-badge--muted">入门</span></div><article class="container post-content" id="article-container"><blockquote>
+<p><strong>定位</strong>：回答「这是什么、解决谁的什么问题、边界在哪」。不描述实现细节（见 KB-01&#x2F;KB-02），不写发布动作（见 PR-02）。</p>
+</blockquote>
+<h2 id="1-背景"><a href="#1-背景" class="headerlink" title="1. 背景"></a>1. 背景</h2><p><code>llmwiki-suite</code> 是一个把 Markdown 笔记目录「编译」成可检索、可问答个人知识库的 Python 工具链，方法论源自 Andrej Karpathy 提出的「用 LLM 持续编译一份个人 wiki」（<code>README.md:17</code>）。项目于 2026-08-24 前后启动，8 月底密集迭代到 <code>0.1.6</code>（工程侧最后一次功能变更，2026-08-31），随后进入以海外发布、观测与留存为主的产品化阶段（<code>CHANGELOG.md</code>、<code>roadmap-update-*.md</code>）；该阶段多项计划产物截至 2026-11-11 仓库内无记录（见 PR-03、口径基准 §0.1）。</p>
+<p>一句话定位（<code>README.md:9</code>）：<strong>把一堆 Markdown 笔记，编译成「会生长、能问答」的个人知识库</strong>。目标是「只进不退」——每条笔记都被规范化、可检索、可追问，而不是躺在文件夹里堆灰。</p>
+<p>战略层后来把定位从「本地 RAG 工具」升级为「<strong>知识库自进化基础设施</strong>」，明确「别和 RAG 抢检索、和 Obsidian 抢工作流、和记忆层抢知识资产」（<code>deliverables/product-strategy/roadmap-update-llmwiki-2026-08-31.md</code> TL;DR）。这一升级写在策略交付物里，<strong>代码侧尚未出现 L1&#x2F;L2&#x2F;L3 实现</strong>（见 PR-03）。</p>
+<h2 id="2-结论速览"><a href="#2-结论速览" class="headerlink" title="2. 结论速览"></a>2. 结论速览</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>核心范式</td>
+<td><strong>编译优先（compile-first）</strong>：导入期一次性建 frontmatter &#x2F; 链接 &#x2F; 索引，而非查询期临时切片</td>
+</tr>
+<tr>
+<td>硬约束</td>
+<td>核心链路零第三方 Python 依赖，仅标准库；Python ≥ 3.11</td>
+</tr>
+<tr>
+<td>资产形态</td>
+<td>产物是可读、可 git-diff、可 lint 的 JSON &#x2F; Markdown，索引 <code>kb-index.json</code> 是单一事实源</td>
+</tr>
+<tr>
+<td>交付面</td>
+<td>9 个 CLI 子命令 + 本地 Web&#x2F;API + 4 类 IM 通道</td>
+</tr>
+<tr>
+<td>隐私承诺</td>
+<td>全本地运行、无遥测上传、无云端组件；密钥只走环境变量</td>
+</tr>
+<tr>
+<td>明确非目标</td>
+<td>向量&#x2F;embedding 检索（本期）、自动改写用户笔记、云端多用户托管、编辑器插件生态、健康分 Pro</td>
+</tr>
+<tr>
+<td>当前状态</td>
+<td>Pre-release <code>v0.1.x</code>（当前 <code>0.1.6</code>）；健康分标注「经验版 Beta」；产品化计划大面积未落地，计划产物截至 2026-11-11 仓库内无记录（PR-03）</td>
+</tr>
+</tbody></table>
+<h2 id="3-关键关系"><a href="#3-关键关系" class="headerlink" title="3. 关键关系"></a>3. 关键关系</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">方法论（Karpathy LLM-wiki）</span><br><span class="line">   └─&gt; 编译范式：ingest → index → recall → answer</span><br><span class="line">          ├─&gt; 可观测性护城河：lint / eval / health（防知识漂移）</span><br><span class="line">          ├─&gt; 交付面：CLI（零依赖） + serve（fastapi，可选依赖）</span><br><span class="line">          └─&gt; 定位升级：L0 固化 → L1 增量记忆 → L2 主动建议 → L3 自主进化</span><br></pre></td></tr></table></figure>
+
+<p>三类目标用户（<code>roadmap-update-*.md</code> §3）与产品承诺的对应关系：</p>
+<table>
+<thead>
+<tr>
+<th>Persona</th>
+<th>核心痛点</th>
+<th>对应设计</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P1 技术博主（1000+ 篇 Obsidian 笔记）</td>
+<td>找不到、双链手动、RAG 答案不沉淀</td>
+<td>编译式沉淀、零编辑器依赖</td>
+</tr>
+<tr>
+<td>P2 后端&#x2F;DevOps 本地库管理员</td>
+<td>隐私红线、手工维护索引与断链</td>
+<td>纯本地可审计、lint 巡检、四通道降维护税</td>
+</tr>
+<tr>
+<td>P03 普通开发者（原文编号如此）</td>
+<td>RAG 配置劝退、小模型幻觉</td>
+<td>pip 一条命令、自带 eval 自证质量</td>
+</tr>
+</tbody></table>
+<h2 id="4-主体内容"><a href="#4-主体内容" class="headerlink" title="4. 主体内容"></a>4. 主体内容</h2><h3 id="4-1-与-Classic-RAG-的对比结论"><a href="#4-1-与-Classic-RAG-的对比结论" class="headerlink" title="4.1 与 Classic RAG 的对比结论"></a>4.1 与 Classic RAG 的对比结论</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Classic RAG</th>
+<th>llmwiki（compile）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>工作时机</td>
+<td>查询时切片 + embed</td>
+<td>导入时建 frontmatter &#x2F; 链接 &#x2F; BM25 索引</td>
+</tr>
+<tr>
+<td>留存物</td>
+<td>每次从零开始</td>
+<td>可审计、可 diff、可 lint 的产物</td>
+</tr>
+<tr>
+<td>检索质量</td>
+<td>很少内置回归手段</td>
+<td><code>llmwiki eval</code>（<code>summary.contextual_recall</code> &#x2F; <code>summary.mrr</code>）一等公民</td>
+</tr>
+<tr>
+<td>依赖</td>
+<td>向量库 + embedding 模型 + chunking 旋钮</td>
+<td>纯标准库 BM25 + wikilink 图</td>
+</tr>
+<tr>
+<td>知识复利</td>
+<td>重问成本相同</td>
+<td>新笔记让旧答案变新</td>
+</tr>
+</tbody></table>
+<p><strong>诚实的边界</strong>（<code>llmwiki-vs-rag-comparison.md</code> §4）：异构稠密语料（PDF&#x2F;表格）、纯语义改写问题、以及「编译是工作流选择不是物理定律」——这些场景 RAG 仍更合适。对外结论是 <strong>“llmwiki is a compile-first workflow tool, not a drop-in RAG replacement”<strong>；混合检索（BM25 + embedding + RRF）被明确排到 L1&#x2F;later，</strong>当前代码没有向量检索</strong>。</p>
+<h3 id="4-2-与-Obsidian-的关系"><a href="#4-2-与-Obsidian-的关系" class="headerlink" title="4.2 与 Obsidian 的关系"></a>4.2 与 Obsidian 的关系</h3><p><code>docs/obsidian-guide.md</code> 的结论是「Obsidian 是<strong>用起来更舒服的编辑器</strong>，不是体系组件」：它不参与索引、检索、巡检任何一环。frontmatter 规范、wikilink 归一、文件名规范由体系说了算，用户用 VS Code &#x2F; vim &#x2F; 记事本都能完整工作（<strong>零编辑器依赖</strong>）。三条硬约束：<code>---</code> 首尾不能删、用路径式 wikilink、文件名按归一规则命名。</p>
+<h3 id="4-3-市场判断与差异化"><a href="#4-3-市场判断与差异化" class="headerlink" title="4.3 市场判断与差异化"></a>4.3 市场判断与差异化</h3><p>策略文档调研的同赛道项目（AnythingLLM 62k &#x2F; GPT4All 77k &#x2F; Khoj 35k &#x2F; mem0 50–63k &#x2F; Letta 22k &#x2F; Cognee 13k stars）<strong>全部走向量路线</strong>，据此判断「纯 Markdown 编译 + 零向量」无头部产品。差异化四板斧：① 定义「编译系」品类；② lint&#x2F;eval 防漂移护城河；③ IM 多通道占国内工作流；④ pip 零依赖 vs Docker 重型部署。</p>
+<blockquote>
+<p>注意：这组数字是 2026-08 的调研快照，未经复核，不应作为当前决策依据（见第 6 节）。</p>
+</blockquote>
+<h3 id="4-4-明确的非目标与非承诺"><a href="#4-4-明确的非目标与非承诺" class="headerlink" title="4.4 明确的非目标与非承诺"></a>4.4 明确的非目标与非承诺</h3><p><code>docs/scope-freeze.md</code> §2（状态「待主理人签署」）六条 Non-Goals：① 健康分不做 Pro &#x2F; 图表库，只做单文件 HTML&#x2F;JSON 基础版；② 埋点不做全链路漏斗，只上 3 事件；③ L1 只做 observe + suggest 两命令精简版，不做 nightly 智能汇总与 L2 详细设计；④ 不做中文物料、iLink 国内通道后置 Wave 3、Telegram 只保底；⑤ 不做多平台长跑，只打 HN 主帖 + 对比文；⑥ 不做向量&#x2F;embedding 系统设计，retention 完整基线降为可观测周报。</p>
+<p><code>roadmap-update-*.md</code> §8 补充：本期不实现 L3 自主修复、不云端多用户托管、不做「万物皆笔记」范围蔓延、不违背「内容所有权永远属于用户」。</p>
+<h3 id="4-5-架构级边界"><a href="#4-5-架构级边界" class="headerlink" title="4.5 架构级边界"></a>4.5 架构级边界</h3><ul>
+<li>**套件永远只监听 <code>127.0.0.1</code>**，不直连公网；暴露形态只支持 A（Tailscale&#x2F;ZeroTier，仅自己）与 B（团队内网反代 + Basic Auth）两种，「暂不做第三种」（<code>webui-dashboard-design.md</code> §0&#x2F;§3）。</li>
+<li><strong>本项目无自有服务器端组件</strong>，<code>llmwiki serve</code> 的 TLS &#x2F; 反代 &#x2F; 防火墙安全边界由部署方负责（<code>SECURITY.md</code>）。</li>
+<li>iLink v1 适配器<strong>仅做文本问答</strong>，图片&#x2F;文件 CDN AES-ECB 本期未实现；消息经腾讯云而非 P2P，且需先有平台开放权限（<code>llmwiki-architecture.md</code> §3）。</li>
+<li>L1「<strong>不做自动改写用户笔记</strong>」，只生成容易采纳的建议；机器只改自己生成的东西（<code>kb-evolution/</code>），建议一律标注「由 llmwiki 自动生成，请人工核」（<code>llmwiki-evolution-roadmap.md</code> §2.3&#x2F;§4.3&#x2F;§7）。</li>
+</ul>
+<h2 id="5-注意事项与常见误读"><a href="#5-注意事项与常见误读" class="headerlink" title="5. 注意事项与常见误读"></a>5. 注意事项与常见误读</h2><ol>
+<li><strong>不要把它当 RAG 替代品评估</strong>：两者工作时机不同；用「语义改写召回率」衡量 llmwiki 会得出错误结论。</li>
+<li><strong>「零依赖」只覆盖核心链路</strong>：<code>serve</code> &#x2F; <code>wechat</code> extras 引入 fastapi、uvicorn、httpx2、qrcode；企业微信加解密还需要 <code>pycryptodome</code>（未在 extras 中声明，见 PR-04）。</li>
+<li><strong>零编辑器依赖 ≠ 不用编辑器</strong>：指体系不依赖特定编辑器，Obsidian 可作为可选前端。</li>
+<li><strong>Non-Goals 第 4 条与仓库现状存在已知偏差</strong>：scope-freeze 说「不做中文物料、README 只英文」，但主 README 是中文、有三篇中文教程、中文 Issue 模板；iLink 实际是中文 README 的推荐默认通道。归类为已知问题 &#x2F; 待办，不是新约束（PR-04）。</li>
+<li><strong>「内容所有权」是可执行约束</strong>：任何自动修改必须可驳回、可回滚；L1&#x2F;L2 不碰用户 <code>.md</code>。</li>
+<li><code>docs/obsidian-guide.md</code> 描述的是<strong>作者个人笔记库</strong>（11 个插件、<code>Templates/</code> 大小写修复），不是本仓库；照搬会导致误判。</li>
+</ol>
+<h2 id="6-不确定-待补充项"><a href="#6-不确定-待补充项" class="headerlink" title="6. 不确定 &#x2F; 待补充项"></a>6. 不确定 &#x2F; 待补充项</h2><ul>
+<li><code>docs/scope-freeze.md</code> 签署栏空白，仓库内无签署记录（PR-03 &#x2F; PR-04 P3-6）；文中「M0 门禁 2026-09-01 已写入」属计划原文，生效与否以仓库内记录为准。</li>
+<li>竞品 stars &#x2F; 下载数据是 2026-08 调研快照，未联网复核；<code>roadmap-update</code> 内部就存在 475 与 569 两个 PyPI 下载基数。</li>
+<li>「知识库自进化基础设施」定位升级只见于策略文档，代码与 CHANGELOG 无对应落地，属于<strong>意向而非现状</strong>。</li>
+<li>「8 天 7 版」的说法与 CHANGELOG 正文只有 6 个版本段（0.1.2 无正文）不一致，统计口径待统一。</li>
+<li>作者&#x2F;对外名不统一：LICENSE 为 <code>Luca</code>、README 为 <code>voidvec</code>、公众号出现「王小c」与「后端工程师 AI 落地手记」两种写法。</li>
+</ul>
+<h2 id="7-主要依据"><a href="#7-主要依据" class="headerlink" title="7. 主要依据"></a>7. 主要依据</h2><table>
+<thead>
+<tr>
+<th>依据</th>
+<th>具体线索</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>README.md</code> &#x2F; <code>README.en.md</code></td>
+<td>slogan（:9&#x2F;:17-21）、包名 vs 命令名（:40）、Why compile instead of RAG 表、Your notes stay yours、Pre-release v0.1.x</td>
+</tr>
+<tr>
+<td><code>deliverables/product-strategy/llmwiki-vs-rag-comparison.md</code></td>
+<td>7 维对比表、§4 When RAG is still better、§6 底线结论</td>
+</tr>
+<tr>
+<td><code>deliverables/product-strategy/roadmap-update-llmwiki-2026-08-31.md</code></td>
+<td>TL;DR 定位升级、§3 Persona、§4 竞品与四板斧、§8 Non-Goals</td>
+</tr>
+<tr>
+<td><code>docs/scope-freeze.md</code></td>
+<td>§1 D1–D12、§2 六条 Non-Goals、§3 止损线</td>
+</tr>
+<tr>
+<td><code>docs/obsidian-guide.md</code></td>
+<td>「编辑器不是体系组件」结论、三条硬约束</td>
+</tr>
+<tr>
+<td><code>docs/llmwiki-evolution-roadmap.md</code></td>
+<td>L0→L3、§2.3&#x2F;§4.3&#x2F;§7 边界</td>
+</tr>
+<tr>
+<td><code>docs/llmwiki-webui-dashboard-design.md</code></td>
+<td>§0 P4 取消、§3 两种暴露形态</td>
+</tr>
+<tr>
+<td><code>SECURITY.md</code> &#x2F; <code>pyproject.toml</code></td>
+<td>无自有服务端组件、<code>dependencies = []</code>、<code>requires-python &gt;=3.11</code></td>
+</tr>
+</tbody></table>
+<h2 id="8-相关主题"><a href="#8-相关主题" class="headerlink" title="8. 相关主题"></a>8. 相关主题</h2><ul>
+<li>KB-08 业务规则与约束清单（把本节的「边界」转成可执行条目）</li>
+<li>PR-03 演进历程与当前状态（定位升级与计划兑现情况）</li>
+<li>PR-04 已知偏差与待补充台账（Non-Goals 与仓库现实的冲突）</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/31c7485d/">https://voidvec.github.io/posts/31c7485d/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E4%BA%A7%E5%93%81/">产品</a><a class="post-meta__tags" href="/tags/%E5%AE%9A%E4%BD%8D/">定位</a><a class="post-meta__tags" href="/tags/Non-Goals/">Non-Goals</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/llmwiki/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/44f2733a/"><span class="pj-related__name">llmwiki 系统架构、模块与依赖关系</span><span class="pj-related__type">架构设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/b412c93a/"><span class="pj-related__name">llmwiki-suite：把 Markdown 笔记编译成会生长的知识库</span><span class="pj-related__type">项目概览</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/81a48d54/"><span class="pj-related__name">llmwiki 网页问答与工作台设计</span><span class="pj-related__type">深度设计</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4c33d9ed/"><span class="pj-related__name">飞书 / Telegram 通道本地验证手册</span><span class="pj-related__type">测试与基准</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/603c3e7c/"><span class="pj-related__name">发布到 PyPI 操作指南</span><span class="pj-related__type">数据与运维</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/e8b5fc69/" title="OpenMAIC 视频渲染与自动上云交付"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">OpenMAIC 视频渲染与自动上云交付</div></div><div class="info-2"><div class="info-item-1">render-service 的隔离模型、成片的两条落点、deliver-sidecar 的三重边界与飞书通知链路</div></div></div></a><a class="pagination-related" href="/posts/20926480/" title="llmwiki 通道体系、服务层与安全边界"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">llmwiki 通道体系、服务层与安全边界</div></div><div class="info-2"><div class="info-item-1">四类通道的驱动模型、端点与验签、SSE 事件、鉴权范围与安全边界</div></div></div></a></nav><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E8%83%8C%E6%99%AF"><span class="toc-number">1.</span> <span class="toc-text">1. 背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%BB%93%E8%AE%BA%E9%80%9F%E8%A7%88"><span class="toc-number">2.</span> <span class="toc-text">2. 结论速览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%85%B3%E9%94%AE%E5%85%B3%E7%B3%BB"><span class="toc-number">3.</span> <span class="toc-text">3. 关键关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E4%B8%BB%E4%BD%93%E5%86%85%E5%AE%B9"><span class="toc-number">4.</span> <span class="toc-text">4. 主体内容</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%B8%8E-Classic-RAG-%E7%9A%84%E5%AF%B9%E6%AF%94%E7%BB%93%E8%AE%BA"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 与 Classic RAG 的对比结论</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E4%B8%8E-Obsidian-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 与 Obsidian 的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%B8%82%E5%9C%BA%E5%88%A4%E6%96%AD%E4%B8%8E%E5%B7%AE%E5%BC%82%E5%8C%96"><span class="toc-number">4.3.</span> <span class="toc-text">4.3 市场判断与差异化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E6%98%8E%E7%A1%AE%E7%9A%84%E9%9D%9E%E7%9B%AE%E6%A0%87%E4%B8%8E%E9%9D%9E%E6%89%BF%E8%AF%BA"><span class="toc-number">4.4.</span> <span class="toc-text">4.4 明确的非目标与非承诺</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%9E%B6%E6%9E%84%E7%BA%A7%E8%BE%B9%E7%95%8C"><span class="toc-number">4.5.</span> <span class="toc-text">4.5 架构级边界</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9%E4%B8%8E%E5%B8%B8%E8%A7%81%E8%AF%AF%E8%AF%BB"><span class="toc-number">5.</span> <span class="toc-text">5. 注意事项与常见误读</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E4%B8%8D%E7%A1%AE%E5%AE%9A-%E5%BE%85%E8%A1%A5%E5%85%85%E9%A1%B9"><span class="toc-number">6.</span> <span class="toc-text">6. 不确定 &#x2F; 待补充项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E4%B8%BB%E8%A6%81%E4%BE%9D%E6%8D%AE"><span class="toc-number">7.</span> <span class="toc-text">7. 主要依据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E7%9B%B8%E5%85%B3%E4%B8%BB%E9%A2%98"><span class="toc-number">8.</span> <span class="toc-text">8. 相关主题</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

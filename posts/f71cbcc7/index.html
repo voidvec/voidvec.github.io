@@ -1,0 +1,535 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>端到端测试指南 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="端到端测试的运行方式：环境准备、脚本执行与结果判定。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="端到端测试指南">
+<meta property="og:url" content="https://voidvec.github.io/posts/f71cbcc7/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="端到端测试的运行方式：环境准备、脚本执行与结果判定。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-09-19T00:59:00.000Z">
+<meta property="article:modified_time" content="2026-09-19T00:59:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="drogon">
+<meta property="article:tag" content="pay-plugin">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "端到端测试指南",
+  "url": "https://voidvec.github.io/posts/f71cbcc7/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-09-19T00:59:00.000Z",
+  "dateModified": "2026-09-19T00:59:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/f71cbcc7/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '端到端测试指南',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">端到端测试指南</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">端到端测试指南</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-09-19T00:59:00.000Z" title="发表于 2026-09-19 08:59:00">2026-09-19</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-09-19T00:59:00.000Z" title="更新于 2026-09-19 08:59:00">2026-09-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E6%9E%84%E5%BB%BA%E7%B3%BB%E7%BB%9F/">构建系统</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/pay-plugin/">drogon-pay</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">开发指南</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#2ea44f">drogon-pay</span><span class="pj-badge">实践指南</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p><strong>目的：</strong> 测试真实的 API 端点，验证服务的整体功能<br><strong>优势：</strong> 比更新所有集成测试快得多（3-4 小时 vs 9-13 小时）</p>
+<hr>
+<h2 id="🚀-快速开始"><a href="#🚀-快速开始" class="headerlink" title="🚀 快速开始"></a>🚀 快速开始</h2><h3 id="1-启动-PayServer"><a href="#1-启动-PayServer" class="headerlink" title="1. 启动 PayServer"></a>1. 启动 PayServer</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples/pay-server</span><br><span class="line">./build/linux-release/examples/pay-server/PayServer</span><br></pre></td></tr></table></figure>
+
+<p>或者在 Windows 上：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples/pay<span class="literal">-server</span></span><br><span class="line">.\build\windows<span class="literal">-msvc</span>\examples\pay<span class="literal">-server</span>\Release\PayServer.exe</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-运行端到端测试"><a href="#2-运行端到端测试" class="headerlink" title="2. 运行端到端测试"></a>2. 运行端到端测试</h3><p><strong>Linux&#x2F;Mac (Bash):</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples/pay-server/scripts</span><br><span class="line"><span class="built_in">chmod</span> +x e2e_test.sh</span><br><span class="line">./e2e_test.sh</span><br></pre></td></tr></table></figure>
+
+<p><strong>Windows (PowerShell):</strong></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples\pay<span class="literal">-server</span>\scripts</span><br><span class="line">.\e2e_test.ps1</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-查看测试结果"><a href="#3-查看测试结果" class="headerlink" title="3. 查看测试结果"></a>3. 查看测试结果</h3><p>测试脚本会：</p>
+<ul>
+<li>✅ 创建支付</li>
+<li>✅ 查询订单</li>
+<li>✅ 创建退款</li>
+<li>✅ 查询退款</li>
+<li>✅ 测试认证指标端点</li>
+<li>✅ 测试 Prometheus 指标端点</li>
+</ul>
+<p>并输出详细的测试结果。</p>
+<hr>
+<h2 id="📊-测试覆盖"><a href="#📊-测试覆盖" class="headerlink" title="📊 测试覆盖"></a>📊 测试覆盖</h2><table>
+<thead>
+<tr>
+<th>测试场景</th>
+<th>API 端点</th>
+<th>验证内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建支付</td>
+<td>POST &#x2F;api&#x2F;pay&#x2F;create</td>
+<td>order_no, payment_no, status</td>
+</tr>
+<tr>
+<td>查询订单</td>
+<td>GET &#x2F;api&#x2F;pay&#x2F;query</td>
+<td>订单详情, 状态</td>
+</tr>
+<tr>
+<td>创建退款</td>
+<td>POST &#x2F;api&#x2F;pay&#x2F;refund</td>
+<td>refund_no, 状态</td>
+</tr>
+<tr>
+<td>查询退款</td>
+<td>GET &#x2F;api&#x2F;pay&#x2F;refund&#x2F;query</td>
+<td>退款详情, 状态</td>
+</tr>
+<tr>
+<td>认证指标</td>
+<td>GET &#x2F;api&#x2F;pay&#x2F;metrics&#x2F;auth</td>
+<td>指标数据</td>
+</tr>
+<tr>
+<td>Prometheus 指标</td>
+<td>GET &#x2F;metrics</td>
+<td>Prometheus 格式</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>路由前缀由 PayPlugin 的 <code>base_path</code> 决定（默认 <code>/api/pay</code>）。</p>
+</blockquote>
+<hr>
+<h2 id="🔧-配置选项"><a href="#🔧-配置选项" class="headerlink" title="🔧 配置选项"></a>🔧 配置选项</h2><h3 id="环境变量"><a href="#环境变量" class="headerlink" title="环境变量"></a>环境变量</h3><p><strong>BASE_URL</strong> (可选)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> BASE_URL=<span class="string">&quot;http://localhost:5566&quot;</span></span><br></pre></td></tr></table></figure>
+<p>默认: <code>http://localhost:5566</code></p>
+<p><strong>API_KEY</strong> (可选)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> API_KEY=<span class="string">&quot;your-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+<p>默认: <code>test-api-key</code></p>
+<blockquote>
+<p>这个默认值只是脚本侧的占位符：它必须<strong>等于宿主进程 <code>PAY_API_KEY</code> 的值</strong>，<br>否则每个请求都会 401。宿主从 <code>./.env</code>（或进程环境）读 <code>PAY_API_KEY</code>，<br><code>docker-compose.yml</code> 甚至在该变量缺失时直接拒绝启动，所以没有”万能测试 key”。<br>把两边的值对上，且不要让口令出现在终端回显或命令行参数里：<br><code>export API_KEY=&quot;$(awk -F= &#39;/^PAY_API_KEY=/{print $2}&#39; examples/pay-server/.env)&quot;</code></p>
+</blockquote>
+<hr>
+<h2 id="📝-测试流程"><a href="#📝-测试流程" class="headerlink" title="📝 测试流程"></a>📝 测试流程</h2><h3 id="1-创建支付"><a href="#1-创建支付" class="headerlink" title="1. 创建支付"></a>1. 创建支付</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http://localhost:5566/api/pay/create \</span><br><span class="line">  -H <span class="string">&quot;Idempotency-Key: test_idempotency_key&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;</span></span><br><span class="line"><span class="string">    &quot;user_id&quot;: &quot;10001&quot;,</span></span><br><span class="line"><span class="string">    &quot;order_no&quot;: &quot;ORDER_001&quot;,</span></span><br><span class="line"><span class="string">    &quot;amount&quot;: &quot;9.99&quot;,</span></span><br><span class="line"><span class="string">    &quot;currency&quot;: &quot;CNY&quot;,</span></span><br><span class="line"><span class="string">    &quot;channel&quot;: &quot;wechat&quot;</span></span><br><span class="line"><span class="string">  &#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>预期响应：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;order_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;payment_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9abbb3e5-7b23-4a0f-a62d-4d534c2be9c0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PAYING&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;wechat_response&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;code_url&quot;</span><span class="punctuation">:</span> <span class="string">&quot;weixin://wxpay/bizpayurl?pr=xxxx&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-查询订单"><a href="#2-查询订单" class="headerlink" title="2. 查询订单"></a>2. 查询订单</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>预期响应：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;code&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;message&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Query order successful&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;order_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;payment_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9abbb3e5-7b23-4a0f-a62d-4d534c2be9c0&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;PAYING&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;amount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9.99&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;currency&quot;</span><span class="punctuation">:</span> <span class="string">&quot;CNY&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-创建退款"><a href="#3-创建退款" class="headerlink" title="3. 创建退款"></a>3. 创建退款</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http://localhost:5566/api/pay/refund \</span><br><span class="line">  -H <span class="string">&quot;Idempotency-Key: test_refund_idempotency_key&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;</span></span><br><span class="line"><span class="string">    &quot;order_no&quot;: &quot;c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;,</span></span><br><span class="line"><span class="string">    &quot;payment_no&quot;: &quot;9abbb3e5-7b23-4a0f-a62d-4d534c2be9c0&quot;,</span></span><br><span class="line"><span class="string">    &quot;amount&quot;: &quot;9.99&quot;</span></span><br><span class="line"><span class="string">  &#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>预期响应：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;refund_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;refund_xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;order_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;payment_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9abbb3e5-7b23-4a0f-a62d-4d534c2be9c0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;REFUNDING&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-查询退款"><a href="#4-查询退款" class="headerlink" title="4. 查询退款"></a>4. 查询退款</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/refund/query?refund_no=refund_xxx&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>预期响应：</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;code&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;message&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Query refund successful&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;refund_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;refund_xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;order_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;c2d7c8ad-6a4b-4f3f-9a31-32db0a3fcd82&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;payment_no&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9abbb3e5-7b23-4a0f-a62d-4d534c2be9c0&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;REFUNDING&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;amount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9.99&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="🐛-故障排除"><a href="#🐛-故障排除" class="headerlink" title="🐛 故障排除"></a>🐛 故障排除</h2><h3 id="问题：Server-is-not-running"><a href="#问题：Server-is-not-running" class="headerlink" title="问题：Server is not running"></a>问题：Server is not running</h3><p><strong>解决方案：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> examples/pay-server</span><br><span class="line">./build/linux-release/examples/pay-server/PayServer</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意：端到端脚本连接的是示例宿主的默认端口 <strong>5566</strong>（<code>base_path</code> 默认<br><code>/api/pay</code>）。<code>tests/</code> 下的 CTest 套件则监听独立端口 <code>PAY_TEST_PORT</code><br>（默认 5567），二者互不干扰。</p>
+</blockquote>
+<h3 id="问题：Connection-refused"><a href="#问题：Connection-refused" class="headerlink" title="问题：Connection refused"></a>问题：Connection refused</h3><p><strong>原因：</strong> PayServer 未启动或端口不正确</p>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>检查 PayServer 是否正在运行</li>
+<li>检查 BASE_URL 是否正确</li>
+<li>检查防火墙设置</li>
+</ol>
+<h3 id="问题：401-Unauthorized"><a href="#问题：401-Unauthorized" class="headerlink" title="问题：401 Unauthorized"></a>问题：401 Unauthorized</h3><p><strong>原因：</strong> API Key 不正确</p>
+<p><strong>解决方案：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> API_KEY=<span class="string">&quot;your-correct-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="问题：测试失败但服务器运行正常"><a href="#问题：测试失败但服务器运行正常" class="headerlink" title="问题：测试失败但服务器运行正常"></a>问题：测试失败但服务器运行正常</h3><p><strong>可能原因：</strong></p>
+<ol>
+<li>数据库连接问题</li>
+<li>WeChat Pay 配置问题</li>
+<li>服务初始化失败</li>
+</ol>
+<p><strong>调试步骤：</strong></p>
+<ol>
+<li>查看 PayServer 日志</li>
+<li>检查数据库连接</li>
+<li>验证 WeChat Pay 配置</li>
+</ol>
+<hr>
+<h2 id="🔍-手动测试"><a href="#🔍-手动测试" class="headerlink" title="🔍 手动测试"></a>🔍 手动测试</h2><p>如果你想手动测试特定端点：</p>
+<h3 id="测试创建支付"><a href="#测试创建支付" class="headerlink" title="测试创建支付"></a>测试创建支付</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http://localhost:5566/api/pay/create \</span><br><span class="line">  -H <span class="string">&quot;Idempotency-Key: manual_test_<span class="subst">$(date +%s)</span>&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;</span></span><br><span class="line"><span class="string">    &quot;user_id&quot;: &quot;10001&quot;,</span></span><br><span class="line"><span class="string">    &quot;order_no&quot;: &quot;ORDER_002&quot;,</span></span><br><span class="line"><span class="string">    &quot;amount&quot;: &quot;19.99&quot;,</span></span><br><span class="line"><span class="string">    &quot;currency&quot;: &quot;CNY&quot;,</span></span><br><span class="line"><span class="string">    &quot;channel&quot;: &quot;wechat&quot;</span></span><br><span class="line"><span class="string">  &#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="测试查询订单"><a href="#测试查询订单" class="headerlink" title="测试查询订单"></a>测试查询订单</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/query?order_no=YOUR_ORDER_NO&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="测试指标端点"><a href="#测试指标端点" class="headerlink" title="测试指标端点"></a>测试指标端点</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/api/pay/metrics/auth&quot;</span> \</span><br><span class="line">  -H <span class="string">&quot;X-Api-Key: test-api-key&quot;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl <span class="string">&quot;http://localhost:5566/metrics&quot;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="📈-与集成测试的对比"><a href="#📈-与集成测试的对比" class="headerlink" title="📈 与集成测试的对比"></a>📈 与集成测试的对比</h2><table>
+<thead>
+<tr>
+<th>特性</th>
+<th>端到端测试</th>
+<th>集成测试</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>时间投入</strong></td>
+<td>3-4 小时</td>
+<td>9-13 小时</td>
+</tr>
+<tr>
+<td><strong>测试范围</strong></td>
+<td>真实 API 端点</td>
+<td>内部服务方法</td>
+</tr>
+<tr>
+<td><strong>维护成本</strong></td>
+<td>低</td>
+<td>中</td>
+</tr>
+<tr>
+<td><strong>运行速度</strong></td>
+<td>快</td>
+<td>中</td>
+</tr>
+<tr>
+<td><strong>真实性</strong></td>
+<td>高（HTTP 层）</td>
+<td>中（服务层）</td>
+</tr>
+<tr>
+<td><strong>覆盖范围</strong></td>
+<td>主要用户场景</td>
+<td>所有边缘情况</td>
+</tr>
+</tbody></table>
+<h3 id="何时使用端到端测试？"><a href="#何时使用端到端测试？" class="headerlink" title="何时使用端到端测试？"></a>何时使用端到端测试？</h3><p>✅ <strong>推荐使用：</strong></p>
+<ul>
+<li>快速验证服务功能</li>
+<li>测试真实 API 契约</li>
+<li>回归测试主要功能</li>
+<li>CI&#x2F;CD 管道中</li>
+</ul>
+<p>❌ <strong>不推荐使用：</strong></p>
+<ul>
+<li>需要测试所有边缘情况</li>
+<li>需要测试内部逻辑</li>
+<li>需要测试错误处理（应该用集成测试）</li>
+</ul>
+<hr>
+<h2 id="🎯-最佳实践"><a href="#🎯-最佳实践" class="headerlink" title="🎯 最佳实践"></a>🎯 最佳实践</h2><h3 id="1-在-CI-CD-中运行"><a href="#1-在-CI-CD-中运行" class="headerlink" title="1. 在 CI&#x2F;CD 中运行"></a>1. 在 CI&#x2F;CD 中运行</h3><p><strong>.github&#x2F;workflows&#x2F;e2e-tests.yml:</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">name:</span> <span class="string">E2E</span> <span class="string">Tests</span></span><br><span class="line"></span><br><span class="line"><span class="attr">on:</span> [<span class="string">push</span>, <span class="string">pull_request</span>]</span><br><span class="line"></span><br><span class="line"><span class="attr">jobs:</span></span><br><span class="line">  <span class="attr">e2e:</span></span><br><span class="line">    <span class="attr">runs-on:</span> <span class="string">ubuntu-latest</span></span><br><span class="line">    <span class="attr">steps:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">uses:</span> <span class="string">actions/checkout@v2</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Start</span> <span class="string">PayServer</span></span><br><span class="line">        <span class="attr">run:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          cd examples/pay-server</span></span><br><span class="line"><span class="string">          ./build/linux-release/examples/pay-server/PayServer &amp;</span></span><br><span class="line"><span class="string">          sleep 5</span></span><br><span class="line"><span class="string"></span>      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Run</span> <span class="string">E2E</span> <span class="string">Tests</span></span><br><span class="line">        <span class="attr">run:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          cd examples/pay-server/scripts</span></span><br><span class="line"><span class="string">          ./e2e_test.sh</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-定期运行"><a href="#2-定期运行" class="headerlink" title="2. 定期运行"></a>2. 定期运行</h3><p>建议：</p>
+<ul>
+<li>每次代码合并前</li>
+<li>每次发布前</li>
+<li>每天自动运行（夜间构建）</li>
+</ul>
+<h3 id="3-监控测试结果"><a href="#3-监控测试结果" class="headerlink" title="3. 监控测试结果"></a>3. 监控测试结果</h3><ul>
+<li>记录测试失败历史</li>
+<li>分析失败趋势</li>
+<li>识别不稳定测试</li>
+</ul>
+<hr>
+<h2 id="📚-相关文档"><a href="#📚-相关文档" class="headerlink" title="📚 相关文档"></a>📚 相关文档</h2><ul>
+<li><a href="/posts/99f095fc/">Pay API Examples</a> - API 使用示例</li>
+<li>Test Update Progress - 测试更新进度</li>
+<li>Validation Report - 重构验证报告（历史归档）</li>
+</ul>
+<hr>
+<h2 id="🎉-总结"><a href="#🎉-总结" class="headerlink" title="🎉 总结"></a>🎉 总结</h2><p>端到端测试提供了一种快速、实用的方式来验证服务功能：</p>
+<p>✅ <strong>优势：</strong></p>
+<ul>
+<li>快速实现（3-4 小时）</li>
+<li>测试真实场景</li>
+<li>易于维护</li>
+<li>适合 CI&#x2F;CD</li>
+</ul>
+<p>⚠️ <strong>局限：</strong></p>
+<ul>
+<li>不覆盖所有边缘情况</li>
+<li>依赖外部服务（数据库、WeChat）</li>
+<li>需要服务器运行</li>
+</ul>
+<p>🎯 <strong>推荐使用场景：</strong></p>
+<ul>
+<li>验证主要功能</li>
+<li>回归测试</li>
+<li>发布前验证</li>
+<li>CI&#x2F;CD 集成</li>
+</ul>
+<p><strong>下一步：</strong> 根据项目需求，选择：</p>
+<ul>
+<li><strong>A.</strong> 继续更新所有集成测试（完整覆盖）</li>
+<li><strong>B.</strong> 使用端到端测试（当前方案，务实）</li>
+<li><strong>C.</strong> 混合方案（端到端 + 关键集成测试）</li>
+</ul>
+<hr>
+<p><strong>创建时间：</strong> 2026-04-11<br><strong>脚本位置：</strong> <code>examples/pay-server/scripts/e2e_test.sh</code> (Bash), <code>examples/pay-server/scripts/e2e_test.ps1</code> (PowerShell)<br><strong>状态：</strong> ✅ 完成 - 可立即使用</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/f71cbcc7/">https://voidvec.github.io/posts/f71cbcc7/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/drogon/">drogon</a><a class="post-meta__tags" href="/tags/pay-plugin/">pay-plugin</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/pay-plugin/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/a44d70d6/"><span class="pj-related__name">环境变量配置指南</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/bc9cd126/"><span class="pj-related__name">drogon-pay 构建体系</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/14af4467/"><span class="pj-related__name">drogon-pay 配置指南</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9ebcb20f/"><span class="pj-related__name">drogon-pay 宿主集成指南</span><span class="pj-related__type">实践指南</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/23a8ae1b/"><span class="pj-related__name">drogon-pay 测试体系</span><span class="pj-related__type">实践指南</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/a44d70d6/" title="环境变量配置指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">环境变量配置指南</div></div><div class="info-2"><div class="info-item-1">本项目使用环境变量来管理敏感配置信息，确保 config.json 可以安全提交到 Git 仓库，而敏感数据保留在本地。</div></div></div></a><a class="pagination-related" href="/posts/a3ad6b97/" title="无人工参与的自动化授权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">无人工参与的自动化授权</div></div><div class="info-2"><div class="info-item-1">Fulla 说标准 OAuth 2.0，脚本、CLI 与服务间集成使用与浏览器相同的协议。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/23a8ae1b/" title="drogon-pay 测试体系"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">drogon-pay 测试体系</div></div><div class="info-2"><div class="info-item-1">框架是 Drogon DROGONTEST（非 gtest，文档守卫 R3 禁止 gtest 词汇出现在活文档）。</div></div></div></a><a class="pagination-related" href="/posts/6a59e7db/" title="支付创建与查询"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">支付创建与查询</div></div><div class="info-2"><div class="info-item-1">关键时序（PaymentService.cc:837-903）：订单与支付行同一事务插入，显式 COMMIT 后才调渠道。</div></div></div></a><a class="pagination-related" href="/posts/14af4467/" title="drogon-pay 配置指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-27</div><div class="info-item-2">drogon-pay 配置指南</div></div><div class="info-2"><div class="info-item-1">drogon-pay 的配置项清单、加载顺序与环境差异说明。</div></div></div></a><a class="pagination-related" href="/posts/b540ab2c/" title="pay-server 示例宿主"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">pay-server 示例宿主</div></div><div class="info-2"><div class="info-item-1">Redis 密码有意可选（幂等不依赖 Redis）。密钥永不进源码：config 用占位符，真值走环境。</div></div></div></a><a class="pagination-related" href="/posts/47d52966/" title="支付数据模型与状态机"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-12</div><div class="info-item-2">支付数据模型与状态机</div></div><div class="info-2"><div class="info-item-1">6 张表的结构与状态机：金额存储约定、触发器维护的时间戳与状态流转约束。</div></div></div></a><a class="pagination-related" href="/posts/e9c77a88/" title="微信支付与 API Key 配置指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-27</div><div class="info-item-2">微信支付与 API Key 配置指南</div></div><div class="info-2"><div class="info-item-1">PayPlugin 需要的两类配置：微信支付凭据与 API Key，以及各自的加载与校验规则。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B"><span class="toc-number">1.</span> <span class="toc-text">🚀 快速开始</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%90%AF%E5%8A%A8-PayServer"><span class="toc-number">1.1.</span> <span class="toc-text">1. 启动 PayServer</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BF%90%E8%A1%8C%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%B5%8B%E8%AF%95"><span class="toc-number">1.2.</span> <span class="toc-text">2. 运行端到端测试</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%9F%A5%E7%9C%8B%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C"><span class="toc-number">1.3.</span> <span class="toc-text">3. 查看测试结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%8A-%E6%B5%8B%E8%AF%95%E8%A6%86%E7%9B%96"><span class="toc-number">2.</span> <span class="toc-text">📊 测试覆盖</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%A7-%E9%85%8D%E7%BD%AE%E9%80%89%E9%A1%B9"><span class="toc-number">3.</span> <span class="toc-text">🔧 配置选项</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F"><span class="toc-number">3.1.</span> <span class="toc-text">环境变量</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9D-%E6%B5%8B%E8%AF%95%E6%B5%81%E7%A8%8B"><span class="toc-number">4.</span> <span class="toc-text">📝 测试流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%88%9B%E5%BB%BA%E6%94%AF%E4%BB%98"><span class="toc-number">4.1.</span> <span class="toc-text">1. 创建支付</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%9F%A5%E8%AF%A2%E8%AE%A2%E5%8D%95"><span class="toc-number">4.2.</span> <span class="toc-text">2. 查询订单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%88%9B%E5%BB%BA%E9%80%80%E6%AC%BE"><span class="toc-number">4.3.</span> <span class="toc-text">3. 创建退款</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%9F%A5%E8%AF%A2%E9%80%80%E6%AC%BE"><span class="toc-number">4.4.</span> <span class="toc-text">4. 查询退款</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%90%9B-%E6%95%85%E9%9A%9C%E6%8E%92%E9%99%A4"><span class="toc-number">5.</span> <span class="toc-text">🐛 故障排除</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%EF%BC%9AServer-is-not-running"><span class="toc-number">5.1.</span> <span class="toc-text">问题：Server is not running</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%EF%BC%9AConnection-refused"><span class="toc-number">5.2.</span> <span class="toc-text">问题：Connection refused</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%EF%BC%9A401-Unauthorized"><span class="toc-number">5.3.</span> <span class="toc-text">问题：401 Unauthorized</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%EF%BC%9A%E6%B5%8B%E8%AF%95%E5%A4%B1%E8%B4%A5%E4%BD%86%E6%9C%8D%E5%8A%A1%E5%99%A8%E8%BF%90%E8%A1%8C%E6%AD%A3%E5%B8%B8"><span class="toc-number">5.4.</span> <span class="toc-text">问题：测试失败但服务器运行正常</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%94%8D-%E6%89%8B%E5%8A%A8%E6%B5%8B%E8%AF%95"><span class="toc-number">6.</span> <span class="toc-text">🔍 手动测试</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E5%88%9B%E5%BB%BA%E6%94%AF%E4%BB%98"><span class="toc-number">6.1.</span> <span class="toc-text">测试创建支付</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E6%9F%A5%E8%AF%A2%E8%AE%A2%E5%8D%95"><span class="toc-number">6.2.</span> <span class="toc-text">测试查询订单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E6%8C%87%E6%A0%87%E7%AB%AF%E7%82%B9"><span class="toc-number">6.3.</span> <span class="toc-text">测试指标端点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%88-%E4%B8%8E%E9%9B%86%E6%88%90%E6%B5%8B%E8%AF%95%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="toc-number">7.</span> <span class="toc-text">📈 与集成测试的对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%95%E6%97%B6%E4%BD%BF%E7%94%A8%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%B5%8B%E8%AF%95%EF%BC%9F"><span class="toc-number">7.1.</span> <span class="toc-text">何时使用端到端测试？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%8E%AF-%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-number">8.</span> <span class="toc-text">🎯 最佳实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%9C%A8-CI-CD-%E4%B8%AD%E8%BF%90%E8%A1%8C"><span class="toc-number">8.1.</span> <span class="toc-text">1. 在 CI&#x2F;CD 中运行</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AE%9A%E6%9C%9F%E8%BF%90%E8%A1%8C"><span class="toc-number">8.2.</span> <span class="toc-text">2. 定期运行</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%9B%91%E6%8E%A7%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C"><span class="toc-number">8.3.</span> <span class="toc-text">3. 监控测试结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9A-%E7%9B%B8%E5%85%B3%E6%96%87%E6%A1%A3"><span class="toc-number">9.</span> <span class="toc-text">📚 相关文档</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%8E%89-%E6%80%BB%E7%BB%93"><span class="toc-number">10.</span> <span class="toc-text">🎉 总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>社交登录接入设计 | CodeVerse | 技术宇宙</title><meta name="author" content="luca"><meta name="copyright" content="luca"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="后端社交登录按\&quot;提供方适配器\&quot;模式实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="社交登录接入设计">
+<meta property="og:url" content="https://voidvec.github.io/posts/4acdd980/index.html">
+<meta property="og:site_name" content="CodeVerse | 技术宇宙">
+<meta property="og:description" content="后端社交登录按\&quot;提供方适配器\&quot;模式实现。">
+<meta property="og:locale">
+<meta property="og:image" content="https://voidvec.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-11-09T00:12:00.000Z">
+<meta property="article:modified_time" content="2026-11-09T00:12:00.000Z">
+<meta property="article:author" content="luca">
+<meta property="article:tag" content="cpp">
+<meta property="article:tag" content="fulla">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://voidvec.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "社交登录接入设计",
+  "url": "https://voidvec.github.io/posts/4acdd980/",
+  "image": "https://voidvec.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-11-09T00:12:00.000Z",
+  "dateModified": "2026-11-09T00:12:00.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "luca",
+      "url": "https://voidvec.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://voidvec.github.io/posts/4acdd980/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" sizes="180x180" href="/img/butterfly-icon.png"/><link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.ico"/><link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.ico"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'undefined')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '社交登录接入设计',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel='stylesheet' href='/css/project.css'><style> .top-announcement { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #333; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; width: 100%; border-bottom: 1px solid #eee; } </style><meta name="generator" content="Hexo 8.1.1"><link rel="alternate" href="/atom.xml" title="CodeVerse | 技术宇宙" type="application/atom+xml">
+</head><body><div class="bg-animation" id="web_bg" style="background: [object Object];"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CodeVerse | 技术宇宙</span></a><a class="nav-page-title" href="/"><span class="site-name">社交登录接入设计</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/projects/"><i class="fa-fw fa fa-code-branch"></i><span> 项目</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-user-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">社交登录接入设计</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-11-09T00:12:00.000Z" title="发表于 2026-11-09 08:12:00">2026-11-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-11-09T00:12:00.000Z" title="更新于 2026-11-09 08:12:00">2026-11-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/">Web架构安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Web%E6%9E%B6%E6%9E%84%E5%AE%89%E5%85%A8/%E8%AE%A4%E8%AF%81%E5%AE%89%E5%85%A8/">认证安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><nav class="pj-crumb pj-crumb--post"><a href="/projects/">项目</a><span class="pj-crumb__sep">/</span><a href="/projects/fulla/">Fulla</a><span class="pj-crumb__sep">/</span><span class="pj-crumb__now">接口与协议</span></nav><div class="pj-badges"><span class="pj-badge pj-badge--accent" style="--pj-accent:#5c7cff">Fulla</span><span class="pj-badge">接口与协议</span><span class="pj-badge pj-badge--muted">进阶</span></div><article class="container post-content" id="article-container"><p>后端社交登录按”提供方适配器”模式实现。自 #70 起，GitHub、Google、微信三家提供方走<strong>同一条</strong><br>闭环：上游 code 交换 → subject 映射查找 →（首次登录）自动创建本地账号 → 签发第一方 token 对。</p>
+<h2 id="统一账号模型（-70）"><a href="#统一账号模型（-70）" class="headerlink" title="统一账号模型（#70）"></a>统一账号模型（#70）</h2><p>三家提供方都经 <code>oauth2_subject_mappings</code> 把 <code>(provider, subject)</code>——GitHub 数字 id &#x2F; Google <code>sub</code> &#x2F;<br>微信 <code>openid</code>——映射到本地用户：</p>
+<ul>
+<li><strong>已有映射</strong>：为已绑定的本地用户签发 token（已绑定用户若被软删除或锁定，一律以通用认证错误拒绝——<br>不泄露账号状态）。</li>
+<li><strong>无映射 + 自动创建开启</strong>（默认）：创建本地账号（用户名 <code>gh_&lt;login&gt;</code> &#x2F; <code>google_&lt;sub12&gt;</code> &#x2F;<br><code>wx_&lt;openid12&gt;</code>；冲突时追加随机后缀重试一次，仍冲突则以 <code>VALIDATION_USERNAME_TAKEN</code> 失败），<br>写入映射行，授予默认 <code>user</code> 角色，并签发 token。</li>
+<li><strong>无映射 + 自动创建关闭</strong>：返回 <code>403 AUTH_SOCIAL_ACCOUNT_NOT_LINKED</code>，且<strong>不产生</strong>任何账号副作用。<br>用 403（而非 401），是因为”未绑定”是客户端可据以行动的授权状态（引导用户走绑定流程）；探测需要<br>目标账号本人的上游提供方 code，因此不存在跨用户枚举向量。</li>
+</ul>
+<p>自动创建开关是<strong>全局</strong>的——<code>external_auth.auto_create_on_first_login</code>（默认 <code>true</code>）同时管<br>GitHub&#x2F;Google&#x2F;微信；它是社交登录策略，不是按提供方的开关。已绑定的用户不受该开关影响。</p>
+<h2 id="第一方-token-签发（-70）"><a href="#第一方-token-签发（-70）" class="headerlink" title="第一方 token 签发（#70）"></a>第一方 token 签发（#70）</h2><p>登录端点经共享的 <code>SocialTokenIssuer</code> 签发一对不透明的 access&#x2F;refresh token：</p>
+<ul>
+<li>token 行存的是<strong>平台主体</strong>（<code>users.public_sub</code>）——与所有 Bearer 认证 handler 解析出的值相同<br>（<code>/api/me</code>、改密、MFA、WebAuthn）。（GitHub 以前存的是内部数字 id，导致其 token 在每个需认证的<br>端点上都返回 404——随 issuer 抽取一并修复。）</li>
+<li>签发给配置的<strong>第一方</strong> client：<code>external_auth.social_token_client_id</code>（默认 <code>fulla-portal</code>）。<br>该键绝不能指向第三方 client——这次签发没有同意交互，指过去就等于把没有人同意过的 token 交给那个 client。</li>
+<li>scope 为 <code>openid profile email</code>。注意：<code>openid</code> 这个 scope 值在本端点上不承载 OIDC 语义（不签发<br>id_token）；保留它只是为了与第一方 client 的 scope 集合保持一致。</li>
+</ul>
+<h3 id="为什么记审计事件而不写同意记录"><a href="#为什么记审计事件而不写同意记录" class="headerlink" title="为什么记审计事件而不写同意记录"></a>为什么记审计事件而不写同意记录</h3><p>签发时记录一条 <code>SOCIAL_LOGIN_TOKEN_ISSUED</code> 审计动作（provider、client、scope、内部 id），而不是写一行<br><code>oauth2_user_consents</code>：同意行会悄无声息地满足同意页的 Tier-3 检查，让配置的 client 在用户从未被询问过的<br>scope 上被预先批准——这是伪造的同意证据。显式的社交登录同意交互已登记为后续工作；在那之前，审计事件才是<br>如实的记录。</p>
+<p>这是一个第一方扩展端点，不属于 RFC 6749 的四种授权类型——GitHub 流程一直处于同样的位置，如今补上了文档<br>与审计追踪。走标准轨道的替代方案（社交登录先建立浏览器会话，再由 SPA 用免同意的第一方 client 跑<br>授权码 + PKCE）已登记为后续工作。</p>
+<h2 id="提供方分级（v1-4-0）"><a href="#提供方分级（v1-4-0）" class="headerlink" title="提供方分级（v1.4.0）"></a>提供方分级（v1.4.0）</h2><p>不同部署适用的外部提供方不同（GitHub&#x2F;Google 在中国大陆不可达；微信只面向国内）。可用性是一道<br>服务端门，由 <code>config.json</code> 中 <code>custom_config</code> 下的两个开关控制（环境变量别名<br><code>FULLA_EXTERNAL_TIER_DOMESTIC</code> &#x2F; <code>FULLA_EXTERNAL_TIER_INTERNATIONAL</code>）：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;external_auth&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;tiers&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;domestic&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span>       <span class="comment">// 控制微信</span></span><br><span class="line">        <span class="attr">&quot;international&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span>   <span class="comment">// 控制 GitHub + Google</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>实际启用 &#x3D; 分级开启 <strong>且</strong> 凭据有效。登录页经 <code>GET /api/auth/providers</code> 发现启用的提供方；<br>兼容字段 <code>authorize_url</code> 已弃用且为空，不能用于跳转。发起登录必须使用下述交易 POST。<br>两个分级默认均为 <code>true</code>；未配置或 <code>YOUR_</code> &#x2F; <code>OVERRIDE_</code> 模板凭据不会启用提供方。</p>
+<h2 id="浏览器绑定的一次性交易"><a href="#浏览器绑定的一次性交易" class="headerlink" title="浏览器绑定的一次性交易"></a>浏览器绑定的一次性交易</h2><ol>
+<li><code>GET /api/auth/providers</code> 发现启用的 provider。兼容字段 <code>authorize_url</code> 已弃用，始终为空，不能用于跳转。</li>
+<li>以准确配置的 <code>Origin</code>、可保存 Cookie 的客户端 POST <code>{}</code> 到 <code>/api/auth/providers/{provider}/authorize</code>，无需 Bearer。浏览器使用 <code>withCredentials: true</code> 或 fetch <code>credentials: &#39;include&#39;</code>。</li>
+<li>无绑定 Cookie 时返回 <strong>204</strong> 并设置 Cookie，不签发 state。携带该 Cookie 重试一次；若仍为 204，停止流程并提示启用 Cookie，禁止循环重试。</li>
+<li><strong>200</strong> 返回 <code>authorize_url</code>、<code>state</code>、<code>redirect_uri</code>、<code>expires_in: 600</code>。按 state 在本标签页 sessionStorage 保存 <code>{purpose:&#39;login&#39;,provider,redirectUri,createdAt}</code>，成功后才跳转服务端返回的 URL。</li>
+<li>在创建路由前移除回调 URL 中的 code、state、error；在内存中读取一次回调参数，验证本地交易的用途、provider、回调 origin&#x2F;path 和 600 秒有效期。不接受外部直接发起、无本地上下文的回调。</li>
+<li>用相同 Origin 和 Cookie POST <code>{code,state}</code> 到 <code>/api/{provider}/login</code>。只接受 JSON 或表单正文，不接受查询参数；重复字段（含 URL 解码后的同名字段）拒绝。服务端先验证并原子消费 state，再访问上游或修改账号。交换 POST 无论网络超时还是上游失败都不自动重试，必须重新发起交易。</li>
+</ol>
+<p>state 和绑定 Cookie 分别使用 32 字节 CSPRNG，编码为 64 位小写十六进制。Redis key 为 <code>fulla:social:login-state:&lt;sha256(state)&gt;</code>，值绑定 provider、上游 client ID、固定 redirect URI、绑定摘要和用途 login。通过 <code>SET NX EX 600</code> 预留，用 Lua 先比较再删除；错误浏览器或 provider 不消费合法交易。无生产内存回退或无状态回退。Redis 操作五秒后返回失败并抑制晚到回调；超时后的命令仍可能完成，因此客户端必须重新开始。</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>状态码 &#x2F; 错误码</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>缺少 code&#x2F;state</td>
+<td>400 <code>VALIDATION_MISSING_REQUIRED_FIELD</code></td>
+</tr>
+<tr>
+<td>正文或 Cookie 无效、state 过期&#x2F;错配&#x2F;重放</td>
+<td>400 <code>VALIDATION_INVALID_INPUT</code></td>
+</tr>
+<tr>
+<td>缺少&#x2F;未允许 Origin，或明确跨站请求</td>
+<td>403 <code>AUTHZ_ACCESS_DENIED</code></td>
+</tr>
+<tr>
+<td>provider 未知或禁用</td>
+<td>404 <code>VALIDATION_RESOURCE_NOT_FOUND</code></td>
+</tr>
+<tr>
+<td>存储或随机数不可用</td>
+<td>500 <code>INTERNAL_ERROR</code></td>
+</tr>
+</tbody></table>
+<h3 id="配置与部署边界"><a href="#配置与部署边界" class="headerlink" title="配置与部署边界"></a>配置与部署边界</h3><p><code>external_auth.tiers.domestic</code> 管微信，<code>international</code> 管 GitHub&#x2F;Google，默认均为 true；档位开启且凭据有效才启用。空值、<code>YOUR_</code>、<code>OVERRIDE_</code> 模板凭据均视为未配置。GitHub&#x2F;Google 使用 <code>client_id/client_secret</code>，微信使用 <code>appid/secret</code>。Google 回调 <code>/callback/google</code>，GitHub <code>/callback/github</code>，微信 <code>/callback/wechat</code>；微信上游要求公网域名。</p>
+<p>回调取 <code>external_auth.{provider}.redirect_uri</code>，否则取 <code>frontend.url + /callback/{provider}</code>。各启用 provider 必须使用不同的规范 origin&#x2F;path，只有 query 不同不算独立回调；禁止编码、点段和歧义路径。生产要求 HTTPS；须与上游注册 URI 完全一致。Google 授权与 code 交换使用同一解析结果。</p>
+<p>在 <code>custom_config.cors.allow_origins</code> 配置准确门户 Origin，禁止通配符。门户与 API 必须同站，以便 Lax Cookie 随交换 POST 发送，推荐同一 HTTPS origin；跨站门户&#x2F;API 不受支持，开启 credentials 无法绕过 SameSite。</p>
+<p>生产 Cookie：<code>__Host-fulla-social-binding; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=600</code>，无 Domain。多次签发续期同一个绑定值，保留并行交易。仅非生产且配置 HTTP loopback 门户时可用无 Secure 的 <code>fulla-social-binding-dev</code>；从 .env 或环境变量加载的 <code>FULLA_ENV=production</code> 始终禁用该例外。不能配置明文公网门户。</p>
+<h3 id="绑定、token-与日志"><a href="#绑定、token-与日志" class="headerlink" title="绑定、token 与日志"></a>绑定、token 与日志</h3><p>账号绑定继续使用独立的已认证服务端 state。安全页跳转前保存 <code>purpose:&#39;link&#39;</code> 的本地交易，回调先恢复登录会话再调绑定端点。不能用“有 state”推断绑定用途。升级前已在途、缺少本地上下文的回调应重新发起。access token 仍只存内存；不会新增持久化 access token。</p>
+<p>签发、交换及回调文档均禁止缓存。内置用户端和网关 Nginx 访问日志不包含 query 或 Referer，回调 location 禁止错误日志转储请求，并保持 <code>Referrer-Policy: no-referrer</code>。外部 ingress、CDN、APM、链路追踪和浏览器分析仍需独立屏蔽 query、请求正文、Cookie&#x2F;Set-Cookie 和 token，禁止为排错开启原始请求采集。</p>
+<p>这是一次针对登录 CSRF 的安全收紧，不代表完成 OAuth Security BCP、PKCE、issuer 校验或全部账号策略。账号映射、自动创建、第一方客户端 <code>external_auth.social_token_client_id</code>（默认 fulla-portal）、scope <code>openid profile email</code> 和 <code>SOCIAL_LOGIN_TOKEN_ISSUED</code> 审计语义不变；不写虚构 consent 记录，不签发 id_token。</p>
+<h3 id="升级与回滚（下一-MINOR）"><a href="#升级与回滚（下一-MINOR）" class="headerlink" title="升级与回滚（下一 MINOR）"></a>升级与回滚（下一 MINOR）</h3><p>前后端配套部署并清理旧 SPA 缓存，配置准确 CORS、Redis、HTTPS。冒烟检查 204 → 200 → 成功交换、重放拒绝和账号绑定。SDK 调用方须保留 Cookie、发送 Origin，并在正文提交 code&#x2F;state。失败时禁用社交 provider 或配套向前修复，不能回退无状态登录。本改动无数据库迁移，不创建 tag 或发布版本。</p>
+<h2 id="GitHub（已完整接线，主线）"><a href="#GitHub（已完整接线，主线）" class="headerlink" title="GitHub（已完整接线，主线）"></a>GitHub（已完整接线，主线）</h2><ul>
+<li>后端路由：<code>POST /api/github/login</code>；<code>frontends/user</code> 前端依据运行时发现端点<br><code>GET /api/auth/providers</code> 渲染”Sign in with GitHub”按钮（v1.4.0 提供方分级——按钮跟随<br>服务端 <code>external_auth</code> 门，不涉及任何前端构建变量）。</li>
+<li>回调：<code>/callback/github</code>。</li>
+</ul>
+<h2 id="Google（已接线，-70）"><a href="#Google（已接线，-70）" class="headerlink" title="Google（已接线，#70）"></a>Google（已接线，#70）</h2><ol>
+<li>Google Cloud 侧创建 OAuth 2.0 客户端（Web 应用；已授权的重定向 URI &#x3D; <code>&lt;portal origin&gt;/callback/google</code>）。</li>
+<li>后端配置（<code>config.json</code>）：</li>
+</ol>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;external_auth&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;google&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;client_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;your-client-id&gt;&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;client_secret&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;your-client-secret&gt;&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;redirect_uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;portal origin&gt;/callback/google&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>携带相同 Origin 与绑定 Cookie，以 JSON&#x2F;表单正文 <code>{code,state}</code> POST <code>/api/google/login</code>，完成 code 交换并返回 token 对（见上文）。</li>
+<li>前端：发现端点报告 Google 已启用时，登录页渲染”Sign in with Google”按钮（未配置 &#x3D; 隐藏）；<br><code>/callback/google</code> 路由（通用化的 <code>SocialCallbackPage</code>）保存 token 并把用户带到首页。</li>
+</ol>
+<h2 id="微信（登录已接线；扫码需移动端-user-agent-界面）"><a href="#微信（登录已接线；扫码需移动端-user-agent-界面）" class="headerlink" title="微信（登录已接线；扫码需移动端 user-agent 界面）"></a>微信（登录已接线；扫码需移动端 user-agent 界面）</h2><ol>
+<li>微信开放平台创建网站应用（<strong>不支持 localhost 回调</strong>，需备案域名）。</li>
+<li>后端配置同上结构（<code>external_auth.wechat</code>：appid &#x2F; app_secret）。</li>
+<li>后端路由 <code>POST /api/wechat/login</code>——同一闭环；微信不提供邮箱，创建的账号沿用 GitHub 的空邮箱处理方式。</li>
+<li>前端：<code>/callback/wechat</code> 已存在；桌面 SPA 只在发现端点报告微信已启用时——即国内分级<br>（<code>external_auth.tiers.domestic</code>，默认开启）<strong>且</strong>已配置凭据——展示一条提示（扫码授权流程需要支持<br>微信的设备&#x2F;浏览器界面，桌面端”按钮 + 重定向”的交互无法完成它；显式的桌面扫码流程已登记为后续工作）。</li>
+<li>本地开发三招：hosts 把回调域名指到 127.0.0.1 &#x2F; Nginx 反代 &#x2F; 内网穿透。</li>
+</ol>
+<h2 id="通用安全注意"><a href="#通用安全注意" class="headerlink" title="通用安全注意"></a>通用安全注意</h2><ul>
+<li>社交回调的 <code>state</code> 必须校验（防 CSRF）；提供方返回的 subject 只信任服务端 code 交换结果，<br>绝不信任前端提交的用户信息。</li>
+<li>解绑社交账号有”最后一种登录方式”保护与并发解绑竞态的已知限制（见 <code>docs/history</code><br>归档的 social-link 设计与 CHANGELOG #54&#x2F;#69 修复记录）。</li>
+</ul>
+<blockquote>
+<p>合并自已退役的 google-guide.md 与 wechat-guide.md（docs 治理 A2），并修正了 google 指南<br>中”前端无按钮却让用户点击按钮”的自相矛盾。#70 为 Google&#x2F;微信补齐了闭环，并围绕统一的<br>账号&#x2F;签发模型重写了本页。</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://voidvec.github.io">luca</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://voidvec.github.io/posts/4acdd980/">https://voidvec.github.io/posts/4acdd980/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://voidvec.github.io" target="_blank">CodeVerse | 技术宇宙</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/cpp/">cpp</a><a class="post-meta__tags" href="/tags/oauth2/">oauth2</a><a class="post-meta__tags" href="/tags/fulla/">fulla</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><section class="pj-related"><h3 class="pj-related__title"><i class="fas fa-diagram-project"></i><span>同项目文档</span><a class="pj-related__more" href="/projects/fulla/">全部</a></h3><ul class="pj-related__list"><li class="pj-related__item"><a class="pj-related__link" href="/posts/edf54557/"><span class="pj-related__name">令牌全生命周期设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/4916bf40/"><span class="pj-related__name">刷新令牌与撤销的生效边界</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9808bae6/"><span class="pj-related__name">多租户组织模型设计</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/5cd14a42/"><span class="pj-related__name">RBAC 权限控制模型</span><span class="pj-related__type">接口与协议</span></a></li><li class="pj-related__item"><a class="pj-related__link" href="/posts/9518940e/"><span class="pj-related__name">自定义 Claims 映射</span><span class="pj-related__type">接口与协议</span></a></li></ul></section><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/posts/9808bae6/" title="多租户组织模型设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">多租户组织模型设计</div></div><div class="info-2"><div class="info-item-1">组织作为租户边界：用户与客户端的归属、品牌字段与隔离约束。</div></div></div></a><a class="pagination-related" href="/posts/f607c499/" title="SDK 集成：消费发布产物"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">SDK 集成：消费发布产物</div></div><div class="info-2"><div class="info-item-1">如何获取并集成 Fulla 的发布产物：SDK 二进制包（库 + 头 +</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/posts/a3ad6b97/" title="无人工参与的自动化授权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-09-19</div><div class="info-item-2">无人工参与的自动化授权</div></div><div class="info-2"><div class="info-item-1">Fulla 说标准 OAuth 2.0，脚本、CLI 与服务间集成使用与浏览器相同的协议。</div></div></div></a><a class="pagination-related" href="/posts/780d6dbc/" title="OAuth2 数据持久化：存储选型与一致性"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">OAuth2 数据持久化：存储选型与一致性</div></div><div class="info-2"><div class="info-item-1">OAuth2 插件的持久化层：PostgreSQL Schema、Redis 键值结构与存储侧安全加固。</div></div></div></a><a class="pagination-related" href="/posts/edf54557/" title="令牌全生命周期设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-07</div><div class="info-item-2">令牌全生命周期设计</div></div><div class="info-2"><div class="info-item-1">fulla 中令牌如何签发、存活与消亡：三类令牌、真正落库的是什么、刷新轮换如何</div></div></div></a><a class="pagination-related" href="/posts/7ef686a2/" title="备份与恢复设计"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">备份与恢复设计</div></div><div class="info-2"><div class="info-item-1">本文件为 Fulla 项目的数据库备份与恢复策略提供综合指导。</div></div></div></a><a class="pagination-related" href="/posts/712a4a7b/" title="上线前的安全加固清单"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-03</div><div class="info-item-2">上线前的安全加固清单</div></div><div class="info-2"><div class="info-item-1">本文件面向Fulla的安全加固，覆盖输入验证与清理（SQL注入、XSS、命令注入）、依赖包安全更新与漏洞扫描、敏感信息保护（配置加密、密钥管理、日志脱敏）、安全审计与监控（登录尝试记录、权限变更追踪、异常行为检测）、安全配置基线（生产模板与</div></div></div></a><a class="pagination-related" href="/posts/4434d0a3/" title="OIDC 集成指南：从 id_token 到用户信息"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-11-08</div><div class="info-item-2">OIDC 集成指南：从 id_token 到用户信息</div></div><div class="info-2"><div class="info-item-1">本指南介绍如何将本 OAuth2 服务作为 OIDC Provider 集成到你的应用中。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="giscus-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">luca</div><div class="author-info-description">CodeVerse | 技术宇宙 - 专注于 C++、Qt、系统架构与性能优化的技术知识库。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">209</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">296</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">38</div></a></div><a id="card-info-btn" href="/about/"><i class="fa fa-paper-plane"></i><span>关于</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/voidvec/" target="_blank" title="fab fa-github"><i class="Github"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">🚀 欢迎来到 CodeVerse！这里专注于深度技术解析与实战经验分享。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%9F%E4%B8%80%E8%B4%A6%E5%8F%B7%E6%A8%A1%E5%9E%8B%EF%BC%88-70%EF%BC%89"><span class="toc-number">1.</span> <span class="toc-text">统一账号模型（#70）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E6%96%B9-token-%E7%AD%BE%E5%8F%91%EF%BC%88-70%EF%BC%89"><span class="toc-number">2.</span> <span class="toc-text">第一方 token 签发（#70）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%AE%B0%E5%AE%A1%E8%AE%A1%E4%BA%8B%E4%BB%B6%E8%80%8C%E4%B8%8D%E5%86%99%E5%90%8C%E6%84%8F%E8%AE%B0%E5%BD%95"><span class="toc-number">2.1.</span> <span class="toc-text">为什么记审计事件而不写同意记录</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8F%90%E4%BE%9B%E6%96%B9%E5%88%86%E7%BA%A7%EF%BC%88v1-4-0%EF%BC%89"><span class="toc-number">3.</span> <span class="toc-text">提供方分级（v1.4.0）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%B5%8F%E8%A7%88%E5%99%A8%E7%BB%91%E5%AE%9A%E7%9A%84%E4%B8%80%E6%AC%A1%E6%80%A7%E4%BA%A4%E6%98%93"><span class="toc-number">4.</span> <span class="toc-text">浏览器绑定的一次性交易</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%8E%E9%83%A8%E7%BD%B2%E8%BE%B9%E7%95%8C"><span class="toc-number">4.1.</span> <span class="toc-text">配置与部署边界</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%91%E5%AE%9A%E3%80%81token-%E4%B8%8E%E6%97%A5%E5%BF%97"><span class="toc-number">4.2.</span> <span class="toc-text">绑定、token 与日志</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%87%E7%BA%A7%E4%B8%8E%E5%9B%9E%E6%BB%9A%EF%BC%88%E4%B8%8B%E4%B8%80-MINOR%EF%BC%89"><span class="toc-number">4.3.</span> <span class="toc-text">升级与回滚（下一 MINOR）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#GitHub%EF%BC%88%E5%B7%B2%E5%AE%8C%E6%95%B4%E6%8E%A5%E7%BA%BF%EF%BC%8C%E4%B8%BB%E7%BA%BF%EF%BC%89"><span class="toc-number">5.</span> <span class="toc-text">GitHub（已完整接线，主线）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Google%EF%BC%88%E5%B7%B2%E6%8E%A5%E7%BA%BF%EF%BC%8C-70%EF%BC%89"><span class="toc-number">6.</span> <span class="toc-text">Google（已接线，#70）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BE%AE%E4%BF%A1%EF%BC%88%E7%99%BB%E5%BD%95%E5%B7%B2%E6%8E%A5%E7%BA%BF%EF%BC%9B%E6%89%AB%E7%A0%81%E9%9C%80%E7%A7%BB%E5%8A%A8%E7%AB%AF-user-agent-%E7%95%8C%E9%9D%A2%EF%BC%89"><span class="toc-number">7.</span> <span class="toc-text">微信（登录已接线；扫码需移动端 user-agent 界面）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%80%9A%E7%94%A8%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F"><span class="toc-number">8.</span> <span class="toc-text">通用安全注意</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/a2987af3/" title="运行、配置与 Windows 打包">运行、配置与 Windows 打包</a><time datetime="2026-11-25T01:17:00.000Z" title="发表于 2026-11-25 09:17:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/1406d516/" title="环境变量与 Postman 集合转换">环境变量与 Postman 集合转换</a><time datetime="2026-11-25T01:16:00.000Z" title="发表于 2026-11-25 09:16:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/37eb0b8b/" title="认证、代理、TLS 与 Cookie 配置">认证、代理、TLS 与 Cookie 配置</a><time datetime="2026-11-25T01:14:00.000Z" title="发表于 2026-11-25 09:14:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/45ad0385/" title="构建体系：CMake、QMake 与平台差异">构建体系：CMake、QMake 与平台差异</a><time datetime="2026-11-25T01:13:00.000Z" title="发表于 2026-11-25 09:13:00">2026-11-25</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/posts/65c1d2dc/" title="多线程分片下载的状态机">多线程分片下载的状态机</a><time datetime="2026-11-25T01:11:00.000Z" title="发表于 2026-11-25 09:11:00">2026-11-25</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By luca</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const getGiscusTheme = theme => theme === 'dark' ? 'dark' : 'light'
+
+  const createScriptElement = config => {
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => {
+      ele.setAttribute(key, value)
+    })
+    return ele
+  }
+
+  const loadGiscus = (el = document, key) => {
+    const mappingConfig = isShuoshuo
+      ? { 'data-mapping': 'specific', 'data-term': key }
+      : { 'data-mapping': (option && option['data-mapping']) || 'pathname' }
+
+    const giscusConfig = {
+      src: 'https://giscus.app/client.js',
+      'data-repo': 'voidvec/voidvec.github.io',
+      'data-repo-id': 'R_kgDOQkzqvg',
+      'data-category-id': 'DIC_kwDOQkzqvs4Cz99h',
+      'data-theme': getGiscusTheme(document.documentElement.getAttribute('data-theme')),
+      'data-reactions-enabled': '1',
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      ...mappingConfig
+    }
+
+    const scriptElement = createScriptElement(giscusConfig)
+
+    el.querySelector('#giscus-wrap').appendChild(scriptElement)
+
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyGiscus = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+  }
+
+  const changeGiscusTheme = theme => {
+    const iframe = document.querySelector('#giscus-wrap iframe')
+    if (iframe) {
+      const message = {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(theme)
+          }
+        }
+      }
+      iframe.contentWindow.postMessage(message, 'https://giscus.app')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeGiscusTheme, 'giscus')
+
+  if (isShuoshuo) {
+    'Giscus' === 'Giscus'
+      ? window.shuoshuoComment = { loadComment: loadGiscus }
+      : window.loadOtherComment = loadGiscus
+    return
+  }
+
+  if ('Giscus' === 'Giscus' || !true) {
+    if (true) btf.loadComment(document.getElementById('giscus-wrap'), loadGiscus)
+    else loadGiscus()
+  } else {
+    window.loadOtherComment = loadGiscus
+  }
+})()</script></div><script src='/js/project.js'></script><script> document.addEventListener('DOMContentLoaded', function() { var announcement = document.createElement('div'); announcement.className = 'top-announcement'; announcement.innerHTML = '🚀 欢迎来到 CodeVerse 技术宇宙！'; document.body.insertBefore(announcement, document.body.firstChild); }); </script><script id="canvas_nest" defer="defer" color="102,204,255" opacity="0.6" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
