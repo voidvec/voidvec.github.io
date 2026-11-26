@@ -1,0 +1,444 @@
+/* ==========================================================================
+   CodeVerse · 暖纸上的精密工程 (Precision on Warm Paper)
+   设计稿 fileId 751496925264392 —— BlogColors / BlogScales 双模式变量落地
+
+   层次：
+     1. --cv-*  设计令牌（Light / Dark 两套，唯一颜色真相源）
+     2. Butterfly 运行时 CSS 变量 → 映射到 --cv-*
+     3. 字体三栈 / 排版基调
+     4. 三轴编码组件（分类色点 / doc_type 字码 / 难度信号条）
+     5. 无障碍与动效降级
+
+   本文件经 inject.head 在主题 index.css 之后加载，故同优先级覆盖生效。
+   ========================================================================== */
+
+/* ---------- 1. 设计令牌 · 浅色 ---------- */
+:root {
+  /* 表面 */
+  --cv-bg-base: #FAF9F6;
+  --cv-bg-surface: #FFFFFF;
+  --cv-bg-sunken: #F4F2ED;
+  --cv-bg-hover: #F0EDE6;
+  /* 描边 */
+  --cv-border-subtle: #E8E5DE;
+  --cv-border-strong: #D6D2C8;
+  /* 文字 */
+  --cv-text-primary: #1A1917;
+  --cv-text-secondary: #57534A;
+  --cv-text-tertiary: #8C877C;
+  /* 强调 */
+  --cv-accent: #C26A28;
+  --cv-accent-text: #9A4F16;
+  --cv-accent-wash: #F6E8D9;
+  --cv-secondary: #1F6F6B;
+  /* 语义 */
+  --cv-success: #2E7D5B;
+  --cv-warning: #A86A00;
+  --cv-danger: #B23B3B;
+  --cv-info: #2B6CB0;
+  /* 分类色族 */
+  --cv-cat-ai: #C26A28;
+  --cv-cat-system: #1F6F6B;
+  --cv-cat-data: #5A6B8C;
+  --cv-cat-tooling: #2E7D5B;
+  --cv-cat-code: #7A5C8C;
+  --cv-cat-ref: #8C877C;
+
+  /* 尺度 */
+  --cv-radius-card: 8px;
+  --cv-radius-chip: 6px;
+  --cv-space-8: 8px;
+  --cv-space-16: 16px;
+  --cv-space-24: 24px;
+  --cv-space-32: 32px;
+  --cv-space-48: 48px;
+
+  /* 字体三栈 */
+  --cv-font-display: 'Source Han Serif CN', 'Noto Serif SC', 'Songti SC', serif;
+  --cv-font-body: 'Sarasa Gothic SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --cv-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* 阴影 */
+  --cv-shadow-card: 0 1px 3px rgba(26, 25, 23, 0.04);
+  --cv-shadow-hover: 0 6px 18px rgba(26, 25, 23, 0.09);
+}
+
+/* ---------- 1. 设计令牌 · 深色 ---------- */
+[data-theme='dark'] {
+  --cv-bg-base: #161514;
+  --cv-bg-surface: #1F1E1C;
+  --cv-bg-sunken: #272623;
+  --cv-bg-hover: #2E2C28;
+  --cv-border-subtle: #332F2A;
+  --cv-border-strong: #47423B;
+  --cv-text-primary: #EDEAE3;
+  --cv-text-secondary: #A8A296;
+  --cv-text-tertiary: #726C61;
+  --cv-accent: #E0924A;
+  --cv-accent-text: #EAA868;
+  --cv-accent-wash: #3A2A18;
+  --cv-secondary: #4FB3AC;
+  --cv-success: #5FBF93;
+  --cv-warning: #D9A441;
+  --cv-danger: #E06B6B;
+  --cv-info: #6BA7E0;
+  --cv-cat-ai: #E0924A;
+  --cv-cat-system: #4FB3AC;
+  --cv-cat-data: #91A3C4;
+  --cv-cat-tooling: #5FBF94;
+  --cv-cat-code: #B79BC9;
+  --cv-cat-ref: #726C61;
+  --cv-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --cv-shadow-hover: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 2. Butterfly 运行时变量映射 · 浅色 ---------- */
+:root {
+  --global-font-size: 16px;
+  --global-bg: var(--cv-bg-base);
+  --font-color: var(--cv-text-primary);
+  --hr-border: var(--cv-border-strong);
+  --hr-before-color: var(--cv-accent);
+  --search-bg: var(--cv-bg-sunken);
+  --search-input-color: var(--cv-text-primary);
+  --search-a-color: var(--cv-text-secondary);
+  --preloader-bg: var(--cv-bg-base);
+  --preloader-color: var(--cv-text-primary);
+  --tab-border-color: var(--cv-border-subtle);
+  --tab-button-bg: var(--cv-bg-sunken);
+  --tab-button-color: var(--cv-text-secondary);
+  --tab-button-hover-bg: var(--cv-bg-hover);
+  --tab-button-active-bg: var(--cv-bg-surface);
+  --card-bg: var(--cv-bg-surface);
+  --card-meta: var(--cv-text-tertiary);
+  --sidebar-bg: var(--cv-bg-sunken);
+  --sidebar-menu-bg: var(--cv-bg-surface);
+  --btn-hover-color: var(--cv-accent-text);
+  --btn-color: #FFFFFF;
+  --btn-bg: var(--cv-accent);
+  --text-bg-hover: var(--cv-accent-wash);
+  --light-grey: var(--cv-border-subtle);
+  --dark-grey: var(--cv-border-strong);
+  --white: #FFFFFF;
+  --text-highlight-color: var(--cv-text-primary);
+  --blockquote-color: var(--cv-text-secondary);
+  --blockquote-bg: var(--cv-accent-wash);
+  --reward-pop: var(--cv-bg-sunken);
+  --toc-link-color: var(--cv-text-secondary);
+  --card-box-shadow: var(--cv-shadow-card);
+  --card-hover-box-shadow: var(--cv-shadow-hover);
+  --pseudo-hover: var(--cv-accent);
+  --headline-presudo: var(--cv-text-tertiary);
+  --scrollbar-color: var(--cv-accent);
+  --default-bg-color: var(--cv-accent);
+  --zoom-bg: var(--cv-bg-surface);
+  --mark-bg: rgba(26, 25, 23, 0.18);
+}
+
+/* ---------- 2. Butterfly 运行时变量映射 · 深色 ---------- */
+[data-theme='dark'] {
+  --global-font-size: 16px;
+  --global-bg: var(--cv-bg-base);
+  --font-color: var(--cv-text-primary);
+  --hr-border: var(--cv-border-strong);
+  --hr-before-color: var(--cv-accent);
+  --search-bg: var(--cv-bg-sunken);
+  --search-input-color: var(--cv-text-primary);
+  --search-a-color: var(--cv-text-secondary);
+  --preloader-bg: var(--cv-bg-base);
+  --preloader-color: var(--cv-text-primary);
+  --tab-border-color: var(--cv-border-subtle);
+  --tab-button-bg: var(--cv-bg-sunken);
+  --tab-button-color: var(--cv-text-secondary);
+  --tab-button-hover-bg: var(--cv-bg-hover);
+  --tab-button-active-bg: var(--cv-bg-surface);
+  --card-bg: var(--cv-bg-surface);
+  --card-meta: var(--cv-text-tertiary);
+  --sidebar-bg: var(--cv-bg-sunken);
+  --sidebar-menu-bg: var(--cv-bg-surface);
+  --btn-hover-color: var(--cv-accent-text);
+  --btn-color: #161514;
+  --btn-bg: var(--cv-accent);
+  --text-bg-hover: var(--cv-accent-wash);
+  --light-grey: var(--cv-border-subtle);
+  --dark-grey: var(--cv-border-strong);
+  --white: var(--cv-text-primary);
+  --text-highlight-color: var(--cv-text-primary);
+  --blockquote-color: var(--cv-text-secondary);
+  --blockquote-bg: var(--cv-accent-wash);
+  --reward-pop: var(--cv-bg-sunken);
+  --toc-link-color: var(--cv-text-secondary);
+  --card-box-shadow: var(--cv-shadow-card);
+  --card-hover-box-shadow: var(--cv-shadow-hover);
+  --pseudo-hover: var(--cv-accent);
+  --headline-presudo: var(--cv-text-tertiary);
+  --scrollbar-color: var(--cv-accent);
+  --default-bg-color: var(--cv-accent);
+  --zoom-bg: var(--cv-bg-surface);
+  --mark-bg: rgba(237, 234, 227, 0.16);
+}
+
+/* ---------- 3. 字体三栈与排版基调 ---------- */
+
+/* 平滑切换主题时避免颜色跳变 */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--cv-font-body);
+  color: var(--cv-text-primary);
+  background: var(--global-bg, var(--cv-bg-base));
+}
+
+/* 标题：宋体衬线，与正文无衬线形成「暖纸精密」的层级对比 */
+h1, h2, h3, h4, h5, h6,
+.post-title,
+.article-title,
+.page-title,
+h1.post-title,
+#article-container h1,
+#article-container h2,
+#article-container h3,
+#article-container h4 {
+  font-family: var(--cv-font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* 数据 / 代码：等宽 */
+code, pre, kbd, samp,
+.highlight,
+#article-container pre,
+#article-container code,
+table, .cv-code {
+  font-family: var(--cv-font-mono);
+}
+
+/* 主题切换过渡：只作用于颜色，不引入布局抖动 */
+body,
+.recent-post-item,
+#aside-content .card-widget,
+#article-container,
+.post-meta,
+.article-meta-wrap {
+  transition: background-color 0.28s ease, color 0.28s ease, border-color 0.28s ease;
+}
+
+/* 强调色细节：链接下划线、选中文字 */
+::selection {
+  background: var(--cv-accent-wash);
+  color: var(--cv-accent-text);
+}
+
+a {
+  color: var(--cv-accent-text);
+}
+
+a:hover {
+  color: var(--cv-accent);
+}
+
+/* 卡片圆角统一 */
+.recent-post-item,
+#aside-content .card-widget,
+#article-container .pj-card {
+  border-radius: var(--cv-radius-card);
+}
+
+/* 文章正文首段不做首行缩进，保持工程文档的干脆感 */
+#article-container p {
+  text-align: justify;
+}
+
+/* ---------- 3b. 页头去色块：暖纸/暖炭底 + 深色文字 ----------
+   Butterfly 把 theme_color.main 编译进 #page-header 的 background-color，
+   又由 index_img / default_top_img 注入 background-image 内联样式。
+   新视觉定调要求页头是纸底而非大色块，故在此覆盖（需 !important 压内联样式）。 */
+
+#page-header {
+  background-color: var(--cv-bg-base) !important;
+}
+
+/* 去掉原有的半透明遮罩层（纸底上无需压暗） */
+#page-header:not(.not-top-img):before {
+  display: none;
+}
+
+/* 首页 hero：去科技蓝大图，改纸底；高度收敛让文章列表进入首屏 */
+#page-header.full_page {
+  background-image: none !important;
+  height: min(58vh, 520px);
+  background-attachment: scroll;
+  border-bottom: 1px solid var(--cv-border-subtle);
+}
+
+#page-header.full_page #site-info {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 页头标题：纸底上用主文字色，不用 var(--white) */
+#page-header #site-title,
+#post-info .post-title,
+#page-site-info #site-title {
+  color: var(--cv-text-primary) !important;
+  text-shadow: none;
+}
+
+#page-header #site-subtitle {
+  color: var(--cv-text-secondary) !important;
+  text-shadow: none;
+}
+
+/* 文章页 meta：主题原用 --light-grey（本为深色 header 设计），纸底上须改次文字色 */
+#post-info #post-meta,
+#post-info #post-meta a,
+#post-info #post-meta .post-meta-label,
+#post-info #post-meta .post-meta-icon,
+#post-info #post-meta .post-meta-date,
+#post-info #post-meta .post-meta-categories,
+#post-info #post-meta .post-meta-wordcount {
+  color: var(--cv-text-secondary) !important;
+}
+
+/* 页头导航：非固定态压在纸底上，须用深色；固定态主题已用 --font-color，无需改 */
+#page-header:not(.fixed) #nav a,
+#page-header:not(.fixed) #nav span.site-page,
+#page-header:not(.fixed) #nav .site-name,
+#page-header:not(.fixed) #nav #blog-info {
+  color: var(--cv-text-primary) !important;
+  text-shadow: none;
+}
+
+#page-header:not(.fixed) #nav a:hover,
+#page-header:not(.fixed) #nav span.site-page:hover {
+  color: var(--cv-accent-text) !important;
+}
+
+/* 滚动指示器：纸底上改用次色 */
+#page-header #scroll-down .scroll-down-effects {
+  text-shadow: none;
+  color: var(--cv-text-tertiary);
+}
+
+/* ---------- 4. 三轴编码组件 ---------- */
+
+/* 4a. 分类色点：6px 圆点，按一级分类归并为 6 个色族 */
+.cv-catdot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  background: var(--cv-cat-ref);
+}
+
+.cv-catdot--ai      { background: var(--cv-cat-ai); }
+.cv-catdot--system  { background: var(--cv-cat-system); }
+.cv-catdot--data    { background: var(--cv-cat-data); }
+.cv-catdot--tooling { background: var(--cv-cat-tooling); }
+.cv-catdot--code    { background: var(--cv-cat-code); }
+.cv-catdot--ref     { background: var(--cv-cat-ref); }
+
+/* 色点 + 分类名的组合 */
+.cv-catlabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 4b. doc_type 两字母字码：OV / AR / AP / DE / GD / OP / TS / RF / TP */
+.cv-doctype {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 5px;
+  border: 1px solid var(--cv-border-subtle);
+  border-radius: var(--cv-radius-chip);
+  font-family: var(--cv-font-mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--cv-text-secondary);
+  background: var(--cv-bg-sunken);
+  white-space: nowrap;
+}
+
+/* 4c. 难度信号条：#-- / ##- / ###，中文文字独立保留 */
+.cv-difficulty {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--cv-font-mono);
+  font-size: 0.7rem;
+  color: var(--cv-text-tertiary);
+  white-space: nowrap;
+}
+
+.cv-difficulty__signal {
+  letter-spacing: -0.05em;
+  color: var(--cv-secondary);
+}
+
+.cv-difficulty__text {
+  font-family: var(--cv-font-body);
+  letter-spacing: 0;
+}
+
+/* 4c-2. 内容意图：纯文字，不做彩色 chip、不进 tags/categories */
+.cv-content-intent {
+  font-size: 0.74rem;
+  color: var(--cv-text-tertiary);
+  white-space: nowrap;
+}
+
+.cv-content-intent::before {
+  content: '· ';
+  color: var(--cv-border-strong);
+}
+
+/* 4d. 徽章行容器：卡片与文章页共用 */
+.cv-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 文章卡片中的徽章行，压低视觉重量 */
+.recent-post-item .cv-badges {
+  margin-top: 6px;
+  opacity: 0.92;
+}
+
+/* 分类卡片头部：色点与标题齐平 */
+.pj-cat__title .cv-catdot,
+.pj-cat__head .cv-catdot {
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+}
+
+/* ---------- 5. 无障碍与动效降级 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  body,
+  .recent-post-item,
+  #aside-content .card-widget,
+  #article-container,
+  .post-meta,
+  .article-meta-wrap {
+    transition: none !important;
+  }
+}
+
+/* 键盘焦点可见：不依赖鼠标的用户也能定位筛选控件 */
+.cv-chip:focus-visible,
+.pj-chip:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+}
